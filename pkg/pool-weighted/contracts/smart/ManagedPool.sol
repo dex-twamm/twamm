@@ -493,9 +493,12 @@ contract ManagedPool is BaseWeightedPool, ReentrancyGuard {
         // Check allowlist for LPs, if applicable
         _require(isAllowedAddress(sender), Errors.ADDRESS_NOT_ALLOWLISTED);
 
+        //* Probably this is subtracting fees from the balances, but not clear how?
+        // Does this simply remove the fees to be collected from the balances, which remains in the pool.
         _subtractCollectedFees(balances);
 
         (bptAmountOut, amountsIn) = _doJoin(balances, _getNormalizedWeights(), scalingFactors, userData);
+
         dueProtocolFeeAmounts = new uint256[](_getTotalTokens());
     }
 
@@ -541,6 +544,7 @@ contract ManagedPool is BaseWeightedPool, ReentrancyGuard {
             scalingFactors,
             userData
         );
+
         dueProtocolFeeAmounts = new uint256[](_getTotalTokens());
     }
 
