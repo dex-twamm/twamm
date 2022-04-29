@@ -136,6 +136,7 @@ contract TwammWeightedPool is BaseWeightedPool {
         } else if (isExitLongTermOrder == 2) {
             uint256 orderId = _parseExitLongTermOrderValues(userData);
             uint256 proceeds = _longTermOrders.withdrawProceedsFromLongTermSwap(sender, orderId, updatedBalances);
+
             // Return 0 bpt when long term order is placed
             // TODO handle amountsOut being array here
             return (0, [proceeds, 0], dueProtocolFeeAmounts);
@@ -216,7 +217,7 @@ contract TwammWeightedPool is BaseWeightedPool {
             uint256 numberOfBlockIntervals
         )
     {
-        (bool _, IERC20 sellTokenId, IERC20 buyTokenId, uint256 amountIn, uint256 numberOfBlockIntervals) = abi.decode(
+        (_, sellTokenId, buyTokenId, amountIn, numberOfBlockIntervals) = abi.decode(
             userData,
             (bool, address, address, uint256, uint256)
         );
