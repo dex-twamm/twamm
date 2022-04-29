@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "./BaseWeightedPool.sol";
@@ -24,19 +24,18 @@ import "./twamm/LongTermOrders.sol";
 contract TwammWeightedPool is BaseWeightedPool {
     using LongTermOrdersLib for LongTermOrdersLib.LongTermOrders;
 
-    LongTermOrdersLib.LongTermOrders internal longTermOrders;
+    LongTermOrdersLib.LongTermOrders internal _longTermOrders;
 
     constructor(
         IVault vault,
         string memory name,
         string memory symbol,
         IERC20[] memory tokens,
-        uint256[] memory normalizedWeights,
         address[] memory assetManagers,
         uint256 swapFeePercentage,
         uint256 pauseWindowDuration,
         uint256 bufferPeriodDuration,
-        address owner,
+        address owner
         uint256 _orderBlockInterval
     )
         WeightedPool(
@@ -51,8 +50,8 @@ contract TwammWeightedPool is BaseWeightedPool {
             owner
         )
     {
-        // TODO initialize it properly
-        longTermOrders.initialize(tokens, block.number, _orderBlockInterval);
+        // Initializing for two tokens
+        _longTermOrders.initialize(token[0], token[1], block.number, _orderBlockInterval);
     }
 
     function _onJoinPool(
@@ -77,27 +76,107 @@ contract TwammWeightedPool is BaseWeightedPool {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
-        longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
-
-        bptAmountOut, amountsIn, dueProtocolFeeAmounts = super._onJoinPool(
-            poolId,
-            sender,
-            recipient,
-            updatedBalances,
-            lastChangeBlock,
-            protocolSwapFeePercentage,
-            scalingFactors,
-            userData
-        );
+        _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
 
         // Check if it is a long term order, if it is then register it
         if (_isLongTermOrder(userData)) {
-            _registerLongTermOrder(sender, recipient, updatedBalances, lastChangeBlock, scalingFactors, userData);
+            _registerLongTermOrder(sender, recipient, scalingFactors, updatedBalances, userData);
             // Return 0 bpt when long term order is placed
-            bptAmountOut = 0;
+            // TODO handle amountsIn being array here
+            return (0, [0, 0], [0, 0]);
+        } else {
+            (uint256 bptAmountOut, uint256[] amountsIn, uint256[] dueProtocolFeeAmounts) = super._onJoinPool(
+                poolId,
+                sender,
+                recipient,
+                updatedBalances,
+                lastChangeBlock,
+                protocolSwapFeePercentage,
+                scalingFactors,
+                userData
+            );
+
+            return (bptAmountOut, amountsIn, dueProtocolFeeAmounts);
+        }
+    }
+
+    function _onExitPool(
+        bytes32,
+        address,
+        address,
+        uint256[] memory balances,
+        uint256,
+        uint256 protocolSwapFeePercentage,
+        uint256[] memory scalingFactors,
+        bytes memory userData
+    )
+        internal
+        virtual
+        override
+        returns (
+            uint256 bptAmountIn,
+            uint256[] memory amountsOut,
+            uint256[] memory dueProtocolFeeAmounts
+        )
+    {
+        uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
+
+        uint8 isExitLongTermOrder = _isExitLongTermOrder(userData);
+        if (isExitLongTermOrder == 1) {
+            uint256 orderId = _parseExitLongTermOrderValues(userData);
+            (uint256 purchasedAmount, uint256 unsoldAmount) = _longTermOrders.cancelLongTermSwap(
+                sender,
+                orderId,
+                updatedBalances
+            );
+
+            // Return 0 bpt when long term order is placed
+            // TODO handle amountsOut being array here
+            return (0, [purchasedAmount, unsoldAmount], dueProtocolFeeAmounts);
+        } else if (isExitLongTermOrder == 2) {
+            uint256 orderId = _parseExitLongTermOrderValues(userData);
+            uint256 proceeds = _longTermOrders.withdrawProceedsFromLongTermSwap(sender, orderId, updatedBalances);
+            // Return 0 bpt when long term order is placed
+            // TODO handle amountsOut being array here
+            return (0, [proceeds, 0], dueProtocolFeeAmounts);
+        } else {
+            (uint256 bptAmountIn, uint256[] amountsOut, uint256[] dueProtocolFeeAmounts) = super._onExitPool(
+                poolId,
+                sender,
+                recipient,
+                updatedBalances,
+                lastChangeBlock,
+                protocolSwapFeePercentage,
+                scalingFactors,
+                userData
+            );
+
+            return (bptAmountIn, amountsOut, dueProtocolFeeAmounts);
+        }
+    }
+
+    function onSwap(
+        SwapRequest memory request,
+        uint256 balanceTokenIn,
+        uint256 balanceTokenOut
+    ) public virtual override onlyVault(request.poolId) returns (uint256) {
+        uint256[] memory balances = new uint256[2];
+
+        if (_longTermOrders.tokenA == request.tokenIn) {
+            balances = [balanceTokenIn, balanceTokenOut];
+        } else {
+            balances = [balanceTokenOut, balanceTokenIn];
         }
 
-        return (bptAmountOut, amountsIn, dueProtocolFeeAmounts);
+        uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
+
+        _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
+
+        if (_longTermOrders.tokenA == request.tokenIn) {
+            return super.onSwap(request, updatedBalances[0], updatedBalances[1]);
+        } else {
+            return super.onSwap(request, updatedBalances[1], updatedBalances[0]);
+        }
     }
 
     /**
@@ -106,34 +185,63 @@ contract TwammWeightedPool is BaseWeightedPool {
     function _registerLongTermOrder(
         address sender,
         address recipient,
-        uint256[] memory balances,
-        uint256 lastChangeBlock,
         uint256[] memory scalingFactors,
+        uint256[] memory updatedBalances,
         bytes memory userData
-    ) private {
-        sellTokenId, buyTokenId, amount, numberOfBlockIntervals = _parseLongTermOrderValues(userData);
+    ) internal returns (uint256 orderId) {
+        (
+            address sellTokenId,
+            address buyTokenId,
+            uint256 amountIn,
+            uint256 numberOfBlockIntervals
+        ) = _parseLongTermOrderValues(userData);
 
-        longTermOrders.performLongTermSwap(sellTokenId, buyTokenId, amount, numberOfBlockIntervals)
+        return
+            _longTermOrders.performLongTermSwap(
+                recipient,
+                sellTokenId,
+                buyTokenId,
+                amountIn,
+                numberOfBlockIntervals,
+                updatedBalances
+            );
     }
 
-    function _parseLongTermOrderValues(bytes memory userData) returns (
-        id, expirationBlock, saleRate, owner, sellTokenId, buyTokenId
-    ) {
-        // TODO implement this
+    function _parseLongTermOrderValues(bytes memory userData)
+        internal
+        returns (
+            IERC20 sellTokenId,
+            IERC20 buyTokenId,
+            uint256 amountIn,
+            uint256 numberOfBlockIntervals
+        )
+    {
+        (bool _, IERC20 sellTokenId, IERC20 buyTokenId, uint256 amountIn, uint256 numberOfBlockIntervals) = abi.decode(
+            userData,
+            (bool, address, address, uint256, uint256)
+        );
     }
 
-    function _getUpdatedPoolBalances(uint256[] memory balances, ) returns (uint256[] memory) {
+    function _parseExitLongTermOrderValues(bytes memory userData) internal returns (uint256) {
+        return abi.decode(userData, (uint256));
+    }
+
+    function _getUpdatedPoolBalances(uint256[] memory balances) internal returns (uint256[] memory) {
         uint256[] memory updatedBalances = new uint256[](balances.length);
 
         for (uint256 i = 0; i < balances.length; i++) {
-            // TODO implement this
-            updatedBalances[i] = balances[i] - longTermOrders.getTokenBalanceFromLongTermOrder(i);
+            updatedBalances[i] = balances[i] - _longTermOrders.getTokenBalanceFromLongTermOrder(i);
         }
 
         return updatedBalances;
     }
 
-    function _isLongTermOrder(bytes memory userData) returns (bool) {
-        // TODO implement this
+    function _isLongTermOrder(bytes memory userData) internal returns (bool) {
+        (isLongTermOrder, _, _, _, _) = abi.decode(userData, (bool, address, address, uint256, uint256));
+        return isLongTermOrder;
+    }
+
+    function _isExitLongTermOrder(bytes memory userData) internal returns (uint8) {
+        return abi.decode(userData, (uint8));
     }
 }

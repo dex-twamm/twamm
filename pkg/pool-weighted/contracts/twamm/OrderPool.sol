@@ -53,21 +53,10 @@ library OrderPoolLib {
     }
 
     ///@notice when orders expire after a given block, we need to update the state of the pool
-    function updateStateFromBlockExpiry(OrderPool storage self, uint256 blockNumber)
-        internal
-        returns (bool isTokenSold)
-    {
-        bool isTokenSold = false;
-
+    function updateStateFromBlockExpiry(OrderPool storage self, uint256 blockNumber) internal {
         uint256 ordersExpiring = self.salesRateEndingPerBlock[blockNumber];
-        if (ordersExpiring != 0) {
-            self.currentSalesRate -= ordersExpiring;
-            if (self.currentSalesRate == 0) {
-                isTokenSold = true;
-            }
-
-            self.rewardFactorAtBlock[blockNumber] = self.rewardFactor;
-        }
+        self.currentSalesRate -= ordersExpiring;
+        self.rewardFactorAtBlock[blockNumber] = self.rewardFactor;
     }
 
     ///@notice cancel order and remove from the order pool
