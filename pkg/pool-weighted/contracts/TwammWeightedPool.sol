@@ -130,16 +130,20 @@ contract TwammWeightedPool is BaseWeightedPool {
                 updatedBalances
             );
 
-            // Return 0 bpt when long term order is placed
-            // TODO handle amountsOut being array here
-            return (0, [purchasedAmount, unsoldAmount], dueProtocolFeeAmounts);
+            // TODO handle dueProtocolFeeAmounts here
+            if (_longTermOrders.orderMap[orderId].sellTokenId == _longTermOrders.tokenA)
+                return (0, [purchasedAmount, unsoldAmount], dueProtocolFeeAmounts);
+            else
+                return (0, [unsoldAmount, purchasedAmount], dueProtocolFeeAmounts);
         } else if (isExitLongTermOrder == 2) {
             uint256 orderId = _parseExitLongTermOrderValues(userData);
             uint256 proceeds = _longTermOrders.withdrawProceedsFromLongTermSwap(sender, orderId, updatedBalances);
 
-            // Return 0 bpt when long term order is placed
-            // TODO handle amountsOut being array here
-            return (0, [proceeds, 0], dueProtocolFeeAmounts);
+            // TODO handle dueProtocolFeeAmounts here
+            if (_longTermOrders.orderMap[orderId].sellTokenId == _longTermOrders.tokenA)
+                return (0, [0, proceeds], dueProtocolFeeAmounts);
+            else
+                return (0, [proceeds, 0], dueProtocolFeeAmounts);
         } else {
             (uint256 bptAmountIn, uint256[] amountsOut, uint256[] dueProtocolFeeAmounts) = super._onExitPool(
                 poolId,
