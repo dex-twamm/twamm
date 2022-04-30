@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity ^0.7.0;
 
 import "hardhat/console.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
@@ -93,9 +93,6 @@ library LongTermOrdersLib {
         uint256 orderId,
         uint256[] storage balances
     ) internal returns (uint256 purchasedAmount, uint256 unsoldAmount) {
-        //update virtual order state
-        executeVirtualOrdersUntilCurrentBlock(self, balances);
-
         Order storage order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
 
@@ -105,8 +102,8 @@ library LongTermOrdersLib {
         require(unsoldAmount > 0 || purchasedAmount > 0, "no proceeds to withdraw");
 
         //update LongTermOrders balances
-        _removeFromLongTermOrdersBalance(self, order.sellTokenId, purchasedAmount);
-        _removeFromLongTermOrdersBalance(self, order.buyTokenId, unsoldAmount);
+        _removeFromLongTermOrdersBalance(self, order.buyTokenId, purchasedAmount);
+        _removeFromLongTermOrdersBalance(self, order.sellTokenId, unsoldAmount);
     }
 
     ///@notice withdraw proceeds from a long term swap (can be expired or ongoing)
@@ -116,11 +113,9 @@ library LongTermOrdersLib {
         uint256 orderId,
         uint256[] storage balances
     ) internal returns (uint256 proceeds) {
-        //update virtual order state
-        executeVirtualOrdersUntilCurrentBlock(self, balances);
-
         Order storage order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
+        // TODO add check if the order is expired
 
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenId];
         uint256 proceeds = orderPool.withdrawProceeds(orderId);
@@ -206,6 +201,9 @@ library LongTermOrdersLib {
             //constant product formula
             tokenAOut = (tokenAStart * tokenBIn) / (tokenBStart + tokenBIn);
             tokenBOut = 0;
+
+            // ammEndTokenA = (tokenAStart * tokenBStart) / (tokenBStart + tokenBIn);
+            // tokenAOut = tokenAStart - ammEndTokenA
         } else if (tokenBIn == 0) {
             tokenAOut = 0;
             //contant product formula

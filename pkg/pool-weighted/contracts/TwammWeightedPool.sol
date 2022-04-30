@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
 import "./BaseWeightedPool.sol";
@@ -35,7 +35,7 @@ contract TwammWeightedPool is BaseWeightedPool {
         uint256 swapFeePercentage,
         uint256 pauseWindowDuration,
         uint256 bufferPeriodDuration,
-        address owner
+        address owner,
         uint256 _orderBlockInterval
     )
         WeightedPool(
@@ -80,10 +80,18 @@ contract TwammWeightedPool is BaseWeightedPool {
 
         // Check if it is a long term order, if it is then register it
         if (_isLongTermOrder(userData)) {
-            _registerLongTermOrder(sender, recipient, scalingFactors, updatedBalances, userData);
+            // TODO fix registerLongTermOrder to return token balances
+            (uint256 amountAIn, uint256 amountBIn) = _registerLongTermOrder(
+                sender,
+                recipient,
+                scalingFactors,
+                updatedBalances,
+                userData
+            );
             // Return 0 bpt when long term order is placed
             // TODO handle amountsIn being array here
-            return (0, [0, 0], [0, 0]);
+            // TODO add protocol fees
+            return (0, [amountAIn, amountBIn], [0, 0]);
         } else {
             (uint256 bptAmountOut, uint256[] amountsIn, uint256[] dueProtocolFeeAmounts) = super._onJoinPool(
                 poolId,
@@ -121,6 +129,8 @@ contract TwammWeightedPool is BaseWeightedPool {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
+        _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
+
         uint8 isExitLongTermOrder = _isExitLongTermOrder(userData);
         if (isExitLongTermOrder == 1) {
             uint256 orderId = _parseExitLongTermOrderValues(userData);
@@ -132,9 +142,8 @@ contract TwammWeightedPool is BaseWeightedPool {
 
             // TODO handle dueProtocolFeeAmounts here
             if (_longTermOrders.orderMap[orderId].sellTokenId == _longTermOrders.tokenA)
-                return (0, [purchasedAmount, unsoldAmount], dueProtocolFeeAmounts);
-            else
-                return (0, [unsoldAmount, purchasedAmount], dueProtocolFeeAmounts);
+                return (0, [purchasedAmount, unsoldAmount], 0);
+            else return (0, [unsoldAmount, purchasedAmount], 0);
         } else if (isExitLongTermOrder == 2) {
             uint256 orderId = _parseExitLongTermOrderValues(userData);
             uint256 proceeds = _longTermOrders.withdrawProceedsFromLongTermSwap(sender, orderId, updatedBalances);
@@ -142,8 +151,7 @@ contract TwammWeightedPool is BaseWeightedPool {
             // TODO handle dueProtocolFeeAmounts here
             if (_longTermOrders.orderMap[orderId].sellTokenId == _longTermOrders.tokenA)
                 return (0, [0, proceeds], dueProtocolFeeAmounts);
-            else
-                return (0, [proceeds, 0], dueProtocolFeeAmounts);
+            else return (0, [proceeds, 0], dueProtocolFeeAmounts);
         } else {
             (uint256 bptAmountIn, uint256[] amountsOut, uint256[] dueProtocolFeeAmounts) = super._onExitPool(
                 poolId,
