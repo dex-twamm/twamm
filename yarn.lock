@@ -68,6 +68,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@babel/runtime@npm:^7.17.9":
+  version: 7.17.9
+  resolution: "@babel/runtime@npm:7.17.9"
+  dependencies:
+    regenerator-runtime: ^0.13.4
+  checksum: 69455c26017d0bd8e269c073c9da73238b25115f6eb655433f5411707ed6fe5f714f9b698cd1fcb7e89f5822e7b994db0bce394e54a89e6900fd7f0fb2c9927a
+  languageName: node
+  linkType: hard
+
 "@balancer-labs/balancer-js@workspace:*, @balancer-labs/balancer-js@workspace:pkg/balancer-js":
   version: 0.0.0-use.local
   resolution: "@balancer-labs/balancer-js@workspace:pkg/balancer-js"
@@ -653,6 +662,7 @@ __metadata:
     lodash.zip: ^4.2.0
     mocha: ^8.2.1
     nodemon: ^2.0.4
+    prb-math: ^2.4.0
     prettier: ^2.1.2
     prettier-plugin-solidity: v1.0.0-alpha.59
     solhint: ^3.2.0
@@ -1060,6 +1070,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@ethersproject/bignumber@npm:^5.5.0":
+  version: 5.6.0
+  resolution: "@ethersproject/bignumber@npm:5.6.0"
+  dependencies:
+    "@ethersproject/bytes": ^5.6.0
+    "@ethersproject/logger": ^5.6.0
+    bn.js: ^4.11.9
+  checksum: cc10b6124ae4314c15ca10de51e57fed5c8133416209b4028372a5934765d8fb8b4756e7288ba9519e7af5a8610ff30328832b5bc3850fa5ec4435cb33e17c9b
+  languageName: node
+  linkType: hard
+
 "@ethersproject/bytes@npm:5.1.0, @ethersproject/bytes@npm:>=5.0.0-beta.129, @ethersproject/bytes@npm:^5.1.0":
   version: 5.1.0
   resolution: "@ethersproject/bytes@npm:5.1.0"
@@ -1084,6 +1105,15 @@ __metadata:
   dependencies:
     "@ethersproject/logger": ^5.3.0
   checksum: 999c919d4ba8dcabb278aa925b06a37c9f00220ba0ac0c227afe8b5c34d85504a92f5399be27b659b495c8720e5b0f27e49523e4b07f02c904d06ead48ad8c36
+  languageName: node
+  linkType: hard
+
+"@ethersproject/bytes@npm:^5.6.0":
+  version: 5.6.1
+  resolution: "@ethersproject/bytes@npm:5.6.1"
+  dependencies:
+    "@ethersproject/logger": ^5.6.0
+  checksum: 933e540f9bf803d5eb0720b75433bc24dbba16203107669a95e813dbc48d1110eec51bd0c6b6f1df59fe22051f1d48ff998c313eb34afbc168478c8fa740da63
   languageName: node
   linkType: hard
 
@@ -1303,6 +1333,13 @@ __metadata:
   version: 5.3.0
   resolution: "@ethersproject/logger@npm:5.3.0"
   checksum: 14a9843a01844781c13f9b5c4bd797c721996a4e3be9bb0aa4d00dcf8506ad45a51d518d5e9112989219bd8f7d9824a01c15aa1467e36e0473a6b66b2df7bfe4
+  languageName: node
+  linkType: hard
+
+"@ethersproject/logger@npm:^5.6.0":
+  version: 5.6.0
+  resolution: "@ethersproject/logger@npm:5.6.0"
+  checksum: af4a28ed25b467ec400c7fab9d6b7131c5094b0d7d1d606f31dbbdc7dda2c2e87db4e053ddb44c987da9426e283912f75af45fb78a4fd3aa5496be72e5aeddb6
   languageName: node
   linkType: hard
 
@@ -4548,6 +4585,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"complex.js@npm:^2.1.1":
+  version: 2.1.1
+  resolution: "complex.js@npm:2.1.1"
+  checksum: 9e26080f73f5c255e56cdee0abe53d491ce71b814ffdf08e239a15a3a9862b61eaa7a2d83505d1f120a520b961c664360276ba844bfe7a7b37a5fc407f621ae4
+  languageName: node
+  linkType: hard
+
 "component-emitter@npm:^1.2.1":
   version: 1.3.0
   resolution: "component-emitter@npm:1.3.0"
@@ -4913,6 +4957,13 @@ __metadata:
   version: 10.2.1
   resolution: "decimal.js@npm:10.2.1"
   checksum: ba28b27bb8aca6bbb73fbdb51d759961d9ff82218c4aa737b4f4826dee4244618a61c410201bb152950c4915e3d82a86211d1c2a4e23f805ee577574ba115e59
+  languageName: node
+  linkType: hard
+
+"decimal.js@npm:^10.3.1":
+  version: 10.3.1
+  resolution: "decimal.js@npm:10.3.1"
+  checksum: e042c676c7a934e5a2c4e02f2562e0e0d752c6cd8f933f4030f8540dd4c7074ba035e329df46c0cc46f0c9190d1804c366d0be46ea6f94af64e0096d2730b22b
   languageName: node
   linkType: hard
 
@@ -5432,6 +5483,13 @@ __metadata:
   version: 1.0.3
   resolution: "escape-html@npm:1.0.3"
   checksum: 900a7f2b80b9f89c85b7a303d1b7a4d354b93e328871414f165f13c5c209a80eab787e3a63429e596877def69fe4dcb3d1b55af655207a901a9ec99f7f148743
+  languageName: node
+  linkType: hard
+
+"escape-latex@npm:^1.2.0":
+  version: 1.2.0
+  resolution: "escape-latex@npm:1.2.0"
+  checksum: d8012eb447a373f61270138f9acd749566f24b42f6727c2cc80254f0e678e83a7cf20c14ec45887f80173be2aad15a80d396ca2f4a53edd857a769faebc409fb
   languageName: node
   linkType: hard
 
@@ -6315,6 +6373,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"evm-bn@npm:^1.1.1":
+  version: 1.1.1
+  resolution: "evm-bn@npm:1.1.1"
+  dependencies:
+    "@ethersproject/bignumber": ^5.5.0
+    from-exponential: ^1.1.1
+  peerDependencies:
+    "@ethersproject/bignumber": 5.x
+  checksum: 96ca1e9d54cdba87f21fc8244b122c99927ab64f3271e357997341fef0abbc73da10633b6308f38a79dd7b9def6185212cfe24dd0b1b0663b0516a733a3bd580
+  languageName: node
+  linkType: hard
+
 "evp_bytestokey@npm:^1.0.0, evp_bytestokey@npm:^1.0.3":
   version: 1.0.3
   resolution: "evp_bytestokey@npm:1.0.3"
@@ -6809,6 +6879,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fraction.js@npm:^4.2.0":
+  version: 4.2.0
+  resolution: "fraction.js@npm:4.2.0"
+  checksum: 951344093ee467683e233053c418c54fa32a9ba3cac83efa9bcee95c7b322d8e7e659b8ba3ed96f552a03a3401d6a99916753d4d8ca5f041c2bd11ad1f37dd9a
+  languageName: node
+  linkType: hard
+
 "fragment-cache@npm:^0.2.1":
   version: 0.2.1
   resolution: "fragment-cache@npm:0.2.1"
@@ -6822,6 +6899,13 @@ __metadata:
   version: 0.5.2
   resolution: "fresh@npm:0.5.2"
   checksum: 2f76c8505d1ea5a6d5accea3e7aff0b796bfa43364c84929254f33909fa08640948bd1728220d1ff5f4c2b378a65e97da647f2fe0f2b7ddb44001f6e0dc2e91f
+  languageName: node
+  linkType: hard
+
+"from-exponential@npm:^1.1.1":
+  version: 1.1.1
+  resolution: "from-exponential@npm:1.1.1"
+  checksum: 1579ef119a55551983ca4a6960a5f635e8d9cf924291b53937a342e4046f01571d08e5811b48506efeceb4b519f9797f27975df3c47a7cb279b0ccf5c0259532
   languageName: node
   linkType: hard
 
@@ -8321,6 +8405,13 @@ fsevents@~2.1.1:
   languageName: node
   linkType: hard
 
+"javascript-natural-sort@npm:^0.7.1":
+  version: 0.7.1
+  resolution: "javascript-natural-sort@npm:0.7.1"
+  checksum: f097317419cf0be44aa491a3a7b7c8dfa3590852e994641afb6ea4a7e57e5dae58d9198dd5fa0b98585f296f91f534100825e734f9b69cef65728819f50d701b
+  languageName: node
+  linkType: hard
+
 "js-sha3@npm:0.5.7, js-sha3@npm:^0.5.7":
   version: 0.5.7
   resolution: "js-sha3@npm:0.5.7"
@@ -9188,6 +9279,25 @@ fsevents@~2.1.1:
   dependencies:
     object-visit: ^1.0.0
   checksum: 9e85e6d802183927229d9ad04d70a0e0c7225451994605674d3ed4e4a21f817b4d9aba42a775e98078ffe47cf67df44a50eb07f965f14afead5015c8692503bd
+  languageName: node
+  linkType: hard
+
+"mathjs@npm:^10.1.1":
+  version: 10.5.0
+  resolution: "mathjs@npm:10.5.0"
+  dependencies:
+    "@babel/runtime": ^7.17.9
+    complex.js: ^2.1.1
+    decimal.js: ^10.3.1
+    escape-latex: ^1.2.0
+    fraction.js: ^4.2.0
+    javascript-natural-sort: ^0.7.1
+    seedrandom: ^3.0.5
+    tiny-emitter: ^2.1.0
+    typed-function: ^2.1.0
+  bin:
+    mathjs: bin/cli.js
+  checksum: acebe9f36e6c9b0fa0dcc033be4004af8e3a6cd27665139e362a292d1148b5521976d04fd1ce038dd419107b36e14474f855cc09bdf5d79a9476078a1d44d568
   languageName: node
   linkType: hard
 
@@ -10615,6 +10725,22 @@ fsevents@~2.1.1:
   languageName: node
   linkType: hard
 
+"prb-math@npm:^2.4.0":
+  version: 2.4.3
+  resolution: "prb-math@npm:2.4.3"
+  dependencies:
+    "@ethersproject/bignumber": ^5.5.0
+    decimal.js: ^10.3.1
+    evm-bn: ^1.1.1
+    mathjs: ^10.1.1
+  peerDependencies:
+    "@ethersproject/bignumber": 5.x
+    evm-bn: 1.x
+    mathjs: 10.x
+  checksum: 271991f622db276ab2a058932b717b13b123f064120ce88deb27f13aedca627accb7a7f8223425c52b8466cfacc0082bdc470bbd4811e26c0fff29f614485d11
+  languageName: node
+  linkType: hard
+
 "precond@npm:0.2":
   version: 0.2.3
   resolution: "precond@npm:0.2.3"
@@ -11126,6 +11252,13 @@ fsevents@~2.1.1:
   languageName: node
   linkType: hard
 
+"regenerator-runtime@npm:^0.13.4":
+  version: 0.13.9
+  resolution: "regenerator-runtime@npm:0.13.9"
+  checksum: 8587f99ed63493b9ce34375f426b8ec61bf380681a374d5f2460c14ae2c289114702bed1f565a2499e809f2ba6d8ecd25a8dfee54bc224171f20a95a249be242
+  languageName: node
+  linkType: hard
+
 "regenerator-transform@npm:^0.10.0":
   version: 0.10.1
   resolution: "regenerator-transform@npm:0.10.1"
@@ -11606,6 +11739,13 @@ fsevents@~2.1.1:
   version: 3.0.1
   resolution: "seedrandom@npm:3.0.1"
   checksum: 9c1ca79f27c92dc04d3320bc82b7da5478d2e99200ee9e5b36c744c920b242c0d7dc6b5cfc69489621f421014b8585f7580d36806ab3068844959ed5bb06d98d
+  languageName: node
+  linkType: hard
+
+"seedrandom@npm:^3.0.5":
+  version: 3.0.5
+  resolution: "seedrandom@npm:3.0.5"
+  checksum: 8ca859bd79cc6a4367783f19d802ef4651f957da388f162f45c4e32c4d4df8cb55649b25b9d66cf73f905d920640b8da9ae04418feb40b41c9c7c767a1c49691
   languageName: node
   linkType: hard
 
@@ -12612,6 +12752,13 @@ fsevents@~2.1.1:
   languageName: node
   linkType: hard
 
+"tiny-emitter@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "tiny-emitter@npm:2.1.0"
+  checksum: 0055509c72e5fe35d6ab66fa6339342e0f29129e77ed2086e475fdf80be43a8651f2517be76513b46a042c8356396f4da5a35e2e23457252176808d5a892036a
+  languageName: node
+  linkType: hard
+
 "tiny-invariant@npm:^1.1.0":
   version: 1.1.0
   resolution: "tiny-invariant@npm:1.1.0"
@@ -13017,6 +13164,13 @@ fsevents@~2.1.1:
   bin:
     typechain: dist/cli/cli.js
   checksum: 4c39203a225c819e1962f4be8f65d83266f754d3c8c34d5fba6e940d0774d8b21214f47ccef232645f164cc081820e9bef5b48a6f890a6f29b151d57d3d5b0ea
+  languageName: node
+  linkType: hard
+
+"typed-function@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "typed-function@npm:2.1.0"
+  checksum: c4de7bc0c6ca98328f4abe95f2160e4c3fb2c0666d7329e17dc997c02dd06032452f2cda51f222ee821a35aeb00791159ed312f9974425b08c3e6c6e9faa54ba
   languageName: node
   linkType: hard
 

@@ -58,6 +58,7 @@
     "lodash.zip": "^4.2.0",
     "mocha": "^8.2.1",
     "nodemon": "^2.0.4",
+    "prb-math": "^2.4.0",
     "prettier": "^2.1.2",
     "prettier-plugin-solidity": "v1.0.0-alpha.59",
     "solhint": "^3.2.0",

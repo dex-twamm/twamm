@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 import "prb-math/contracts/PRBMathSD59x18.sol";
@@ -63,7 +63,7 @@ library LongTermOrdersLib {
         uint256 amount,
         uint256 numberOfBlockIntervals,
         uint256[] storage balances
-    ) external returns (uint256) {
+    ) external returns (uint256, uint256, uint256) {
         //update virtual order state
         executeVirtualOrdersUntilCurrentBlock(self, balances);
 
@@ -83,7 +83,10 @@ library LongTermOrdersLib {
         // transfer sale amount to contract
         _addToLongTermOrdersBalance(self, from, amount);
 
-        return self.orderId++;
+        uint256 amountAIn = from == self.tokenA ? amount : 0;
+        uint256 amountBIn = from == self.tokenB ? amount : 0;
+
+        return self.orderId++, amountAIn, amountBIn;
     }
 
     ///@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
@@ -115,9 +118,10 @@ library LongTermOrdersLib {
     ) internal returns (uint256 proceeds) {
         Order storage order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
-        // TODO add check if the order is expired
 
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenId];
+        require(orderPool.orderExpiry[orderId] <= block.number, "Order not expired yet");
+
         uint256 proceeds = orderPool.withdrawProceeds(orderId);
 
         require(proceeds > 0, "no proceeds to withdraw");

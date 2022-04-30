@@ -78,10 +78,10 @@ contract TwammWeightedPool is BaseWeightedPool {
 
         _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
 
+        WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
-        if (_isLongTermOrder(userData)) {
-            // TODO fix registerLongTermOrder to return token balances
-            (uint256 amountAIn, uint256 amountBIn) = _registerLongTermOrder(
+        if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
+            (uint256 orderId, uint256 amountAIn, uint256 amountBIn) = _registerLongTermOrder(
                 sender,
                 recipient,
                 scalingFactors,
@@ -89,7 +89,6 @@ contract TwammWeightedPool is BaseWeightedPool {
                 userData
             );
             // Return 0 bpt when long term order is placed
-            // TODO handle amountsIn being array here
             // TODO add protocol fees
             return (0, [amountAIn, amountBIn], [0, 0]);
         } else {
@@ -131,8 +130,8 @@ contract TwammWeightedPool is BaseWeightedPool {
 
         _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
 
-        uint8 isExitLongTermOrder = _isExitLongTermOrder(userData);
-        if (isExitLongTermOrder == 1) {
+        WeightedPoolUserData.JoinKind kind = userData.joinKind();
+        if (kind == WeightedPoolUserData.JoinKind.CANCEL_LONG_TERM_ORDER) {
             uint256 orderId = _parseExitLongTermOrderValues(userData);
             (uint256 purchasedAmount, uint256 unsoldAmount) = _longTermOrders.cancelLongTermSwap(
                 sender,
@@ -144,7 +143,8 @@ contract TwammWeightedPool is BaseWeightedPool {
             if (_longTermOrders.orderMap[orderId].sellTokenId == _longTermOrders.tokenA)
                 return (0, [purchasedAmount, unsoldAmount], 0);
             else return (0, [unsoldAmount, purchasedAmount], 0);
-        } else if (isExitLongTermOrder == 2) {
+        }
+        if (kind == WeightedPoolUserData.JoinKind.WITHDRAW_LONG_TERM_ORDER) {
             uint256 orderId = _parseExitLongTermOrderValues(userData);
             uint256 proceeds = _longTermOrders.withdrawProceedsFromLongTermSwap(sender, orderId, updatedBalances);
 
@@ -201,7 +201,14 @@ contract TwammWeightedPool is BaseWeightedPool {
         uint256[] memory scalingFactors,
         uint256[] memory updatedBalances,
         bytes memory userData
-    ) internal returns (uint256 orderId) {
+    )
+        internal
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
         (
             address sellTokenId,
             address buyTokenId,
