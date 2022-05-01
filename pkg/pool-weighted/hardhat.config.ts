@@ -13,7 +13,9 @@ task(TASK_COMPILE).setAction(overrideQueryFunctions);
 export default {
   solidity: {
     compilers: [
-      ...hardhatBaseConfig.compilers,
+      {
+        version: '0.7.1',
+      },
       {
         version: '0.8.9',
       },

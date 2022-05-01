@@ -1,16 +1,19 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity ^0.7.0;
 
 import "hardhat/console.sol";
-import "prb-math/contracts/PRBMathSD59x18.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
+// import "prb-math/contracts/PRBMathSD59x18.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/IERC20.sol";
 import "./OrderPool.sol";
 
-///@notice This library handles the state and execution of long term orders.
+//@notice This library handles the state and execution of long term orders.
 library LongTermOrdersLib {
-    using PRBMathSD59x18 for int256;
+    // using PRBMathSD59x18 for int256;
+    using FixedPoint for int256;
     using OrderPoolLib for OrderPoolLib.OrderPool;
 
-    ///@notice information associated with a long term order
+    //@notice information associated with a long term order
     struct Order {
         uint256 id;
         uint256 expirationBlock;
@@ -20,27 +23,27 @@ library LongTermOrdersLib {
         IERC20 buyTokenId;
     }
 
-    ///@notice structure contains full state related to long term orders
+    //@notice structure contains full state related to long term orders
     struct LongTermOrders {
-        ///@notice minimum block interval between order expiries
+        //@notice minimum block interval between order expiries
         uint256 orderBlockInterval;
-        ///@notice last virtual orders were executed immediately before this block
+        //@notice last virtual orders were executed immediately before this block
         uint256 lastVirtualOrderBlock;
-        ///@notice token pair being traded in embedded amm
+        //@notice token pair being traded in embedded amm
         IERC20 tokenA;
         IERC20 tokenB;
         uint256 balanceA;
         uint256 balanceB;
-        ///@notice mapping from token address to pool that is selling that token
-        ///we maintain two order pools, one for each token that is tradable in the AMM
+        //@notice mapping from token address to pool that is selling that token
+        //we maintain two order pools, one for each token that is tradable in the AMM
         mapping(IERC20 => OrderPoolLib.OrderPool) orderPoolMap;
-        ///@notice incrementing counter for order ids
+        //@notice incrementing counter for order ids
         uint256 orderId;
-        ///@notice mapping from order ids to Orders
+        //@notice mapping from order ids to Orders
         mapping(uint256 => Order) orderMap;
     }
 
-    ///@notice initialize state
+    //@notice initialize state
     function initialize(
         LongTermOrders storage self,
         IERC20 tokenA,
@@ -54,7 +57,7 @@ library LongTermOrdersLib {
         self.orderBlockInterval = orderBlockInterval;
     }
 
-    ///@notice adds long term swap to order pool
+    //@notice adds long term swap to order pool
     function performLongTermSwap(
         LongTermOrders storage self,
         address owner,
@@ -62,20 +65,27 @@ library LongTermOrdersLib {
         IERC20 to,
         uint256 amount,
         uint256 numberOfBlockIntervals,
-        uint256[] storage balances
-    ) external returns (uint256, uint256, uint256) {
+        uint256[] memory balances
+    )
+        external
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
         //update virtual order state
         executeVirtualOrdersUntilCurrentBlock(self, balances);
 
         //determine the selling rate based on number of blocks to expiry and total amount
-        uint256 currentBlock = block.number;
-        uint256 lastExpiryBlock = currentBlock - (currentBlock % self.orderBlockInterval);
-        uint256 orderExpiry = self.orderBlockInterval * (numberOfBlockIntervals + 1) + lastExpiryBlock;
-        uint256 sellingRate = amount / (orderExpiry - currentBlock);
+        uint256 orderExpiry = self.orderBlockInterval *
+            (numberOfBlockIntervals + 1) +
+            block.number -
+            (block.number % self.orderBlockInterval);
+        uint256 sellingRate = amount / (orderExpiry - block.number);
 
         //add order to correct pool
-        OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[from];
-        orderPool.depositOrder(self.orderId, sellingRate, orderExpiry);
+        self.orderPoolMap[from].depositOrder(self.orderId, sellingRate, orderExpiry);
 
         //add to order map
         self.orderMap[self.orderId] = Order(self.orderId, orderExpiry, sellingRate, owner, from, to);
@@ -86,21 +96,21 @@ library LongTermOrdersLib {
         uint256 amountAIn = from == self.tokenA ? amount : 0;
         uint256 amountBIn = from == self.tokenB ? amount : 0;
 
-        return self.orderId++, amountAIn, amountBIn;
+        return (self.orderId++, amountAIn, amountBIn);
     }
 
-    ///@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
+    //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
     function cancelLongTermSwap(
         LongTermOrders storage self,
         address sender,
         uint256 orderId,
-        uint256[] storage balances
+        uint256[] memory balances
     ) internal returns (uint256 purchasedAmount, uint256 unsoldAmount) {
         Order storage order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
 
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenId];
-        (uint256 unsoldAmount, uint256 purchasedAmount) = orderPool.cancelOrder(orderId);
+        (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(orderId);
 
         require(unsoldAmount > 0 || purchasedAmount > 0, "no proceeds to withdraw");
 
@@ -109,12 +119,12 @@ library LongTermOrdersLib {
         _removeFromLongTermOrdersBalance(self, order.sellTokenId, unsoldAmount);
     }
 
-    ///@notice withdraw proceeds from a long term swap (can be expired or ongoing)
+    //@notice withdraw proceeds from a long term swap (can be expired or ongoing)
     function withdrawProceedsFromLongTermSwap(
         LongTermOrders storage self,
         address sender,
         uint256 orderId,
-        uint256[] storage balances
+        uint256[] memory balances
     ) internal returns (uint256 proceeds) {
         Order storage order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
@@ -122,18 +132,18 @@ library LongTermOrdersLib {
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenId];
         require(orderPool.orderExpiry[orderId] <= block.number, "Order not expired yet");
 
-        uint256 proceeds = orderPool.withdrawProceeds(orderId);
+        proceeds = orderPool.withdrawProceeds(orderId);
 
         require(proceeds > 0, "no proceeds to withdraw");
         //update long term order balances
         _removeFromLongTermOrdersBalance(self, order.sellTokenId, proceeds);
     }
 
-    ///@notice executes all virtual orders between current lastVirtualOrderBlock and blockNumber also handles
+    //@notice executes all virtual orders between current lastVirtualOrderBlock and blockNumber also handles
     //orders that expire at end of final block. This assumes that no orders expire inside the given interval
-    function __executeVirtualTradesAndOrderExpiries(
+    function _executeVirtualTradesAndOrderExpiries(
         LongTermOrders storage self,
-        uint256[] storage balances,
+        uint256[] memory balances,
         uint256 blockNumber
     ) private {
         //amount sold from virtual trades
@@ -172,8 +182,8 @@ library LongTermOrdersLib {
         self.lastVirtualOrderBlock = blockNumber;
     }
 
-    ///@notice executes all virtual orders until current block is reached.
-    function executeVirtualOrdersUntilCurrentBlock(LongTermOrders storage self, uint256[] storage balances) internal {
+    //@notice executes all virtual orders until current block is reached.
+    function executeVirtualOrdersUntilCurrentBlock(LongTermOrders storage self, uint256[] memory balances) internal {
         uint256 nextExpiryBlock = self.lastVirtualOrderBlock -
             (self.lastVirtualOrderBlock % self.orderBlockInterval) +
             self.orderBlockInterval;
@@ -188,7 +198,7 @@ library LongTermOrdersLib {
         }
     }
 
-    ///@notice computes the result of virtual trades by the token pools
+    //@notice computes the result of virtual trades by the token pools
     function _computeVirtualBalances(
         uint256 tokenAStart,
         uint256 tokenBStart,
@@ -216,20 +226,32 @@ library LongTermOrdersLib {
         //when both pools sell, we use the TWAMM formula
         else {
             //signed, fixed point arithmetic
-            int256 aIn = int256(tokenAIn).fromInt();
-            int256 bIn = int256(tokenBIn).fromInt();
-            int256 aStart = int256(tokenAStart).fromInt();
-            int256 bStart = int256(tokenBStart).fromInt();
-            int256 k = aStart.mul(bStart);
+            // int256 aIn = int256(tokenAIn).fromInt();
+            // int256 bIn = int256(tokenBIn).fromInt();
+            // int256 aStart = int256(tokenAStart).fromInt();
+            // int256 bStart = int256(tokenBStart).fromInt();
+            // TODO fix this
+            int256 aIn = int256(tokenAIn);
+            int256 bIn = int256(tokenBIn);
+            int256 aStart = int256(tokenAStart);
+            int256 bStart = int256(tokenBStart);
+
+            // TODO fix this
+            // int256 k = aStart.mul(bStart);
+            int256 k = aStart * bStart;
 
             int256 c = _computeC(aStart, bStart, aIn, bIn);
             int256 endA = _computeAmmEndTokenA(aIn, bIn, c, k, aStart, bStart);
-            int256 endB = aStart.div(endA).mul(bStart);
+            // TODO fix this
+            // int256 endB = aStart.div(endA).mul(bStart);
+            int256 endB = (aStart / endA) * bStart;
 
             int256 outA = aStart + aIn - endA;
             int256 outB = bStart + bIn - endB;
 
-            return (uint256(outA.toInt()), uint256(outB.toInt()));
+            // TODO fix this
+            // return (uint256(outA.toInt()), uint256(outB.toInt()));
+            return (uint256(outA), uint256(outB));
         }
     }
 
@@ -240,11 +262,11 @@ library LongTermOrdersLib {
         int256 tokenAIn,
         int256 tokenBIn
     ) private pure returns (int256 c) {
-        int256 c1 = tokenAStart.sqrt().mul(tokenBIn.sqrt());
-        int256 c2 = tokenBStart.sqrt().mul(tokenAIn.sqrt());
+        int256 c1 = tokenAStart * tokenBIn;
+        int256 c2 = tokenBStart * tokenAIn;
         int256 cNumerator = c1 - c2;
         int256 cDenominator = c1 + c2;
-        c = cNumerator.div(cDenominator);
+        c = cNumerator / cDenominator;
     }
 
     //helper function for TWAMM formula computation, helps avoid stack depth errors
@@ -257,12 +279,20 @@ library LongTermOrdersLib {
         int256 bStart
     ) private pure returns (int256 ammEndTokenA) {
         //rearranged for numerical stability
-        int256 eNumerator = PRBMathSD59x18.fromInt(4).mul(tokenAIn).mul(tokenBIn).sqrt();
-        int256 eDenominator = aStart.sqrt().mul(bStart.sqrt()).inv();
-        int256 exponent = eNumerator.mul(eDenominator).exp();
-        int256 fraction = (exponent + c).div(exponent - c);
-        int256 scaling = k.div(tokenBIn).sqrt().mul(tokenAIn.sqrt());
-        ammEndTokenA = fraction.mul(scaling);
+        // TODO fix this
+        // int256 eNumerator = PRBMathSD59x18.fromInt(4).mul(tokenAIn).mul(tokenBIn).sqrt();
+        // int256 eDenominator = aStart.sqrt().mul(bStart.sqrt()).inv();
+        // int256 exponent = eNumerator.mul(eDenominator).exp();
+        // int256 fraction = (exponent + c).div(exponent - c);
+        // int256 scaling = k.div(tokenBIn).sqrt().mul(tokenAIn.sqrt());
+        // ammEndTokenA = fraction.mul(scaling);
+
+        int256 eNumerator = 1;
+        int256 eDenominator = aStart * bStart;
+        int256 exponent = eNumerator * eDenominator;
+        int256 fraction = (exponent + c) / (exponent - c);
+        int256 scaling = (k / (tokenBIn)) * (tokenAIn);
+        ammEndTokenA = fraction * scaling;
     }
 
     function _addToLongTermOrdersBalance(
@@ -289,7 +319,10 @@ library LongTermOrdersLib {
         }
     }
 
-    function getTokenBalanceFromLongTermOrder(uint8 tokenIndex) internal returns (uint256 balance) {
-        return tokenIndex == 0 ? balanceA : balanceB;
+    function getTokenBalanceFromLongTermOrder(LongTermOrders storage self, uint8 tokenIndex)
+        internal
+        returns (uint256 balance)
+    {
+        return tokenIndex == 0 ? self.balanceA : self.balanceB;
     }
 }
