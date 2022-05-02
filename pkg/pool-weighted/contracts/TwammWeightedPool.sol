@@ -97,8 +97,7 @@ contract TwammWeightedPool is WeightedPool {
             // TODO add protocol fees
             return (uint256(0), _getSizeTwoArray(amountAIn, amountBIn), _getSizeTwoArray(0, 0));
         } else {
-            (uint256 bptAmountOut, uint256[] memory amountsIn, uint256[] memory dueProtocolFeeAmounts) = super
-                ._onJoinPool(
+            return super._onJoinPool(
                     poolId,
                     sender,
                     recipient,
@@ -108,8 +107,6 @@ contract TwammWeightedPool is WeightedPool {
                     scalingFactors,
                     userData
                 );
-
-            return (bptAmountOut, amountsIn, dueProtocolFeeAmounts);
         }
     }
 
@@ -132,6 +129,8 @@ contract TwammWeightedPool is WeightedPool {
             uint256[] memory
         )
     {
+        // TODO(nuhbie): Since we are using this updatedBalances later in this function as well,
+        // shouldn't we use updated values after all virtual orders are executed?
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
         _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
@@ -171,8 +170,7 @@ contract TwammWeightedPool is WeightedPool {
                 return (uint256(0), _getSizeTwoArray(proceeds, uint256(0)), _getSizeTwoArray(uint256(0), uint256(0)));
             }
         } else {
-            (uint256 bptAmountIn, uint256[] memory amountsOut, uint256[] memory dueProtocolFeeAmounts) = super
-                ._onExitPool(
+            return super._onExitPool(
                     poolId,
                     sender,
                     recipient,
@@ -182,8 +180,6 @@ contract TwammWeightedPool is WeightedPool {
                     scalingFactors,
                     userData
                 );
-
-            return (bptAmountIn, amountsOut, dueProtocolFeeAmounts);
         }
     }
 
@@ -228,37 +224,12 @@ contract TwammWeightedPool is WeightedPool {
             uint256
         )
     {
-        (
-            IERC20 sellTokenId,
-            IERC20 buyTokenId,
-            uint256 amountIn,
-            uint256 numberOfBlockIntervals
-        ) = _parseLongTermOrderValues(userData);
-
         return
             _longTermOrders.performLongTermSwap(
                 recipient,
-                sellTokenId,
-                buyTokenId,
-                amountIn,
-                numberOfBlockIntervals,
+                userData,
                 updatedBalances
             );
-    }
-
-    function _parseLongTermOrderValues(bytes memory userData)
-        internal
-        returns (
-            IERC20 sellTokenId,
-            IERC20 buyTokenId,
-            uint256 amountIn,
-            uint256 numberOfBlockIntervals
-        )
-    {
-        (, sellTokenId, buyTokenId, amountIn, numberOfBlockIntervals) = abi.decode(
-            userData,
-            (bool, IERC20, IERC20, uint256, uint256)
-        );
     }
 
     function _parseExitLongTermOrderValues(bytes memory userData) internal returns (uint256) {

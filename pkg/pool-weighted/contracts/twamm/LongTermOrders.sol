@@ -58,7 +58,7 @@ library LongTermOrdersLib {
     }
 
     //@notice adds long term swap to order pool
-    function performLongTermSwap(
+    function _addLongTermSwap(
         LongTermOrders storage self,
         address owner,
         IERC20 from,
@@ -67,7 +67,7 @@ library LongTermOrdersLib {
         uint256 numberOfBlockIntervals,
         uint256[] memory balances
     )
-        external
+        internal
         returns (
             uint256,
             uint256,
@@ -97,6 +97,52 @@ library LongTermOrdersLib {
         uint256 amountBIn = from == self.tokenB ? amount : 0;
 
         return (self.orderId++, amountAIn, amountBIn);
+    }
+
+     function performLongTermSwap(
+        LongTermOrders storage self,
+        address owner,
+        bytes memory orderData,
+        uint256[] memory balances
+    )
+        external
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        (
+            IERC20 sellTokenId,
+            IERC20 buyTokenId,
+            uint256 amountIn,
+            uint256 numberOfBlockIntervals
+        ) = _parseLongTermOrderValues(orderData);
+        
+        return _addLongTermSwap(
+                self,
+                owner,
+                sellTokenId,
+                buyTokenId,
+                amountIn,
+                numberOfBlockIntervals,
+                balances
+            );
+    }
+
+    function _parseLongTermOrderValues(bytes memory orderData)
+        internal
+        returns (
+            IERC20 sellTokenId,
+            IERC20 buyTokenId,
+            uint256 amountIn,
+            uint256 numberOfBlockIntervals
+        )
+    {
+        (, sellTokenId, buyTokenId, amountIn, numberOfBlockIntervals) = abi.decode(
+            orderData,
+            (bool, IERC20, IERC20, uint256, uint256)
+        );
     }
 
     //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
