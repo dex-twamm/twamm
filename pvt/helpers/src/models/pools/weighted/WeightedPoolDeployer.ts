@@ -177,6 +177,21 @@ export default {
     let result: Promise<Contract>;
 
     switch (poolType) {
+      case WeightedPoolType.TWAMM_WEIGHTED_POOL: {
+        const factory = await deploy('v2-pool-weighted/TwammWeightedPoolFactory', { args: [vault.address], from });
+        const tx = await factory.create(
+          NAME,
+          SYMBOL,
+          tokens.addresses,
+          weights,
+          assetManagers,
+          swapFeePercentage,
+          owner
+        );
+        const receipt = await tx.wait();
+        const event = expectEvent.inReceipt(receipt, 'PoolCreated');
+        result = deployedAt('v2-pool-weighted/TwammWeightedPool', event.args.pool);
+      }
       case WeightedPoolType.ORACLE_WEIGHTED_POOL: {
         const factory = await deploy('v2-pool-weighted/OracleWeightedPoolFactory', {
           args: [vault.address],

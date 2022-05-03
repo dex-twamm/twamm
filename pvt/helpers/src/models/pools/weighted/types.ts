@@ -13,6 +13,7 @@ export enum WeightedPoolType {
   ORACLE_WEIGHTED_POOL,
   LIQUIDITY_BOOTSTRAPPING_POOL,
   MANAGED_POOL,
+  TWAMM_WEIGHTED_POOL,
 }
 
 export type RawWeightedPoolDeployment = {
