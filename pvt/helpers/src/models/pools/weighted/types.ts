@@ -25,6 +25,7 @@ export type RawWeightedPoolDeployment = {
   bufferPeriodDuration?: BigNumberish;
   oracleEnabled?: boolean;
   swapEnabledOnStart?: boolean;
+  orderBlockInterval?: BigNumberish;
   mustAllowlistLPs?: boolean;
   managementSwapFeePercentage?: BigNumberish;
   owner?: Account;
@@ -45,6 +46,7 @@ export type WeightedPoolDeployment = {
   poolType: WeightedPoolType;
   oracleEnabled: boolean;
   swapEnabledOnStart: boolean;
+  orderBlockInterval?: BigNumberish;
   mustAllowlistLPs: boolean;
   managementSwapFeePercentage: BigNumberish;
   owner?: string;
@@ -108,7 +110,7 @@ export type JoinAllGivenOutWeightedPool = {
 };
 
 export type JoinPlaceLongTermOrderTwammPool = {
-  amountsIn: BigNumberish;
+  amountIn: BigNumberish;
   tokenInIndex: number;
   tokenOutIndex: number;
   numberOfBlockIntervals?: number;

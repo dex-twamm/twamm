@@ -176,6 +176,8 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
 
     // Join
 
+    // Event for debugging.
+    event Test(WeightedPoolUserData.JoinKind joinKind);
     function _onJoinPool(
         bytes32,
         address,
@@ -196,6 +198,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
             uint256[] memory
         )
     {
+        emit Test(userData.joinKind());
         // All joins are disabled while the contract is paused.
 
         (uint256[] memory normalizedWeights, uint256 maxWeightTokenIndex) = _getNormalizedWeightsAndMaxWeightIndex();

@@ -65,6 +65,7 @@ export default {
       oracleEnabled,
       poolType,
       swapEnabledOnStart,
+      orderBlockInterval,
       mustAllowlistLPs,
       managementSwapFeePercentage,
       owner,
@@ -111,6 +112,26 @@ export default {
             swapEnabledOnStart,
           ],
           from,
+        });
+        break;
+      }
+      case WeightedPoolType.TWAMM_WEIGHTED_POOL: {
+        result = deploy('TwammWeightedPool', {
+          args: [
+            vault.address,
+            NAME,
+            SYMBOL,
+            tokens.addresses,
+            weights,
+            assetManagers,
+            swapFeePercentage,
+            pauseWindowDuration,
+            bufferPeriodDuration,
+            TypesConverter.toAddress(owner),
+            orderBlockInterval,
+          ],
+          from,
+          // libraries: { QueryProcessor: (await deploy('QueryProcessor')).address },
         });
         break;
       }
@@ -167,6 +188,7 @@ export default {
       swapFeePercentage,
       oracleEnabled,
       swapEnabledOnStart,
+      orderBlockInterval,
       mustAllowlistLPs,
       managementSwapFeePercentage,
       poolType,
@@ -178,7 +200,7 @@ export default {
 
     switch (poolType) {
       case WeightedPoolType.TWAMM_WEIGHTED_POOL: {
-        const factory = await deploy('v2-pool-weighted/TwammWeightedPoolFactory', { args: [vault.address], from });
+        const factory = await deploy('TwammWeightedPoolFactory', { args: [vault.address], from });
         const tx = await factory.create(
           NAME,
           SYMBOL,
@@ -186,11 +208,12 @@ export default {
           weights,
           assetManagers,
           swapFeePercentage,
-          owner
+          owner,
+          orderBlockInterval
         );
         const receipt = await tx.wait();
         const event = expectEvent.inReceipt(receipt, 'PoolCreated');
-        result = deployedAt('v2-pool-weighted/TwammWeightedPool', event.args.pool);
+        result = deployedAt('TwammWeightedPool', event.args.pool);
       }
       case WeightedPoolType.ORACLE_WEIGHTED_POOL: {
         const factory = await deploy('v2-pool-weighted/OracleWeightedPoolFactory', {

@@ -70,6 +70,7 @@ export default class WeightedPool {
   vault: Vault;
   poolType: WeightedPoolType;
   swapEnabledOnStart: boolean;
+  orderBlockInterval?: BigNumberish;
   mustAllowlistLPs: boolean;
   managementSwapFeePercentage: BigNumberish;
 
@@ -407,7 +408,7 @@ export default class WeightedPool {
     return this.queryJoin(this._buildJoinAllGivenOutParams(params));
   }
 
-  async placeLongTermRoder(params: JoinPlaceLongTermOrderTwammPool): Promise<JoinResult> {
+  async placeLongTermOrder(params: JoinPlaceLongTermOrderTwammPool): Promise<JoinResult> {
     return this.join(this._buildJoinPlaceLongTermOrderParams(params));
   }
 
@@ -561,8 +562,7 @@ export default class WeightedPool {
   }
 
   private _buildJoinPlaceLongTermOrderParams(params: JoinPlaceLongTermOrderTwammPool): JoinExitWeightedPool {
-    const { amountsIn: amounts } = params;
-    const amountsIn = Array.isArray(amounts) ? amounts : Array(this.tokens.length).fill(amounts);
+    const { amountIn: amount } = params;
 
     return {
       from: params.from,
@@ -571,7 +571,7 @@ export default class WeightedPool {
       currentBalances: params.currentBalances,
       protocolFeePercentage: params.protocolFeePercentage,
       data: TwammWeightedPoolEncoder.joinPlaceLongTermOrder(
-        params.tokenInIndex, params.tokenOutIndex, amountsIn, params.numberOfBlockIntervals ?? 1000),
+        params.tokenInIndex, params.tokenOutIndex, amount, params.numberOfBlockIntervals ?? 1000),
     };
   }
 
