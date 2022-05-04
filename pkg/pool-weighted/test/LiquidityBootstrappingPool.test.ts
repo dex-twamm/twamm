@@ -6,6 +6,7 @@ import { fp } from '@balancer-labs/v2-helpers/src/numbers';
 import { MINUTE, advanceTime, currentTimestamp } from '@balancer-labs/v2-helpers/src/time';
 import * as expectEvent from '@balancer-labs/v2-helpers/src/test/expectEvent';
 
+import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 import TokenList from '@balancer-labs/v2-helpers/src/models/tokens/TokenList';
 import WeightedPool from '@balancer-labs/v2-helpers/src/models/pools/weighted/WeightedPool';
 import { range } from 'lodash';

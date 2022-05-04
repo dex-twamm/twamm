@@ -6,6 +6,7 @@ export enum WeightedPoolJoinKind {
   EXACT_TOKENS_IN_FOR_BPT_OUT,
   TOKEN_IN_FOR_EXACT_BPT_OUT,
   ALL_TOKENS_IN_FOR_EXACT_BPT_OUT,
+  PLACE_LONG_TERM_ORDER,
 }
 
 export enum WeightedPoolExitKind {
@@ -13,6 +14,8 @@ export enum WeightedPoolExitKind {
   EXACT_BPT_IN_FOR_TOKENS_OUT,
   BPT_IN_FOR_EXACT_TOKENS_OUT,
   MANAGEMENT_FEE_TOKENS_OUT,
+  CANCEL_LONG_TERM_ORDER,
+  WITHDRAW_LONG_TERM_ORDER,
 }
 
 export class WeightedPoolEncoder {
@@ -106,4 +109,37 @@ export class ManagedPoolEncoder {
    */
   static exitForManagementFees = (): string =>
     defaultAbiCoder.encode(['uint256'], [WeightedPoolExitKind.MANAGEMENT_FEE_TOKENS_OUT]);
+}
+
+export class TwammWeightedPoolEncoder {
+  /**
+   * Cannot be constructed.
+   */
+  private constructor() {
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+  }
+
+  /**
+   * Encodes the userData parameter for joining a TwammWeightedPool by placing a long term order.
+   * This can only be done by the pool owner.
+   */
+   static joinPlaceLongTermOrder = (
+      tokenInIndex: number, tokenOutIndex: number, amountIn: BigNumberish, numberOfBlockIntervals: number): string =>
+    defaultAbiCoder.encode(
+      ['uint256', 'uint256', 'uint256', 'uint256', 'uint256'],
+      [WeightedPoolJoinKind.PLACE_LONG_TERM_ORDER, tokenInIndex, tokenOutIndex, amountIn, numberOfBlockIntervals]);
+
+  /**
+   * Encodes the userData parameter for exiting a TwammWeightedPool by cancelling a long term order.
+   * This can only be done by the pool owner.
+   */
+  static exitCancelLongTermOrder = (orderId: number): string =>
+    defaultAbiCoder.encode(['uint256', 'uint256'], [WeightedPoolExitKind.CANCEL_LONG_TERM_ORDER, orderId]);
+
+  /**
+   * Encodes the userData parameter for exiting a TwammWeightedPool by withdrawing after a long term order is complete.
+   * This can only be done by the pool owner.
+   */
+   static exitWithdrawLongTermOrder = (orderId: number): string =>
+    defaultAbiCoder.encode(['uint256', 'uint256'], [WeightedPoolExitKind.WITHDRAW_LONG_TERM_ORDER, orderId]);
 }

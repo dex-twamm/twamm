@@ -107,6 +107,18 @@ export type JoinAllGivenOutWeightedPool = {
   protocolFeePercentage?: BigNumberish;
 };
 
+export type JoinPlaceLongTermOrderTwammPool = {
+  amountsIn: BigNumberish;
+  tokenInIndex: number;
+  tokenOutIndex: number;
+  numberOfBlockIntervals?: number;
+  from?: SignerWithAddress;
+  recipient?: Account;
+  lastChangeBlock?: BigNumberish;
+  currentBalances?: BigNumberish[];
+  protocolFeePercentage?: BigNumberish;
+};
+
 export type ExitGivenOutWeightedPool = {
   amountsOut: NAry<BigNumberish>;
   maximumBptIn?: BigNumberish;
@@ -135,6 +147,25 @@ export type MultiExitGivenInWeightedPool = {
   currentBalances?: BigNumberish[];
   protocolFeePercentage?: BigNumberish;
 };
+
+export type ExitCancelLongTermOrderTwammPool = {
+  orderId: number;
+  recipient?: Account;
+  from?: SignerWithAddress;
+  lastChangeBlock?: BigNumberish;
+  currentBalances?: BigNumberish[];
+  protocolFeePercentage?: BigNumberish;
+};
+
+export type ExitWithdrawLongTermOrderTwammPool = {
+  orderId: number;
+  recipient?: Account;
+  from?: SignerWithAddress;
+  lastChangeBlock?: BigNumberish;
+  currentBalances?: BigNumberish[];
+  protocolFeePercentage?: BigNumberish;
+};
+
 
 export type JoinResult = {
   amountsIn: BigNumber[];

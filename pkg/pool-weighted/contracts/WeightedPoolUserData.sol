@@ -64,6 +64,13 @@ library WeightedPoolUserData {
         (, bptAmountOut) = abi.decode(self, (JoinKind, uint256));
     }
 
+    function placeLongTermOrder(bytes memory self) internal pure returns (uint256 tokenInIndex, uint256 tokenOutIndex, uint256 amountIn, uint256 numberOfBlockIntervals) {
+        (, tokenInIndex, tokenOutIndex, amountIn, numberOfBlockIntervals) = abi.decode(
+            self,
+            (JoinKind, uint256, uint256, uint256, uint256)
+        );
+    }
+
     // Exits
 
     function exactBptInForTokenOut(bytes memory self) internal pure returns (uint256 bptAmountIn, uint256 tokenIndex) {
@@ -80,5 +87,13 @@ library WeightedPoolUserData {
         returns (uint256[] memory amountsOut, uint256 maxBPTAmountIn)
     {
         (, amountsOut, maxBPTAmountIn) = abi.decode(self, (ExitKind, uint256[], uint256));
+    }
+
+    function cancelLongTermOrder(bytes memory self) internal pure returns (uint256 orderId) {
+        (, orderId) = abi.decode(self, (ExitKind, uint256));
+    }
+
+    function withdrawLongTermOrder(bytes memory self) internal pure returns (uint256 orderId) {
+        (, orderId) = abi.decode(self, (ExitKind, uint256));
     }
 }

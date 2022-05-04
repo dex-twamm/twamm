@@ -1,7 +1,9 @@
+import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { fp } from '@balancer-labs/v2-helpers/src/numbers';
 
 import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
 import TokenList from '@balancer-labs/v2-helpers/src/models/tokens/TokenList';
 import WeightedPool from '@balancer-labs/v2-helpers/src/models/pools/weighted/WeightedPool';
 import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/weighted/types';
@@ -10,16 +12,26 @@ import { range } from 'lodash';
 
 // TODO(codesherpa): Add real tests. Current tests are duplicate of WeightedPool tests
 describe('TwammWeightedPool', function () {
-  let allTokens: TokenList;
+  let owner: SignerWithAddress, other: SignerWithAddress;
 
-  const MAX_TOKENS = 20;
+  before('setup signers', async () => {
+    [, owner, other] = await ethers.getSigners();
+  });
 
-  const POOL_SWAP_FEE_PERCENTAGE = fp(0.01);
-  const WEIGHTS = range(1000, 1000 + MAX_TOKENS); // These will be normalized to weights that are close to each other, but different
+  const MAX_TOKENS = 4;
+
+  let allTokens: TokenList, tokens: TokenList;
 
   sharedBeforeEach('deploy tokens', async () => {
-    allTokens = await TokenList.create(MAX_TOKENS, { sorted: true, varyDecimals: true });
+    allTokens = await TokenList.create(MAX_TOKENS + 1, { sorted: true });
+    tokens = allTokens.subset(4);
+    await tokens.mint({ to: [other], amount: fp(200) });
   });
+
+  let sender: SignerWithAddress;
+  let pool: WeightedPool;
+  const weights = [fp(0.5), fp(0.5)];
+  const initialBalances = [fp(10.0), fp(40000.0)];
 
   describe('weights and scaling factors', () => {
     for (const numTokens of range(2, MAX_TOKENS + 1)) {
@@ -33,8 +45,7 @@ describe('TwammWeightedPool', function () {
           pool = await WeightedPool.create({
             poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
             tokens,
-            weights: WEIGHTS.slice(0, numTokens),
-            swapFeePercentage: POOL_SWAP_FEE_PERCENTAGE,
+            weights: weights.slice(0, numTokens),
           });
         });
 

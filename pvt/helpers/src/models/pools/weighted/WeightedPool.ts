@@ -35,6 +35,9 @@ import {
   WeightedPoolType,
   VoidResult,
   TokenCollectedFees,
+  JoinPlaceLongTermOrderTwammPool,
+  ExitCancelLongTermOrderTwammPool,
+  ExitWithdrawLongTermOrderTwammPool,
 } from './types';
 import {
   calculateInvariant,
@@ -50,6 +53,7 @@ import {
 } from './math';
 import { SwapKind, WeightedPoolEncoder } from '@balancer-labs/balancer-js';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { TwammWeightedPoolEncoder } from '@balancer-labs/balancer-js/src/pool-weighted/encoder';
 
 const MAX_IN_RATIO = fp(0.3);
 const MAX_OUT_RATIO = fp(0.3);
@@ -403,6 +407,12 @@ export default class WeightedPool {
     return this.queryJoin(this._buildJoinAllGivenOutParams(params));
   }
 
+  async placeLongTermRoder(params: JoinPlaceLongTermOrderTwammPool): Promise<JoinResult> {
+    return this.join(this._buildJoinPlaceLongTermOrderParams(params));
+  }
+
+  // TODO(nuhbye): Probably don't need query for place long term order, since we'll give back 0 BPT always.
+
   async exitGivenOut(params: ExitGivenOutWeightedPool): Promise<ExitResult> {
     return this.exit(this._buildExitGivenOutParams(params));
   }
@@ -426,6 +436,17 @@ export default class WeightedPool {
   async queryMultiExitGivenIn(params: MultiExitGivenInWeightedPool): Promise<ExitQueryResult> {
     return this.queryExit(this._buildMultiExitGivenInParams(params));
   }
+
+  // Cancel/withdraw long term order.
+  async cancelLongTermOrder(params: ExitCancelLongTermOrderTwammPool): Promise<ExitResult> {
+    return this.exit(this._buildCancelLongTermOrderParams(params));
+  }
+
+  async withdrawLongTermOrder(params: ExitWithdrawLongTermOrderTwammPool): Promise<ExitResult> {
+    return this.exit(this._buildWithdrawLongTermOrderParams(params));
+  }
+
+  // TODO(codesherpa/nuhbye): Do we need query for exits?
 
   async queryJoin(params: JoinExitWeightedPool): Promise<JoinQueryResult> {
     const fn = this.instance.queryJoin;
@@ -539,6 +560,21 @@ export default class WeightedPool {
     };
   }
 
+  private _buildJoinPlaceLongTermOrderParams(params: JoinPlaceLongTermOrderTwammPool): JoinExitWeightedPool {
+    const { amountsIn: amounts } = params;
+    const amountsIn = Array.isArray(amounts) ? amounts : Array(this.tokens.length).fill(amounts);
+
+    return {
+      from: params.from,
+      recipient: params.recipient,
+      lastChangeBlock: params.lastChangeBlock,
+      currentBalances: params.currentBalances,
+      protocolFeePercentage: params.protocolFeePercentage,
+      data: TwammWeightedPoolEncoder.joinPlaceLongTermOrder(
+        params.tokenInIndex, params.tokenOutIndex, amountsIn, params.numberOfBlockIntervals ?? 1000),
+    };
+  }
+
   private _buildJoinGivenOutParams(params: JoinGivenOutWeightedPool): JoinExitWeightedPool {
     return {
       from: params.from,
@@ -585,6 +621,28 @@ export default class WeightedPool {
     };
   }
 
+  private _buildCancelLongTermOrderParams(params: ExitCancelLongTermOrderTwammPool): JoinExitWeightedPool {
+    return {
+      from: params.from,
+      recipient: params.recipient,
+      lastChangeBlock: params.lastChangeBlock,
+      currentBalances: params.currentBalances,
+      protocolFeePercentage: params.protocolFeePercentage,
+      data: TwammWeightedPoolEncoder.exitCancelLongTermOrder(params.orderId),
+    };
+  }
+
+  private _buildWithdrawLongTermOrderParams(params: ExitWithdrawLongTermOrderTwammPool): JoinExitWeightedPool {
+    return {
+      from: params.from,
+      recipient: params.recipient,
+      lastChangeBlock: params.lastChangeBlock,
+      currentBalances: params.currentBalances,
+      protocolFeePercentage: params.protocolFeePercentage,
+      data: TwammWeightedPoolEncoder.exitWithdrawLongTermOrder(params.orderId),
+    };
+  }
+  
   private _buildMultiExitGivenInParams(params: MultiExitGivenInWeightedPool): JoinExitWeightedPool {
     return {
       from: params.from,

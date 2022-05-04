@@ -55,8 +55,8 @@ contract TwammWeightedPool is WeightedPool {
             owner
         )
     {
-        // Initializing for two tokens
-        _longTermOrders.initialize(tokens[0], tokens[1], block.number, orderBlockInterval);
+        // Initialize with current block and specified order block interval.
+        _longTermOrders.initialize(block.number, orderBlockInterval);
     }
 
     function _onJoinPool(
@@ -129,7 +129,7 @@ contract TwammWeightedPool is WeightedPool {
             uint256[] memory
         )
     {
-        // TODO(nuhbie): Since we are using this updatedBalances later in this function as well,
+        // TODO(nuhbye): Since we are using this updatedBalances later in this function as well,
         // shouldn't we use updated values after all virtual orders are executed?
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
@@ -137,7 +137,7 @@ contract TwammWeightedPool is WeightedPool {
 
         WeightedPoolUserData.ExitKind kind = userData.exitKind();
         if (kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER) {
-            uint256 orderId = _parseExitLongTermOrderValues(userData);
+            uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
             (uint256 purchasedAmount, uint256 unsoldAmount) = _longTermOrders.cancelLongTermSwap(
                 sender,
                 orderId,
@@ -145,7 +145,7 @@ contract TwammWeightedPool is WeightedPool {
             );
 
             // TODO handle dueProtocolFeeAmounts here
-            if (_longTermOrders.orderMap[orderId].sellTokenId == _longTermOrders.tokenA) {
+            if (_longTermOrders.orderMap[orderId].buyTokenIndex == 0) {
                 return (
                     uint256(0),
                     _getSizeTwoArray(purchasedAmount, unsoldAmount),
@@ -160,11 +160,11 @@ contract TwammWeightedPool is WeightedPool {
             }
         }
         if (kind == WeightedPoolUserData.ExitKind.WITHDRAW_LONG_TERM_ORDER) {
-            uint256 orderId = _parseExitLongTermOrderValues(userData);
+            uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
             uint256 proceeds = _longTermOrders.withdrawProceedsFromLongTermSwap(sender, orderId, updatedBalances);
 
             // TODO handle dueProtocolFeeAmounts here
-            if (_longTermOrders.orderMap[orderId].sellTokenId == _longTermOrders.tokenA) {
+            if (_longTermOrders.orderMap[orderId].buyTokenIndex == 0) {
                 return (uint256(0), _getSizeTwoArray(uint256(0), proceeds), _getSizeTwoArray(uint256(0), uint256(0)));
             } else {
                 return (uint256(0), _getSizeTwoArray(proceeds, uint256(0)), _getSizeTwoArray(uint256(0), uint256(0)));
@@ -190,7 +190,7 @@ contract TwammWeightedPool is WeightedPool {
     ) public virtual override onlyVault(request.poolId) returns (uint256) {
         uint256[] memory balances = new uint256[](2);
 
-        if (_longTermOrders.tokenA == request.tokenIn) {
+        if (_token0 == request.tokenIn) {
             balances = _getSizeTwoArray(balanceTokenIn, balanceTokenOut);
         } else {
             balances = _getSizeTwoArray(balanceTokenOut, balanceTokenIn);
@@ -200,7 +200,7 @@ contract TwammWeightedPool is WeightedPool {
 
         _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
 
-        if (_longTermOrders.tokenA == request.tokenIn) {
+        if (_token0 == request.tokenIn) {
             return super.onSwap(request, updatedBalances[0], updatedBalances[1]);
         } else {
             return super.onSwap(request, updatedBalances[1], updatedBalances[0]);
@@ -232,10 +232,6 @@ contract TwammWeightedPool is WeightedPool {
             );
     }
 
-    function _parseExitLongTermOrderValues(bytes memory userData) internal returns (uint256) {
-        return abi.decode(userData, (uint256));
-    }
-
     function _getUpdatedPoolBalances(uint256[] memory balances) internal returns (uint256[] memory) {
         uint256[] memory updatedBalances = new uint256[](balances.length);
 
@@ -244,14 +240,6 @@ contract TwammWeightedPool is WeightedPool {
         }
 
         return updatedBalances;
-    }
-
-    function _isLongTermOrder(bytes memory userData) internal returns (bool isLongTermOrder) {
-        (isLongTermOrder, , , , ) = abi.decode(userData, (bool, address, address, uint256, uint256));
-    }
-
-    function _isExitLongTermOrder(bytes memory userData) internal returns (uint8) {
-        return abi.decode(userData, (uint8));
     }
 
     function _getSizeTwoArray(uint256 a, uint256 b) internal returns (uint256[] memory array) {

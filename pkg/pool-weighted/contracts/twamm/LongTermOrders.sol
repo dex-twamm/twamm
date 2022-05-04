@@ -4,8 +4,8 @@ pragma solidity ^0.7.0;
 import "hardhat/console.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 // import "prb-math/contracts/PRBMathSD59x18.sol";
-import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/IERC20.sol";
 import "./OrderPool.sol";
+import "../WeightedPoolUserData.sol";
 
 //@notice This library handles the state and execution of long term orders.
 library LongTermOrdersLib {
@@ -19,8 +19,8 @@ library LongTermOrdersLib {
         uint256 expirationBlock;
         uint256 saleRate;
         address owner;
-        IERC20 sellTokenId;
-        IERC20 buyTokenId;
+        uint256 sellTokenIndex;
+        uint256 buyTokenIndex;
     }
 
     //@notice structure contains full state related to long term orders
@@ -29,14 +29,11 @@ library LongTermOrdersLib {
         uint256 orderBlockInterval;
         //@notice last virtual orders were executed immediately before this block
         uint256 lastVirtualOrderBlock;
-        //@notice token pair being traded in embedded amm
-        IERC20 tokenA;
-        IERC20 tokenB;
         uint256 balanceA;
         uint256 balanceB;
         //@notice mapping from token address to pool that is selling that token
         //we maintain two order pools, one for each token that is tradable in the AMM
-        mapping(IERC20 => OrderPoolLib.OrderPool) orderPoolMap;
+        mapping(uint256 => OrderPoolLib.OrderPool) orderPoolMap;
         //@notice incrementing counter for order ids
         uint256 orderId;
         //@notice mapping from order ids to Orders
@@ -46,13 +43,9 @@ library LongTermOrdersLib {
     //@notice initialize state
     function initialize(
         LongTermOrders storage self,
-        IERC20 tokenA,
-        IERC20 tokenB,
         uint256 lastVirtualOrderBlock,
         uint256 orderBlockInterval
     ) internal {
-        self.tokenA = tokenA;
-        self.tokenB = tokenB;
         self.lastVirtualOrderBlock = lastVirtualOrderBlock;
         self.orderBlockInterval = orderBlockInterval;
     }
@@ -61,8 +54,8 @@ library LongTermOrdersLib {
     function _addLongTermSwap(
         LongTermOrders storage self,
         address owner,
-        IERC20 from,
-        IERC20 to,
+        uint256 from,
+        uint256 to,
         uint256 amount,
         uint256 numberOfBlockIntervals,
         uint256[] memory balances
@@ -93,8 +86,8 @@ library LongTermOrdersLib {
         // transfer sale amount to contract
         _addToLongTermOrdersBalance(self, from, amount);
 
-        uint256 amountAIn = from == self.tokenA ? amount : 0;
-        uint256 amountBIn = from == self.tokenB ? amount : 0;
+        uint256 amountAIn = from == 0 ? amount : 0;
+        uint256 amountBIn = from == 1 ? amount : 0;
 
         return (self.orderId++, amountAIn, amountBIn);
     }
@@ -113,36 +106,21 @@ library LongTermOrdersLib {
         )
     {
         (
-            IERC20 sellTokenId,
-            IERC20 buyTokenId,
+            uint256 sellTokenIndex,
+            uint256 buyTokenIndex,
             uint256 amountIn,
             uint256 numberOfBlockIntervals
-        ) = _parseLongTermOrderValues(orderData);
+        ) = WeightedPoolUserData.placeLongTermOrder(orderData);
         
         return _addLongTermSwap(
                 self,
                 owner,
-                sellTokenId,
-                buyTokenId,
+                sellTokenIndex,
+                buyTokenIndex,
                 amountIn,
                 numberOfBlockIntervals,
                 balances
             );
-    }
-
-    function _parseLongTermOrderValues(bytes memory orderData)
-        internal
-        returns (
-            IERC20 sellTokenId,
-            IERC20 buyTokenId,
-            uint256 amountIn,
-            uint256 numberOfBlockIntervals
-        )
-    {
-        (, sellTokenId, buyTokenId, amountIn, numberOfBlockIntervals) = abi.decode(
-            orderData,
-            (bool, IERC20, IERC20, uint256, uint256)
-        );
     }
 
     //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
@@ -155,14 +133,14 @@ library LongTermOrdersLib {
         Order storage order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
 
-        OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenId];
+        OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
         (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(orderId);
 
         require(unsoldAmount > 0 || purchasedAmount > 0, "no proceeds to withdraw");
 
         //update LongTermOrders balances
-        _removeFromLongTermOrdersBalance(self, order.buyTokenId, purchasedAmount);
-        _removeFromLongTermOrdersBalance(self, order.sellTokenId, unsoldAmount);
+        _removeFromLongTermOrdersBalance(self, order.buyTokenIndex, purchasedAmount);
+        _removeFromLongTermOrdersBalance(self, order.sellTokenIndex, unsoldAmount);
     }
 
     //@notice withdraw proceeds from a long term swap (can be expired or ongoing)
@@ -175,14 +153,14 @@ library LongTermOrdersLib {
         Order storage order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
 
-        OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenId];
+        OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
         require(orderPool.orderExpiry[orderId] <= block.number, "Order not expired yet");
 
         proceeds = orderPool.withdrawProceeds(orderId);
 
         require(proceeds > 0, "no proceeds to withdraw");
         //update long term order balances
-        _removeFromLongTermOrdersBalance(self, order.sellTokenId, proceeds);
+        _removeFromLongTermOrdersBalance(self, order.sellTokenIndex, proceeds);
     }
 
     //@notice executes all virtual orders between current lastVirtualOrderBlock and blockNumber also handles
@@ -194,8 +172,8 @@ library LongTermOrdersLib {
     ) private {
         //amount sold from virtual trades
         uint256 blockNumberIncrement = blockNumber - self.lastVirtualOrderBlock;
-        uint256 tokenASellAmount = self.orderPoolMap[self.tokenA].currentSalesRate * blockNumberIncrement;
-        uint256 tokenBSellAmount = self.orderPoolMap[self.tokenB].currentSalesRate * blockNumberIncrement;
+        uint256 tokenASellAmount = self.orderPoolMap[0].currentSalesRate * blockNumberIncrement;
+        uint256 tokenBSellAmount = self.orderPoolMap[1].currentSalesRate * blockNumberIncrement;
 
         //initial amm balance
         uint256 tokenAStart = balances[0];
@@ -210,12 +188,12 @@ library LongTermOrdersLib {
         );
 
         //update balances reserves
-        _addToLongTermOrdersBalance(self, self.tokenA, tokenAOut - tokenASellAmount);
-        _addToLongTermOrdersBalance(self, self.tokenB, tokenBOut - tokenBSellAmount);
+        _addToLongTermOrdersBalance(self, 0, tokenAOut - tokenASellAmount);
+        _addToLongTermOrdersBalance(self, 1, tokenBOut - tokenBSellAmount);
 
         //distribute proceeds to pools
-        OrderPoolLib.OrderPool storage orderPoolA = self.orderPoolMap[self.tokenA];
-        OrderPoolLib.OrderPool storage orderPoolB = self.orderPoolMap[self.tokenB];
+        OrderPoolLib.OrderPool storage orderPoolA = self.orderPoolMap[0];
+        OrderPoolLib.OrderPool storage orderPoolB = self.orderPoolMap[1];
 
         orderPoolA.distributePayment(tokenBOut);
         orderPoolB.distributePayment(tokenAOut);
@@ -343,24 +321,24 @@ library LongTermOrdersLib {
 
     function _addToLongTermOrdersBalance(
         LongTermOrders storage self,
-        IERC20 token,
+        uint256 tokenIndex,
         uint256 balance
     ) internal {
-        if (token == self.tokenA) {
+        if (tokenIndex == 0) {
             self.balanceA += balance;
-        } else if (token == self.tokenB) {
+        } else if (tokenIndex == 1) {
             self.balanceB += balance;
         }
     }
 
     function _removeFromLongTermOrdersBalance(
         LongTermOrders storage self,
-        IERC20 token,
+        uint256 tokenIndex,
         uint256 balance
     ) internal {
-        if (token == self.tokenA) {
+        if (tokenIndex == 0) {
             self.balanceA -= balance;
-        } else if (token == self.tokenB) {
+        } else if (tokenIndex == 1) {
             self.balanceB -= balance;
         }
     }
