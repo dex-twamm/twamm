@@ -61,6 +61,8 @@ describe('TwammWeightedPool', function () {
   });
 
   describe('with valid creation parameters', () => {
+    let pool: WeightedPool;
+    
     context('when initialized with swaps enabled', () => {
       sharedBeforeEach('deploy pool', async () => {
         const params = {

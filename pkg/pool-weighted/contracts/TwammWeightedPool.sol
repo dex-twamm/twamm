@@ -17,6 +17,7 @@ pragma experimental ABIEncoderV2;
 
 import "./WeightedPool.sol";
 
+import "hardhat/console.sol";
 // import "./twamm/LongTermOrders.sol";
 import "./WeightedPoolUserData.sol";
 
@@ -518,10 +519,9 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         // Initialize with current block and specified order block interval.
+        console.log("Initialize long term orders");
         _longTermOrders.initialize(block.number, orderBlockInterval);
     }
-
-    // event Test(WeightedPoolUserData.JoinKind joinKind);
 
     function _onJoinPool(
         bytes32 poolId,
@@ -543,11 +543,10 @@ contract TwammWeightedPool is WeightedPool {
             uint256[] memory
         )
     {
+        console.log("In _onJoinPool TwammPool");
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
         _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
-
-        emit Test(userData.joinKind());
 
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it

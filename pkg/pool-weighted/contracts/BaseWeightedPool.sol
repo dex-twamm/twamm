@@ -15,6 +15,7 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
+import "hardhat/console.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/helpers/InputHelpers.sol";
 
@@ -175,9 +176,6 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
     }
 
     // Join
-
-    // Event for debugging.
-    event Test(WeightedPoolUserData.JoinKind joinKind);
     function _onJoinPool(
         bytes32,
         address,
@@ -198,7 +196,10 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
             uint256[] memory
         )
     {
-        emit Test(userData.joinKind());
+        console.log("In _onJoinPool BaseWeightedPool");
+        console.log(
+            "Is join type place long term order: %s", 
+            userData.joinKind() == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER);
         // All joins are disabled while the contract is paused.
 
         (uint256[] memory normalizedWeights, uint256 maxWeightTokenIndex) = _getNormalizedWeightsAndMaxWeightIndex();
