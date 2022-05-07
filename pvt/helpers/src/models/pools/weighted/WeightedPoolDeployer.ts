@@ -39,6 +39,7 @@ export default {
     } = deployment;
 
     const poolId = await pool.getPoolId();
+
     return new WeightedPool(
       pool,
       poolId,
@@ -214,6 +215,7 @@ export default {
         const receipt = await tx.wait();
         const event = expectEvent.inReceipt(receipt, 'PoolCreated');
         result = deployedAt('TwammWeightedPool', event.args.pool);
+        break;
       }
       case WeightedPoolType.ORACLE_WEIGHTED_POOL: {
         const factory = await deploy('v2-pool-weighted/OracleWeightedPoolFactory', {

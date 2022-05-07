@@ -92,13 +92,13 @@ library LongTermOrdersLib {
         return (self.orderId++, amountAIn, amountBIn);
     }
 
-     function performLongTermSwap(
+    function performLongTermSwap(
         LongTermOrders storage self,
         address owner,
         bytes memory orderData,
         uint256[] memory balances
     )
-        external
+        internal
         returns (
             uint256,
             uint256,
@@ -111,16 +111,8 @@ library LongTermOrdersLib {
             uint256 amountIn,
             uint256 numberOfBlockIntervals
         ) = WeightedPoolUserData.placeLongTermOrder(orderData);
-        
-        return _addLongTermSwap(
-                self,
-                owner,
-                sellTokenIndex,
-                buyTokenIndex,
-                amountIn,
-                numberOfBlockIntervals,
-                balances
-            );
+
+        return _addLongTermSwap(self, owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals, balances);
     }
 
     //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens

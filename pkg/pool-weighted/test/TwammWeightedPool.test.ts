@@ -62,7 +62,7 @@ describe('TwammWeightedPool', function () {
 
   describe('with valid creation parameters', () => {
     let pool: WeightedPool;
-    
+
     context('when initialized with swaps enabled', () => {
       sharedBeforeEach('deploy pool', async () => {
         const params = {
@@ -81,7 +81,7 @@ describe('TwammWeightedPool', function () {
         context('when the sender is the owner', () => {
           sharedBeforeEach('set sender to owner', async () => {
             sender = owner;
-            
+
             tokens = allTokens.subset(2);
             await tokens.approve({ from: owner, to: await pool.getVault() });
 
@@ -90,11 +90,11 @@ describe('TwammWeightedPool', function () {
 
           it('can accept Long Term Order', async () => {
             const balance = (await tokens.balanceOf(other))[0];
-            await pool.placeLongTermOrder({ from: other, amountIn: balance, tokenInIndex: 0, tokenOutIndex: 1})
+            await tokens.approve({ from: other, to: await pool.getVault() });
+            await pool.placeLongTermOrder({ from: other, amountIn: balance, tokenInIndex: 0, tokenOutIndex: 1 });
           });
         });
       });
-        
     });
   });
 });
