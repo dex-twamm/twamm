@@ -3,14 +3,13 @@ pragma solidity ^0.7.0;
 
 import "hardhat/console.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
-// import "prb-math/contracts/PRBMathSD59x18.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 import "./OrderPool.sol";
 import "../WeightedPoolUserData.sol";
 
 //@notice This library handles the state and execution of long term orders.
 library LongTermOrdersLib {
-    // using PRBMathSD59x18 for int256;
-    using FixedPoint for int256;
+    using FixedPoint for uint256;
     using OrderPoolLib for OrderPoolLib.OrderPool;
 
     //@notice information associated with a long term order
@@ -71,11 +70,9 @@ library LongTermOrdersLib {
         executeVirtualOrdersUntilCurrentBlock(self, balances);
 
         //determine the selling rate based on number of blocks to expiry and total amount
-        uint256 orderExpiry = self.orderBlockInterval *
-            (numberOfBlockIntervals + 1) +
-            block.number -
-            (block.number % self.orderBlockInterval);
-        uint256 sellingRate = amount / (orderExpiry - block.number);
+        uint256 orderExpiry = Math.add(Math.mul(self.orderBlockInterval, Math.add(numberOfBlockIntervals, 1)),
+            Math.sub(block.number, Math.mod(block.number, self.orderBlockInterval)));
+        uint256 sellingRate = Math.divDown(amount, (Math.sub(orderExpiry, block.number)));
 
         //add order to correct pool
         self.orderPoolMap[from].depositOrder(self.orderId, sellingRate, orderExpiry);
@@ -89,7 +86,7 @@ library LongTermOrdersLib {
         uint256 amountAIn = from == 0 ? amount : 0;
         uint256 amountBIn = from == 1 ? amount : 0;
 
-        return (self.orderId++, amountAIn, amountBIn);
+        return (Math.add(self.orderId, 1), amountAIn, amountBIn);
     }
 
     function performLongTermSwap(
@@ -163,9 +160,9 @@ library LongTermOrdersLib {
         uint256 blockNumber
     ) private {
         //amount sold from virtual trades
-        uint256 blockNumberIncrement = blockNumber - self.lastVirtualOrderBlock;
-        uint256 tokenASellAmount = self.orderPoolMap[0].currentSalesRate * blockNumberIncrement;
-        uint256 tokenBSellAmount = self.orderPoolMap[1].currentSalesRate * blockNumberIncrement;
+        uint256 blockNumberIncrement = Math.sub(blockNumber, self.lastVirtualOrderBlock);
+        uint256 tokenASellAmount = Math.mul((self.orderPoolMap[0].currentSalesRate, blockNumberIncrement);
+        uint256 tokenBSellAmount = Math.mul(self.orderPoolMap[1].currentSalesRate, blockNumberIncrement);
 
         //initial amm balance
         uint256 tokenAStart = balances[0];
@@ -180,8 +177,16 @@ library LongTermOrdersLib {
         );
 
         //update balances reserves
-        _addToLongTermOrdersBalance(self, 0, tokenAOut - tokenASellAmount);
-        _addToLongTermOrdersBalance(self, 1, tokenBOut - tokenBSellAmount);
+        _addToLongTermOrdersBalance(
+            self,
+            0,
+            Math.sub(tokenAOut, tokenASellAmount)
+        );
+        _addToLongTermOrdersBalance(
+            self,
+            1,
+            Math.sub(tokenBOut, tokenBSellAmount)
+        );
 
         //distribute proceeds to pools
         OrderPoolLib.OrderPool storage orderPoolA = self.orderPoolMap[0];
@@ -200,13 +205,13 @@ library LongTermOrdersLib {
 
     //@notice executes all virtual orders until current block is reached.
     function executeVirtualOrdersUntilCurrentBlock(LongTermOrders storage self, uint256[] memory balances) internal {
-        uint256 nextExpiryBlock = self.lastVirtualOrderBlock -
-            (self.lastVirtualOrderBlock % self.orderBlockInterval) +
-            self.orderBlockInterval;
+        uint256 nextExpiryBlock = Math.sub(self.lastVirtualOrderBlock,
+            Math.add(Math.mod(self.lastVirtualOrderBlock, self.orderBlockInterval),
+            self.orderBlockInterval));
         //iterate through blocks eligible for order expiries, moving state forward
         while (nextExpiryBlock < block.number) {
             _executeVirtualTradesAndOrderExpiries(self, balances, nextExpiryBlock);
-            nextExpiryBlock += self.orderBlockInterval;
+            nextExpiryBlock = Math.add(nextExpiryBlock, self.orderBlockInterval);
         }
         //finally, move state to current block if necessary
         if (self.lastVirtualOrderBlock != block.number) {
@@ -229,15 +234,18 @@ library LongTermOrdersLib {
         //in the case where only one pool is selling, we just perform a normal swap
         else if (tokenAIn == 0) {
             //constant product formula
-            tokenAOut = (tokenAStart * tokenBIn) / (tokenBStart + tokenBIn);
+            tokenAOut = Math.divDown(
+                Math.mul(tokenAStart, tokenBIn),
+                Math.add(tokenBStart, tokenBIn)
+            );
             tokenBOut = 0;
-
-            // ammEndTokenA = (tokenAStart * tokenBStart) / (tokenBStart + tokenBIn);
-            // tokenAOut = tokenAStart - ammEndTokenA
         } else if (tokenBIn == 0) {
             tokenAOut = 0;
             //contant product formula
-            tokenBOut = (tokenBStart * tokenAIn) / (tokenAStart + tokenAIn);
+            tokenBOut = Math.divDown(
+                Math.mul(tokenBStart, tokenAIn),
+                Math.add(tokenAStart, tokenAIn)
+            );
         }
         //when both pools sell, we use the TWAMM formula
         else {
@@ -278,11 +286,12 @@ library LongTermOrdersLib {
         int256 tokenAIn,
         int256 tokenBIn
     ) private pure returns (int256 c) {
-        int256 c1 = tokenAStart * tokenBIn;
-        int256 c2 = tokenBStart * tokenAIn;
-        int256 cNumerator = c1 - c2;
-        int256 cDenominator = c1 + c2;
-        c = cNumerator / cDenominator;
+        // TODO fix this
+        int256 c1 = FixedPoint.mulDown(tokenAStart, tokenBIn);
+        int256 c2 = FixedPoint.mulDown(tokenBStart, tokenAIn);
+        int256 cNumerator = FixedPoint.sub(c1, c2);
+        int256 cDenominator = FixedPoint.add(c1, c2);
+        c = FixedPoint.divDown(cNumerator, cDenominator);
     }
 
     //helper function for TWAMM formula computation, helps avoid stack depth errors
@@ -317,9 +326,9 @@ library LongTermOrdersLib {
         uint256 balance
     ) internal {
         if (tokenIndex == 0) {
-            self.balanceA += balance;
+            self.balanceA = Math.add(self.balanceA, balance);
         } else if (tokenIndex == 1) {
-            self.balanceB += balance;
+            self.balanceB = Math.add(self.balanceB, balance);
         }
     }
 
@@ -329,9 +338,9 @@ library LongTermOrdersLib {
         uint256 balance
     ) internal {
         if (tokenIndex == 0) {
-            self.balanceA -= balance;
+            self.balanceA = Math.add(self.balanceA, balance);
         } else if (tokenIndex == 1) {
-            self.balanceB -= balance;
+            self.balanceB = Math.add(self.balanceB, balance);
         }
     }
 

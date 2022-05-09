@@ -157,4 +157,12 @@ library FixedPoint {
     function complement(uint256 x) internal pure returns (uint256) {
         return (x < ONE) ? (ONE - x) : 0;
     }
+
+    function fromUint(uint256 x) internal pure returns (uint256) {
+        return x * ONE;
+    }
+
+    function toUint(uint256 x) internal pure returns (uint256) {
+        return result = x / SCALE;
+    }
 }

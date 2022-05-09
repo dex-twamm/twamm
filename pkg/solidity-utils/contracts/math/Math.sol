@@ -94,4 +94,12 @@ library Math {
             return 1 + (a - 1) / b;
         }
     }
+
+    function mod(
+        uint256 a,
+        uint256 b,
+    ) internal pure returns (uint256) {
+        require(b != 0, Errors.ZERO_DIVISION);
+        return a % b;
+    }
 }
