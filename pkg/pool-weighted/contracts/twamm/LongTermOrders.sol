@@ -3,6 +3,7 @@ pragma solidity ^0.7.0;
 
 import "hardhat/console.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/math/SignedFixedPoint.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 import "./OrderPool.sol";
 import "../WeightedPoolUserData.sol";
@@ -10,6 +11,7 @@ import "../WeightedPoolUserData.sol";
 //@notice This library handles the state and execution of long term orders.
 library LongTermOrdersLib {
     using FixedPoint for uint256;
+    using SignedFixedPoint for int256;
     using OrderPoolLib for OrderPoolLib.OrderPool;
 
     //@notice information associated with a long term order
@@ -70,9 +72,11 @@ library LongTermOrdersLib {
         executeVirtualOrdersUntilCurrentBlock(self, balances);
 
         //determine the selling rate based on number of blocks to expiry and total amount
-        uint256 orderExpiry = Math.add(Math.mul(self.orderBlockInterval, Math.add(numberOfBlockIntervals, 1)),
-            Math.sub(block.number, Math.mod(block.number, self.orderBlockInterval)));
-        uint256 sellingRate = Math.divDown(amount, (Math.sub(orderExpiry, block.number)));
+        uint256 orderExpiry = Math.add(
+            Math.mul(self.orderBlockInterval, Math.add(numberOfBlockIntervals, 1)),
+            Math.sub(block.number, Math.mod(block.number, 10))
+        );
+        uint256 sellingRate = amount.divDown(Math.sub(orderExpiry, block.number).fromUint());
 
         //add order to correct pool
         self.orderPoolMap[from].depositOrder(self.orderId, sellingRate, orderExpiry);
@@ -160,9 +164,9 @@ library LongTermOrdersLib {
         uint256 blockNumber
     ) private {
         //amount sold from virtual trades
-        uint256 blockNumberIncrement = Math.sub(blockNumber, self.lastVirtualOrderBlock);
-        uint256 tokenASellAmount = Math.mul((self.orderPoolMap[0].currentSalesRate, blockNumberIncrement);
-        uint256 tokenBSellAmount = Math.mul(self.orderPoolMap[1].currentSalesRate, blockNumberIncrement);
+        uint256 blockNumberIncrement = Math.sub(blockNumber, self.lastVirtualOrderBlock).fromUint();
+        uint256 tokenASellAmount = self.orderPoolMap[0].currentSalesRate.mulDown(blockNumberIncrement);
+        uint256 tokenBSellAmount = self.orderPoolMap[1].currentSalesRate.mulDown(blockNumberIncrement);
 
         //initial amm balance
         uint256 tokenAStart = balances[0];
@@ -177,16 +181,8 @@ library LongTermOrdersLib {
         );
 
         //update balances reserves
-        _addToLongTermOrdersBalance(
-            self,
-            0,
-            Math.sub(tokenAOut, tokenASellAmount)
-        );
-        _addToLongTermOrdersBalance(
-            self,
-            1,
-            Math.sub(tokenBOut, tokenBSellAmount)
-        );
+        _addToLongTermOrdersBalance(self, 0, tokenAOut.sub(tokenASellAmount));
+        _addToLongTermOrdersBalance(self, 1, tokenBOut.sub(tokenBSellAmount));
 
         //distribute proceeds to pools
         OrderPoolLib.OrderPool storage orderPoolA = self.orderPoolMap[0];
@@ -205,9 +201,10 @@ library LongTermOrdersLib {
 
     //@notice executes all virtual orders until current block is reached.
     function executeVirtualOrdersUntilCurrentBlock(LongTermOrders storage self, uint256[] memory balances) internal {
-        uint256 nextExpiryBlock = Math.sub(self.lastVirtualOrderBlock,
-            Math.add(Math.mod(self.lastVirtualOrderBlock, self.orderBlockInterval),
-            self.orderBlockInterval));
+        uint256 nextExpiryBlock = Math.sub(
+            self.lastVirtualOrderBlock,
+            Math.add(Math.mod(self.lastVirtualOrderBlock, self.orderBlockInterval), self.orderBlockInterval)
+        );
         //iterate through blocks eligible for order expiries, moving state forward
         while (nextExpiryBlock < block.number) {
             _executeVirtualTradesAndOrderExpiries(self, balances, nextExpiryBlock);
@@ -234,48 +231,31 @@ library LongTermOrdersLib {
         //in the case where only one pool is selling, we just perform a normal swap
         else if (tokenAIn == 0) {
             //constant product formula
-            tokenAOut = Math.divDown(
-                Math.mul(tokenAStart, tokenBIn),
-                Math.add(tokenBStart, tokenBIn)
-            );
+            tokenAOut = tokenAStart.mulDown(tokenBIn).divDown(tokenBStart.add(tokenBIn));
             tokenBOut = 0;
         } else if (tokenBIn == 0) {
             tokenAOut = 0;
             //contant product formula
-            tokenBOut = Math.divDown(
-                Math.mul(tokenBStart, tokenAIn),
-                Math.add(tokenAStart, tokenAIn)
-            );
+            tokenBOut = tokenBStart.mulDown(tokenAIn).divDown(tokenAStart.add(tokenAIn));
         }
         //when both pools sell, we use the TWAMM formula
         else {
             //signed, fixed point arithmetic
-            // int256 aIn = int256(tokenAIn).fromInt();
-            // int256 bIn = int256(tokenBIn).fromInt();
-            // int256 aStart = int256(tokenAStart).fromInt();
-            // int256 bStart = int256(tokenBStart).fromInt();
-            // TODO fix this
-            int256 aIn = int256(tokenAIn);
-            int256 bIn = int256(tokenBIn);
-            int256 aStart = int256(tokenAStart);
-            int256 bStart = int256(tokenBStart);
+            int256 aIn = tokenAIn.toInt();
+            int256 bIn = tokenBIn.toInt();
+            int256 aStart = tokenAStart.toInt();
+            int256 bStart = tokenBStart.toInt();
 
-            // TODO fix this
-            // int256 k = aStart.mul(bStart);
-            int256 k = aStart * bStart;
+            int256 k = aStart.mulUp(bStart);
 
             int256 c = _computeC(aStart, bStart, aIn, bIn);
             int256 endA = _computeAmmEndTokenA(aIn, bIn, c, k, aStart, bStart);
-            // TODO fix this
-            // int256 endB = aStart.div(endA).mul(bStart);
-            int256 endB = (aStart / endA) * bStart;
+            int256 endB = aStart.divDown(endA).mulDown(bStart);
 
-            int256 outA = aStart + aIn - endA;
-            int256 outB = bStart + bIn - endB;
+            int256 outA = aStart.add(aIn).sub(endA);
+            int256 outB = bStart.add(bIn).sub(endB);
 
-            // TODO fix this
-            // return (uint256(outA.toInt()), uint256(outB.toInt()));
-            return (uint256(outA), uint256(outB));
+            return (outA.toUint(), outB.toUint());
         }
     }
 
@@ -287,11 +267,11 @@ library LongTermOrdersLib {
         int256 tokenBIn
     ) private pure returns (int256 c) {
         // TODO fix this
-        int256 c1 = FixedPoint.mulDown(tokenAStart, tokenBIn);
-        int256 c2 = FixedPoint.mulDown(tokenBStart, tokenAIn);
-        int256 cNumerator = FixedPoint.sub(c1, c2);
-        int256 cDenominator = FixedPoint.add(c1, c2);
-        c = FixedPoint.divDown(cNumerator, cDenominator);
+        int256 c1 = tokenAStart.mulDown(tokenBIn);
+        int256 c2 = tokenBStart.mulDown(tokenAIn);
+        int256 cNumerator = c1.sub(c2);
+        int256 cDenominator = c1.add(c2);
+        c = cNumerator.divDown(cDenominator);
     }
 
     //helper function for TWAMM formula computation, helps avoid stack depth errors
@@ -338,9 +318,9 @@ library LongTermOrdersLib {
         uint256 balance
     ) internal {
         if (tokenIndex == 0) {
-            self.balanceA = Math.add(self.balanceA, balance);
+            self.balanceA = self.balanceA.add(balance);
         } else if (tokenIndex == 1) {
-            self.balanceB = Math.add(self.balanceB, balance);
+            self.balanceB = self.balanceB.add(balance);
         }
     }
 

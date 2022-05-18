@@ -40,10 +40,7 @@ library OrderPoolLib {
     function distributePayment(OrderPool storage self, uint256 amount) internal {
         if (self.currentSalesRate != 0) {
             //floating point arithmetic
-            self.rewardFactor = FixedPoint.add(
-                self.rewardFactor,
-                amount.fromUint().divDown(self.currentSalesRate.fromUint())
-            );
+            self.rewardFactor = self.rewardFactor.add(amount.divDown(self.currentSalesRate));
         }
     }
 
@@ -54,17 +51,17 @@ library OrderPoolLib {
         uint256 amountPerBlock,
         uint256 orderExpiry
     ) internal {
-        self.currentSalesRate = Math.add(self.currentSalesRate, amountPerBlock);
+        self.currentSalesRate = self.currentSalesRate.add(amountPerBlock);
         self.rewardFactorAtSubmission[orderId] = self.rewardFactor;
         self.orderExpiry[orderId] = orderExpiry;
         self.salesRate[orderId] = amountPerBlock;
-        self.salesRateEndingPerBlock[orderExpiry] = Math.add(self.salesRateEndingPerBlock[orderExpiry], amountPerBlock);
+        self.salesRateEndingPerBlock[orderExpiry] = self.salesRateEndingPerBlock[orderExpiry].add(amountPerBlock);
     }
 
     //@notice when orders expire after a given block, we need to update the state of the pool
     function updateStateFromBlockExpiry(OrderPool storage self, uint256 blockNumber) internal {
         uint256 ordersExpiring = self.salesRateEndingPerBlock[blockNumber];
-        self.currentSalesRate = Math.sub(self.currentSalesRate, ordersExpiring);
+        self.currentSalesRate = self.currentSalesRate.sub(ordersExpiring);
         self.rewardFactorAtBlock[blockNumber] = self.rewardFactor;
     }
 
@@ -79,20 +76,17 @@ library OrderPoolLib {
         //calculate amount that wasn't sold, and needs to be returned
         uint256 salesRate = self.salesRate[orderId];
         uint256 blocksRemaining = Math.sub(expiry, block.number);
-        unsoldAmount = Math.mul(blocksRemaining, salesRate);
+        unsoldAmount = blocksRemaining.fromUint().mulDown(salesRate);
 
         //calculate amount of other token that was purchased
         uint256 rewardFactorAtSubmission = self.rewardFactorAtSubmission[orderId];
-        purchasedAmount = FixedPoint
-            .sub(self.rewardFactor, rewardFactorAtSubmission)
-            .mulDown(salesRate.fromUint())
-            .toUint();
+        purchasedAmount = self.rewardFactor.sub(rewardFactorAtSubmission).mulDown(salesRate);
 
         //update state
-        self.currentSalesRate = Math.sub(self.currentSalesRate, salesRate);
+        self.currentSalesRate = self.currentSalesRate.sub(salesRate);
         self.salesRate[orderId] = 0;
         self.orderExpiry[orderId] = 0;
-        self.salesRateEndingPerBlock[expiry] = Math.sub(self.salesRateEndingPerBlock[expiry], salesRate);
+        self.salesRateEndingPerBlock[expiry] = self.salesRateEndingPerBlock[expiry].sub(salesRate);
     }
 
     //@notice withdraw proceeds from pool for a given order. This can be done before or after the order has expired.
@@ -107,19 +101,13 @@ library OrderPoolLib {
         //if order has expired, we need to calculate the reward factor at expiry
         if (block.number > orderExpiry) {
             uint256 rewardFactorAtExpiry = self.rewardFactorAtBlock[orderExpiry];
-            totalReward = FixedPoint
-                .sub(rewardFactorAtExpiry, rewardFactorAtSubmission)
-                .mulDown(stakedAmount.fromUint())
-                .toUint();
+            totalReward = rewardFactorAtExpiry.sub(rewardFactorAtSubmission).mulDown(stakedAmount);
             //remove stake
             self.salesRate[orderId] = 0;
         }
         //if order has not yet expired, we just adjust the start
         else {
-            totalReward = FixedPoint
-                .sub(self.rewardFactor, rewardFactorAtSubmission)
-                .mulDown(stakedAmount.fromUint())
-                .toUint();
+            totalReward = self.rewardFactor.sub(rewardFactorAtSubmission).mulDown(stakedAmount);
             self.rewardFactorAtSubmission[orderId] = self.rewardFactor;
         }
     }

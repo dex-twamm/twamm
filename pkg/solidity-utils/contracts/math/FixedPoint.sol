@@ -163,6 +163,15 @@ library FixedPoint {
     }
 
     function toUint(uint256 x) internal pure returns (uint256) {
-        return result = x / SCALE;
+        return x / ONE;
+    }
+
+    // TODO fix these
+    function fromInt(uint256 x) internal pure returns (int256) {
+        return int256(x);
+    }
+
+    function toInt(uint256 x) internal pure returns (int256) {
+        return int256(x);
     }
 }

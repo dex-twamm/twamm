@@ -95,11 +95,8 @@ library Math {
         }
     }
 
-    function mod(
-        uint256 a,
-        uint256 b,
-    ) internal pure returns (uint256) {
-        require(b != 0, Errors.ZERO_DIVISION);
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        _require(b != 0, Errors.ZERO_DIVISION);
         return a % b;
     }
 }
