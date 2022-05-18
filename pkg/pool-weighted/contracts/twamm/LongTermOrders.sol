@@ -72,10 +72,7 @@ library LongTermOrdersLib {
         executeVirtualOrdersUntilCurrentBlock(self, balances);
 
         //determine the selling rate based on number of blocks to expiry and total amount
-        uint256 orderExpiry = Math.add(
-            Math.mul(self.orderBlockInterval, Math.add(numberOfBlockIntervals, 1)),
-            Math.sub(block.number, Math.mod(block.number, 10))
-        );
+        uint256 orderExpiry = _getOrderExpiry(self, numberOfBlockIntervals);
         uint256 sellingRate = amount.divDown(Math.sub(orderExpiry, block.number).fromUint());
 
         //add order to correct pool
@@ -201,9 +198,9 @@ library LongTermOrdersLib {
 
     //@notice executes all virtual orders until current block is reached.
     function executeVirtualOrdersUntilCurrentBlock(LongTermOrders storage self, uint256[] memory balances) internal {
-        uint256 nextExpiryBlock = Math.sub(
-            self.lastVirtualOrderBlock,
-            Math.add(Math.mod(self.lastVirtualOrderBlock, self.orderBlockInterval), self.orderBlockInterval)
+        uint256 nextExpiryBlock = Math.add(
+            Math.sub(self.lastVirtualOrderBlock, Math.mod(self.lastVirtualOrderBlock, self.orderBlockInterval)),
+            self.orderBlockInterval
         );
         //iterate through blocks eligible for order expiries, moving state forward
         while (nextExpiryBlock < block.number) {
@@ -292,12 +289,12 @@ library LongTermOrdersLib {
         // int256 scaling = k.div(tokenBIn).sqrt().mul(tokenAIn.sqrt());
         // ammEndTokenA = fraction.mul(scaling);
 
-        int256 eNumerator = 1;
-        int256 eDenominator = aStart * bStart;
-        int256 exponent = eNumerator * eDenominator;
-        int256 fraction = (exponent + c) / (exponent - c);
-        int256 scaling = (k / (tokenBIn)) * (tokenAIn);
-        ammEndTokenA = fraction * scaling;
+        int256 eNumerator = SignedFixedPoint.fromInt(4).mulDown(tokenAIn).mulDown(tokenBIn).sqrt();
+        int256 eDenominator = aStart.sqrt().mulDown(bStart.sqrt()).inv();
+        int256 exponent = eNumerator.mulDown(eDenominator).exp();
+        int256 fraction = (exponent.add(c)).divDown(exponent.sub(c));
+        int256 scaling = k.divDown(tokenBIn).sqrt().mulDown(tokenAIn.sqrt());
+        ammEndTokenA = fraction.mulDown(scaling);
     }
 
     function _addToLongTermOrdersBalance(
@@ -329,5 +326,13 @@ library LongTermOrdersLib {
         returns (uint256 balance)
     {
         return tokenIndex == 0 ? self.balanceA : self.balanceB;
+    }
+
+    function _getOrderExpiry(LongTermOrders storage self, uint256 numberOfBlockIntervals) internal returns (uint256) {
+        return
+            Math.add(
+                Math.mul(self.orderBlockInterval, Math.add(numberOfBlockIntervals, 1)),
+                Math.sub(block.number, Math.mod(block.number, self.orderBlockInterval))
+            );
     }
 }
