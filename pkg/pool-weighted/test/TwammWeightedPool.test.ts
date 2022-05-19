@@ -10,6 +10,12 @@ import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/wei
 
 import { range } from 'lodash';
 
+async function moveForwardNBlocks(n: number) {
+  for (let index = 0; index < n; index++) {
+    await ethers.provider.send('evm_mine', []);
+  }
+}
+
 // TODO(codesherpa): Add real tests. Current tests are duplicate of WeightedPool tests
 describe('TwammWeightedPool', function () {
   let owner: SignerWithAddress, other: SignerWithAddress;
@@ -26,7 +32,7 @@ describe('TwammWeightedPool', function () {
   let pool: WeightedPool;
   const weights = [fp(0.5), fp(0.5)];
   // 1 token A = 4 token B
-  const initialBalances = [fp(1.0), fp(4.0)];
+  const initialBalances = [fp(100.0), fp(400.0)];
 
   sharedBeforeEach('deploy tokens', async () => {
     allTokens = await TokenList.create(MAX_TOKENS + 1, { sorted: true });
@@ -71,8 +77,7 @@ describe('TwammWeightedPool', function () {
           owner: owner.address,
           poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
           swapEnabledOnStart: true,
-          orderBlockInterval: 1000,
-          fromFactory: true,
+          orderBlockInterval: 10
         };
         pool = await WeightedPool.create(params);
       });
@@ -88,10 +93,23 @@ describe('TwammWeightedPool', function () {
             await pool.init({ from: owner, initialBalances });
           });
 
-          it('can accept Long Term Order', async () => {
-            const balance = (await tokens.balanceOf(other))[0];
+          it('can execute Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
-            await pool.placeLongTermOrder({ from: other, amountIn: balance, tokenInIndex: 0, tokenOutIndex: 1 });
+            let longTermOrder = await pool.placeLongTermOrder({ from: other, amountIn: fp(1.0), tokenInIndex: 0, tokenOutIndex: 1, numberOfBlockIntervals: 10});
+
+            // Move forward 80 blocks with one swap after every 20 blocks.
+            for (let j = 0; j < 4; j++) {
+              await moveForwardNBlocks(20);
+              var result = await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
+            }
+
+            // Move forward to end of expiry block of the long term order.
+            await moveForwardNBlocks(20);
+
+            var withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other});
+            expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
+            expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.9));
+
           });
         });
       });

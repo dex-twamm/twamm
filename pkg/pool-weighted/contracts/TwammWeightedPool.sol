@@ -168,7 +168,7 @@ contract TwammWeightedPool is WeightedPool {
             uint256 proceeds = _longTermOrders.withdrawProceedsFromLongTermSwap(sender, orderId, updatedBalances);
 
             // TODO handle dueProtocolFeeAmounts here
-            if (_longTermOrders.orderMap[orderId].buyTokenIndex == 0) {
+            if (_longTermOrders.orderMap[orderId].sellTokenIndex == 0) {
                 return (uint256(0), _getSizeTwoArray(uint256(0), proceeds), _getSizeTwoArray(uint256(0), uint256(0)));
             } else {
                 return (uint256(0), _getSizeTwoArray(proceeds, uint256(0)), _getSizeTwoArray(uint256(0), uint256(0)));
