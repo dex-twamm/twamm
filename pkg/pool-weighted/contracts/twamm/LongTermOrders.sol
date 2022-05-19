@@ -238,10 +238,10 @@ library LongTermOrdersLib {
         //when both pools sell, we use the TWAMM formula
         else {
             //signed, fixed point arithmetic
-            int256 aIn = tokenAIn.toInt();
-            int256 bIn = tokenBIn.toInt();
-            int256 aStart = tokenAStart.toInt();
-            int256 bStart = tokenBStart.toInt();
+            int256 aIn = tokenAIn.toSignedFixedPoint();
+            int256 bIn = tokenBIn.toSignedFixedPoint();
+            int256 aStart = tokenAStart.toSignedFixedPoint();
+            int256 bStart = tokenBStart.toSignedFixedPoint();
 
             int256 k = aStart.mulUp(bStart);
 
@@ -252,7 +252,7 @@ library LongTermOrdersLib {
             int256 outA = aStart.add(aIn).sub(endA);
             int256 outB = bStart.add(bIn).sub(endB);
 
-            return (outA.toUint(), outB.toUint());
+            return (outA.toFixedPoint(), outB.toFixedPoint());
         }
     }
 
@@ -263,7 +263,6 @@ library LongTermOrdersLib {
         int256 tokenAIn,
         int256 tokenBIn
     ) private pure returns (int256 c) {
-        // TODO fix this
         int256 c1 = tokenAStart.mulDown(tokenBIn);
         int256 c2 = tokenBStart.mulDown(tokenAIn);
         int256 cNumerator = c1.sub(c2);
@@ -281,20 +280,18 @@ library LongTermOrdersLib {
         int256 bStart
     ) private pure returns (int256 ammEndTokenA) {
         //rearranged for numerical stability
-        // TODO fix this
-        // int256 eNumerator = PRBMathSD59x18.fromInt(4).mul(tokenAIn).mul(tokenBIn).sqrt();
-        // int256 eDenominator = aStart.sqrt().mul(bStart.sqrt()).inv();
-        // int256 exponent = eNumerator.mul(eDenominator).exp();
-        // int256 fraction = (exponent + c).div(exponent - c);
-        // int256 scaling = k.div(tokenBIn).sqrt().mul(tokenAIn.sqrt());
-        // ammEndTokenA = fraction.mul(scaling);
-
-        int256 eNumerator = SignedFixedPoint.fromInt(4).mulDown(tokenAIn).mulDown(tokenBIn).sqrt();
-        int256 eDenominator = aStart.sqrt().mulDown(bStart.sqrt()).inv();
-        int256 exponent = eNumerator.mulDown(eDenominator).exp();
+        uint256 eNumerator = FixedPoint
+            .fromUint(4)
+            .mulDown(tokenAIn.toFixedPoint())
+            .mulDown(tokenBIn.toFixedPoint())
+            .sqrt();
+        uint256 eDenominator = aStart.toFixedPoint().sqrt().mulDown(bStart.toFixedPoint().sqrt()).inv();
+        int256 exponent = eNumerator.mulDown(eDenominator).exp().toSignedFixedPoint();
         int256 fraction = (exponent.add(c)).divDown(exponent.sub(c));
-        int256 scaling = k.divDown(tokenBIn).sqrt().mulDown(tokenAIn.sqrt());
-        ammEndTokenA = fraction.mulDown(scaling);
+        uint256 scaling = k.toFixedPoint().divDown(tokenBIn.toFixedPoint()).sqrt().mulDown(
+            tokenAIn.toFixedPoint().sqrt()
+        );
+        ammEndTokenA = fraction.mulDown(scaling.toSignedFixedPoint());
     }
 
     function _addToLongTermOrdersBalance(

@@ -167,11 +167,24 @@ library FixedPoint {
     }
 
     // TODO fix these
-    function fromInt(uint256 x) internal pure returns (int256) {
+    function fromSignedFixedPoint(int256 x) internal pure returns (uint256) {
+        return uint256(x);
+    }
+
+    function toSignedFixedPoint(uint256 x) internal pure returns (int256) {
+        // TODO Fix this
         return int256(x);
     }
 
-    function toInt(uint256 x) internal pure returns (int256) {
-        return int256(x);
+    function exp(uint256 x) internal pure returns (uint256) {
+        return 1;
+    }
+
+    function sqrt(uint256 x) internal pure returns (uint256) {
+        return powDown(x, divDown(1, 2));
+    }
+
+    function inv(uint256 x) internal pure returns (uint256) {
+        return divDown(1, x) * ONE;
     }
 }

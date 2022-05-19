@@ -117,25 +117,11 @@ library SignedFixedPoint {
         return x / ONE;
     }
 
-    // TODO fix these
-    function fromUint(int256 x) internal pure returns (uint256) {
+    function toFixedPoint(int256 x) internal pure returns (uint256) {
         return uint256(x);
     }
 
-    function toUint(int256 x) internal pure returns (uint256) {
+    function fromFixedPoint(uint256 x) internal pure returns (uint256) {
         return uint256(x);
-    }
-
-    function exp(int256 x) internal pure returns (int256) {
-        return 1;
-    }
-
-    function sqrt(int256 x) internal pure returns (int256) {
-        // return powDown(x, divDown(1, 2));
-        return 1;
-    }
-
-    function inv(int256 x) internal pure returns (int256) {
-        return divDown(1, x) * ONE;
     }
 }
