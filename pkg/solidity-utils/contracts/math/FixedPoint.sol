@@ -166,18 +166,17 @@ library FixedPoint {
         return x / ONE;
     }
 
-    // TODO fix these
     function fromSignedFixedPoint(int256 x) internal pure returns (uint256) {
         return uint256(x);
     }
 
     function toSignedFixedPoint(uint256 x) internal pure returns (int256) {
-        // TODO Fix this
         return int256(x);
     }
 
+    // TODO proper implementation for below complex functions.
     function exp(uint256 x) internal pure returns (uint256) {
-        return 1;
+        return powDown(2718281828459045235, x);
     }
 
     function sqrt(uint256 x) internal pure returns (uint256) {
