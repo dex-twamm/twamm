@@ -178,8 +178,13 @@ library LongTermOrdersLib {
         );
 
         //update balances reserves
-        _addToLongTermOrdersBalance(self, 0, tokenAOut.sub(tokenASellAmount));
-        _addToLongTermOrdersBalance(self, 1, tokenBOut.sub(tokenBSellAmount));
+        if(tokenAOut > 0) {
+            _addToLongTermOrdersBalance(self, 0, tokenAOut.sub(tokenASellAmount));
+        }
+
+        if(tokenBOut > 0) {
+            _addToLongTermOrdersBalance(self, 1, tokenBOut.sub(tokenBSellAmount));
+        }
 
         //distribute proceeds to pools
         OrderPoolLib.OrderPool storage orderPoolA = self.orderPoolMap[0];

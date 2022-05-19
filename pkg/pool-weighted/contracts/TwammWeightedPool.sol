@@ -57,7 +57,7 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         // Initialize with current block and specified order block interval.
-        console.log("Initialize long term orders");
+        
         _longTermOrders.initialize(block.number, orderBlockInterval);
     }
 
@@ -81,7 +81,7 @@ contract TwammWeightedPool is WeightedPool {
             uint256[] memory
         )
     {
-        console.log("In _onJoinPool TwammPool");
+        
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
         _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
