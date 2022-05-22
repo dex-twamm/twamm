@@ -77,7 +77,7 @@ describe('TwammWeightedPool', function () {
           owner: owner.address,
           poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
           swapEnabledOnStart: true,
-          orderBlockInterval: 10
+          orderBlockInterval: 10,
         };
         pool = await WeightedPool.create(params);
       });
@@ -95,21 +95,26 @@ describe('TwammWeightedPool', function () {
 
           it('can execute Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
-            let longTermOrder = await pool.placeLongTermOrder({ from: other, amountIn: fp(1.0), tokenInIndex: 0, tokenOutIndex: 1, numberOfBlockIntervals: 10});
+            const longTermOrder = await pool.placeLongTermOrder({
+              from: other,
+              amountIn: fp(1.0),
+              tokenInIndex: 0,
+              tokenOutIndex: 1,
+              numberOfBlockIntervals: 10,
+            });
 
             // Move forward 80 blocks with one swap after every 20 blocks.
             for (let j = 0; j < 4; j++) {
               await moveForwardNBlocks(20);
-              var result = await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
+              const result = await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
             }
 
             // Move forward to end of expiry block of the long term order.
             await moveForwardNBlocks(20);
 
-            var withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other});
+            const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
             expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
             expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.9));
-
           });
         });
       });

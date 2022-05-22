@@ -20,6 +20,7 @@ import "./WeightedPool.sol";
 import "hardhat/console.sol";
 import "./twamm/LongTermOrders.sol";
 import "./WeightedPoolUserData.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 
 /**
  * @dev Basic Weighted Pool with immutable weights.
@@ -27,6 +28,7 @@ import "./WeightedPoolUserData.sol";
 contract TwammWeightedPool is WeightedPool {
     using LongTermOrdersLib for LongTermOrdersLib.LongTermOrders;
     using WeightedPoolUserData for bytes;
+    using FixedPoint for uint256;
 
     LongTermOrdersLib.LongTermOrders internal _longTermOrders;
 
@@ -57,7 +59,7 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         // Initialize with current block and specified order block interval.
-        
+
         _longTermOrders.initialize(block.number, orderBlockInterval);
     }
 
@@ -81,7 +83,6 @@ contract TwammWeightedPool is WeightedPool {
             uint256[] memory
         )
     {
-        
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
         _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
@@ -232,26 +233,7 @@ contract TwammWeightedPool is WeightedPool {
         return _longTermOrders.performLongTermSwap(recipient, userData, updatedBalances);
     }
 
-    // function _doJoin(
-    //     uint256[] memory balances,
-    //     uint256[] memory normalizedWeights,
-    //     uint256[] memory scalingFactors,
-    //     bytes memory userData
-    // ) internal returns (uint256, uint256[] memory) {
-    //     WeightedPoolUserData.JoinKind kind = userData.joinKind();
-
-    //     if (kind == WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT) {
-    //         return _joinExactTokensInForBPTOut(balances, normalizedWeights, scalingFactors, userData);
-    //     } else if (kind == WeightedPoolUserData.JoinKind.TOKEN_IN_FOR_EXACT_BPT_OUT) {
-    //         return _joinTokenInForExactBPTOut(balances, normalizedWeights, userData);
-    //     } else if (kind == WeightedPoolUserData.JoinKind.ALL_TOKENS_IN_FOR_EXACT_BPT_OUT) {
-    //         return _joinAllTokensInForExactBPTOut(balances, userData);
-    //     } else {
-    //         _revert(Errors.UNHANDLED_JOIN_KIND);
-    //     }
-    // }
-
-    function _getUpdatedPoolBalances(uint256[] memory balances) internal returns (uint256[] memory) {
+    function _getUpdatedPoolBalances(uint256[] memory balances) internal view returns (uint256[] memory) {
         uint256[] memory updatedBalances = new uint256[](balances.length);
 
         for (uint8 i = 0; i < balances.length; i++) {
@@ -266,5 +248,17 @@ contract TwammWeightedPool is WeightedPool {
         array[0] = a;
         array[1] = b;
         return array;
+    }
+
+    function _calculateInvariant(uint256[] memory normalizedWeights, uint256[] memory balances)
+        internal
+        view
+        override
+        returns (uint256)
+    {
+        uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
+        // return WeightedMath._calculateInvariant(normalizedWeights, updatedBalances);
+        // TODO Considering constant product amm
+        return updatedBalances[0].mulUp(updatedBalances[1]);
     }
 }

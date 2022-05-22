@@ -184,6 +184,6 @@ library FixedPoint {
     }
 
     function inv(uint256 x) internal pure returns (uint256) {
-        return divDown(1, x) * ONE;
+        return divDown(ONE, x) * ONE;
     }
 }

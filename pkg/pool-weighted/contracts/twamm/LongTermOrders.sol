@@ -243,7 +243,6 @@ library LongTermOrdersLib {
         //when both pools sell, we use the TWAMM formula
         else {
             uint256 endA = _computeAmmEndTokenA(tokenAIn, tokenBIn, tokenAStart, tokenBStart);
-
             uint256 endB = tokenAStart.divDown(endA).mulDown(tokenBStart);
 
             uint256 outA = tokenAStart.add(tokenAIn).sub(endA);
@@ -260,7 +259,7 @@ library LongTermOrdersLib {
         uint256 aStart,
         uint256 bStart
     ) private pure returns (uint256 ammEndTokenA) {
-        uint256 k = aStart.mulDown(bStart);
+        uint256 k = aStart.mulUp(bStart);
         int256 c = _computeC(aStart, bStart, tokenAIn, tokenBIn);
 
         uint256 eNumerator = FixedPoint.fromUint(4).mulDown(tokenAIn).mulDown(tokenBIn).sqrt();
@@ -268,6 +267,7 @@ library LongTermOrdersLib {
         int256 exponent = ((eNumerator.mulDown(eDenominator)).exp()).toSignedFixedPoint();
         int256 fraction = (exponent.add(c)).divDown(exponent.sub(c));
         uint256 scaling = k.divDown(tokenBIn).sqrt().mulDown(tokenAIn.sqrt());
+
         ammEndTokenA = fraction.toFixedPoint().mulDown(scaling);
     }
 
@@ -310,6 +310,7 @@ library LongTermOrdersLib {
 
     function getTokenBalanceFromLongTermOrder(LongTermOrders storage self, uint8 tokenIndex)
         internal
+        view
         returns (uint256 balance)
     {
         return tokenIndex == 0 ? self.balanceA : self.balanceB;

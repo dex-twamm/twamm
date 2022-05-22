@@ -98,7 +98,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
         _upscaleArray(balances, _scalingFactors());
 
         (uint256[] memory normalizedWeights, ) = _getNormalizedWeightsAndMaxWeightIndex();
-        return WeightedMath._calculateInvariant(normalizedWeights, balances);
+        return _calculateInvariant(normalizedWeights, balances);
     }
 
     function getNormalizedWeights() external view returns (uint256[] memory) {
@@ -164,7 +164,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
 
         (uint256[] memory normalizedWeights, ) = _getNormalizedWeightsAndMaxWeightIndex();
 
-        uint256 invariantAfterJoin = WeightedMath._calculateInvariant(normalizedWeights, amountsIn);
+        uint256 invariantAfterJoin = _calculateInvariant(normalizedWeights, amountsIn);
 
         // Set the initial BPT to the value of the invariant times the number of tokens. This makes BPT supply more
         // consistent in Pools with similar compositions but different number of tokens.
@@ -196,10 +196,6 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
             uint256[] memory
         )
     {
-        console.log("In _onJoinPool BaseWeightedPool");
-        console.log(
-            "Is join type place long term order: %s", 
-            userData.joinKind() == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER);
         // All joins are disabled while the contract is paused.
 
         (uint256[] memory normalizedWeights, uint256 maxWeightTokenIndex) = _getNormalizedWeightsAndMaxWeightIndex();
@@ -207,7 +203,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
         // Due protocol swap fee amounts are computed by measuring the growth of the invariant between the previous join
         // or exit event and now - the invariant's growth is due exclusively to swap fees. This avoids spending gas
         // computing them on each individual swap
-        uint256 invariantBeforeJoin = WeightedMath._calculateInvariant(normalizedWeights, balances);
+        uint256 invariantBeforeJoin = _calculateInvariant(normalizedWeights, balances);
 
         uint256[] memory dueProtocolFeeAmounts = _getDueProtocolFeeAmounts(
             balances,
@@ -356,7 +352,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
             // Due protocol swap fee amounts are computed by measuring the growth of the invariant between the previous
             // join or exit event and now - the invariant's growth is due exclusively to swap fees. This avoids
             // spending gas calculating the fees on each individual swap.
-            uint256 invariantBeforeExit = WeightedMath._calculateInvariant(normalizedWeights, balances);
+            uint256 invariantBeforeExit = _calculateInvariant(normalizedWeights, balances);
             dueProtocolFeeAmounts = _getDueProtocolFeeAmounts(
                 balances,
                 normalizedWeights,
@@ -529,7 +525,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
         uint256[] memory normalizedWeights
     ) private view returns (uint256) {
         _mutateAmounts(balances, amountsIn, FixedPoint.add);
-        return WeightedMath._calculateInvariant(normalizedWeights, balances);
+        return _calculateInvariant(normalizedWeights, balances);
     }
 
     function _invariantAfterExit(
@@ -538,6 +534,15 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
         uint256[] memory normalizedWeights
     ) internal view returns (uint256) {
         _mutateAmounts(balances, amountsOut, FixedPoint.sub);
+        return _calculateInvariant(normalizedWeights, balances);
+    }
+
+    function _calculateInvariant(uint256[] memory normalizedWeights, uint256[] memory balances)
+        internal
+        view
+        virtual
+        returns (uint256)
+    {
         return WeightedMath._calculateInvariant(normalizedWeights, balances);
     }
 
