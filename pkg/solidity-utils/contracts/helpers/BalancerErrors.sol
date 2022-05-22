@@ -92,6 +92,7 @@ library Errors {
     uint256 internal constant Y_OUT_OF_BOUNDS = 7;
     uint256 internal constant PRODUCT_OUT_OF_BOUNDS = 8;
     uint256 internal constant INVALID_EXPONENT = 9;
+    uint256 internal constant ADD_UNDERFLOW = 10;
 
     // Input
     uint256 internal constant OUT_OF_BOUNDS = 100;

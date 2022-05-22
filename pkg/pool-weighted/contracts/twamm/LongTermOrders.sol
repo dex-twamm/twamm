@@ -178,11 +178,11 @@ library LongTermOrdersLib {
         );
 
         //update balances reserves
-        if(tokenAOut > 0) {
+        if (tokenAOut > 0) {
             _addToLongTermOrdersBalance(self, 0, tokenAOut.sub(tokenASellAmount));
         }
 
-        if(tokenBOut > 0) {
+        if (tokenBOut > 0) {
             _addToLongTermOrdersBalance(self, 1, tokenBOut.sub(tokenBSellAmount));
         }
 
@@ -242,61 +242,46 @@ library LongTermOrdersLib {
         }
         //when both pools sell, we use the TWAMM formula
         else {
-            //signed, fixed point arithmetic
-            int256 aIn = tokenAIn.toSignedFixedPoint();
-            int256 bIn = tokenBIn.toSignedFixedPoint();
-            int256 aStart = tokenAStart.toSignedFixedPoint();
-            int256 bStart = tokenBStart.toSignedFixedPoint();
+            uint256 endA = _computeAmmEndTokenA(tokenAIn, tokenBIn, tokenAStart, tokenBStart);
 
-            int256 k = aStart.mulUp(bStart);
+            uint256 endB = tokenAStart.divDown(endA).mulDown(tokenBStart);
 
-            int256 c = _computeC(aStart, bStart, aIn, bIn);
-            int256 endA = _computeAmmEndTokenA(aIn, bIn, c, k, aStart, bStart);
-            int256 endB = aStart.divDown(endA).mulDown(bStart);
+            uint256 outA = tokenAStart.add(tokenAIn).sub(endA);
+            uint256 outB = tokenBStart.add(tokenBIn).sub(endB);
 
-            int256 outA = aStart.add(aIn).sub(endA);
-            int256 outB = bStart.add(bIn).sub(endB);
-
-            return (outA.toFixedPoint(), outB.toFixedPoint());
+            return (outA, outB);
         }
     }
 
     //helper function for TWAMM formula computation, helps avoid stack depth errors
-    function _computeC(
-        int256 tokenAStart,
-        int256 tokenBStart,
-        int256 tokenAIn,
-        int256 tokenBIn
-    ) private pure returns (int256 c) {
-        int256 c1 = tokenAStart.mulDown(tokenBIn);
-        int256 c2 = tokenBStart.mulDown(tokenAIn);
-        int256 cNumerator = c1.sub(c2);
-        int256 cDenominator = c1.add(c2);
-        c = cNumerator.divDown(cDenominator);
+    function _computeAmmEndTokenA(
+        uint256 tokenAIn,
+        uint256 tokenBIn,
+        uint256 aStart,
+        uint256 bStart
+    ) private pure returns (uint256 ammEndTokenA) {
+        uint256 k = aStart.mulDown(bStart);
+        int256 c = _computeC(aStart, bStart, tokenAIn, tokenBIn);
+
+        uint256 eNumerator = FixedPoint.fromUint(4).mulDown(tokenAIn).mulDown(tokenBIn).sqrt();
+        uint256 eDenominator = k.inv();
+        int256 exponent = ((eNumerator.mulDown(eDenominator)).exp()).toSignedFixedPoint();
+        int256 fraction = (exponent.add(c)).divDown(exponent.sub(c));
+        uint256 scaling = k.divDown(tokenBIn).sqrt().mulDown(tokenAIn.sqrt());
+        ammEndTokenA = fraction.toFixedPoint().mulDown(scaling);
     }
 
-    //helper function for TWAMM formula computation, helps avoid stack depth errors
-    function _computeAmmEndTokenA(
-        int256 tokenAIn,
-        int256 tokenBIn,
-        int256 c,
-        int256 k,
-        int256 aStart,
-        int256 bStart
-    ) private pure returns (int256 ammEndTokenA) {
-        //rearranged for numerical stability
-        uint256 eNumerator = FixedPoint
-            .fromUint(4)
-            .mulDown(tokenAIn.toFixedPoint())
-            .mulDown(tokenBIn.toFixedPoint())
-            .sqrt();
-        uint256 eDenominator = aStart.toFixedPoint().sqrt().mulDown(bStart.toFixedPoint().sqrt()).inv();
-        int256 exponent = eNumerator.mulDown(eDenominator).exp().toSignedFixedPoint();
-        int256 fraction = (exponent.add(c)).divDown(exponent.sub(c));
-        uint256 scaling = k.toFixedPoint().divDown(tokenBIn.toFixedPoint()).sqrt().mulDown(
-            tokenAIn.toFixedPoint().sqrt()
-        );
-        ammEndTokenA = fraction.mulDown(scaling.toSignedFixedPoint());
+    function _computeC(
+        uint256 tokenAIn,
+        uint256 tokenBIn,
+        uint256 aStart,
+        uint256 bStart
+    ) private pure returns (int256 c) {
+        uint256 c1 = aStart.mulDown(tokenBIn);
+        uint256 c2 = bStart.mulDown(tokenAIn);
+        int256 cNumerator = c1.toSignedFixedPoint().sub(c2.toSignedFixedPoint());
+        uint256 cDenominator = c1.add(c2);
+        c = cNumerator.divDown(cDenominator.toSignedFixedPoint());
     }
 
     function _addToLongTermOrdersBalance(
