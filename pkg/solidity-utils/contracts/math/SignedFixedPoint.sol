@@ -26,8 +26,11 @@ library SignedFixedPoint {
 
         int256 c = a + b;
 
-        _require(c >= a && a >= 0 && b >= 0, Errors.ADD_OVERFLOW);
-        _require(c <= a && a <= 0 && b <= 0, Errors.ADD_UNDERFLOW);
+        if (a >= 0 && b >= 0) {
+            _require(c >= a, Errors.ADD_OVERFLOW);
+        } else if (a <= 0 && b <= 0) {
+            _require(c <= a, Errors.ADD_UNDERFLOW);
+        }
 
         return c;
     }
@@ -36,9 +39,11 @@ library SignedFixedPoint {
         // Fixed Point addition is the same as regular checked addition
 
         int256 c = a - b;
-
-        _require(c >= a && a >= 0 && b <= 0, Errors.SUB_OVERFLOW);
-        _require(c <= a && a <= 0 && b >= 0, Errors.SUB_UNDERFLOW);
+        if (a >= 0 && b <= 0) {
+            _require(c >= a, Errors.SUB_OVERFLOW);
+        } else if (a <= 0 && b >= 0) {
+            _require(c <= a, Errors.SUB_UNDERFLOW);
+        }
 
         return c;
     }

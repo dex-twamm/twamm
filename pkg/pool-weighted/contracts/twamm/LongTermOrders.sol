@@ -58,8 +58,7 @@ library LongTermOrdersLib {
         uint256 from,
         uint256 to,
         uint256 amount,
-        uint256 numberOfBlockIntervals,
-        uint256[] memory balances
+        uint256 numberOfBlockIntervals
     )
         internal
         returns (
@@ -68,9 +67,6 @@ library LongTermOrdersLib {
             uint256
         )
     {
-        //update virtual order state
-        executeVirtualOrdersUntilCurrentBlock(self, balances);
-
         //determine the selling rate based on number of blocks to expiry and total amount
         uint256 orderExpiry = _getOrderExpiry(self, numberOfBlockIntervals);
         uint256 sellingRate = amount.divDown(Math.sub(orderExpiry, block.number).fromUint());
@@ -87,14 +83,17 @@ library LongTermOrdersLib {
         uint256 amountAIn = from == 0 ? amount : 0;
         uint256 amountBIn = from == 1 ? amount : 0;
 
-        return (Math.add(self.orderId, 1), amountAIn, amountBIn);
+        uint256 orderId = self.orderId;
+
+        self.orderId = Math.add(self.orderId, 1);
+
+        return (orderId, amountAIn, amountBIn);
     }
 
     function performLongTermSwap(
         LongTermOrders storage self,
         address owner,
-        bytes memory orderData,
-        uint256[] memory balances
+        bytes memory orderData
     )
         internal
         returns (
@@ -110,15 +109,14 @@ library LongTermOrdersLib {
             uint256 numberOfBlockIntervals
         ) = WeightedPoolUserData.placeLongTermOrder(orderData);
 
-        return _addLongTermSwap(self, owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals, balances);
+        return _addLongTermSwap(self, owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
     }
 
     //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
     function cancelLongTermSwap(
         LongTermOrders storage self,
         address sender,
-        uint256 orderId,
-        uint256[] memory balances
+        uint256 orderId
     ) internal returns (uint256 purchasedAmount, uint256 unsoldAmount) {
         Order storage order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
@@ -137,8 +135,7 @@ library LongTermOrdersLib {
     function withdrawProceedsFromLongTermSwap(
         LongTermOrders storage self,
         address sender,
-        uint256 orderId,
-        uint256[] memory balances
+        uint256 orderId
     ) internal returns (uint256 proceeds) {
         Order storage order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
@@ -179,11 +176,16 @@ library LongTermOrdersLib {
 
         //update balances reserves
         if (tokenAOut > 0) {
-            _addToLongTermOrdersBalance(self, 0, tokenAOut.sub(tokenASellAmount));
+            if (tokenAOut > tokenASellAmount) {
+                _addToLongTermOrdersBalance(self, 0, tokenAOut.sub(tokenASellAmount));
+            } else {
+                _addToLongTermOrdersBalance(self, 0, tokenASellAmount.sub(tokenAOut));
+            }
         }
 
         if (tokenBOut > 0) {
-            _addToLongTermOrdersBalance(self, 1, tokenBOut.sub(tokenBSellAmount));
+            if (tokenBOut > tokenBSellAmount) _addToLongTermOrdersBalance(self, 1, tokenBOut.sub(tokenBSellAmount));
+            else _addToLongTermOrdersBalance(self, 1, tokenBSellAmount.sub(tokenBOut));
         }
 
         //distribute proceeds to pools
@@ -244,7 +246,6 @@ library LongTermOrdersLib {
         else {
             uint256 endA = _computeAmmEndTokenA(tokenAIn, tokenBIn, tokenAStart, tokenBStart);
             uint256 endB = tokenAStart.divDown(endA).mulDown(tokenBStart);
-
             uint256 outA = tokenAStart.add(tokenAIn).sub(endA);
             uint256 outB = tokenBStart.add(tokenBIn).sub(endB);
 
@@ -260,11 +261,9 @@ library LongTermOrdersLib {
         uint256 bStart
     ) private pure returns (uint256 ammEndTokenA) {
         uint256 k = aStart.mulUp(bStart);
-        int256 c = _computeC(aStart, bStart, tokenAIn, tokenBIn);
-
-        uint256 eNumerator = FixedPoint.fromUint(4).mulDown(tokenAIn).mulDown(tokenBIn).sqrt();
-        uint256 eDenominator = k.inv();
-        int256 exponent = ((eNumerator.mulDown(eDenominator)).exp()).toSignedFixedPoint();
+        int256 c = _computeC(tokenAIn, tokenBIn, aStart, bStart);
+        uint256 ePow = FixedPoint.fromUint(4).mulDown(tokenAIn).mulDown(tokenBIn).divDown(k).sqrt();
+        int256 exponent = (ePow.exp()).toSignedFixedPoint();
         int256 fraction = (exponent.add(c)).divDown(exponent.sub(c));
         uint256 scaling = k.divDown(tokenBIn).sqrt().mulDown(tokenAIn.sqrt());
 
@@ -277,10 +276,11 @@ library LongTermOrdersLib {
         uint256 aStart,
         uint256 bStart
     ) private pure returns (int256 c) {
-        uint256 c1 = aStart.mulDown(tokenBIn);
-        uint256 c2 = bStart.mulDown(tokenAIn);
+        uint256 c1 = aStart.mulDown(tokenBIn).sqrt();
+        uint256 c2 = bStart.mulDown(tokenAIn).sqrt();
         int256 cNumerator = c1.toSignedFixedPoint().sub(c2.toSignedFixedPoint());
         uint256 cDenominator = c1.add(c2);
+
         c = cNumerator.divDown(cDenominator.toSignedFixedPoint());
     }
 

@@ -123,11 +123,16 @@ export class TwammWeightedPoolEncoder {
    * Encodes the userData parameter for joining a TwammWeightedPool by placing a long term order.
    * This can only be done by the pool owner.
    */
-   static joinPlaceLongTermOrder = (
-      tokenInIndex: number, tokenOutIndex: number, amountIn: BigNumberish, numberOfBlockIntervals: number): string =>
+  static joinPlaceLongTermOrder = (
+    tokenInIndex: number,
+    tokenOutIndex: number,
+    amountIn: BigNumberish,
+    numberOfBlockIntervals: number
+  ): string =>
     defaultAbiCoder.encode(
       ['uint256', 'uint256', 'uint256', 'uint256', 'uint256'],
-      [WeightedPoolJoinKind.PLACE_LONG_TERM_ORDER, tokenInIndex, tokenOutIndex, amountIn, numberOfBlockIntervals]);
+      [WeightedPoolJoinKind.PLACE_LONG_TERM_ORDER, tokenInIndex, tokenOutIndex, amountIn, numberOfBlockIntervals]
+    );
 
   /**
    * Encodes the userData parameter for exiting a TwammWeightedPool by cancelling a long term order.
@@ -140,6 +145,6 @@ export class TwammWeightedPoolEncoder {
    * Encodes the userData parameter for exiting a TwammWeightedPool by withdrawing after a long term order is complete.
    * This can only be done by the pool owner.
    */
-   static exitWithdrawLongTermOrder = (orderId: number): string =>
+  static exitWithdrawLongTermOrder = (orderId: number): string =>
     defaultAbiCoder.encode(['uint256', 'uint256'], [WeightedPoolExitKind.WITHDRAW_LONG_TERM_ORDER, orderId]);
 }

@@ -571,7 +571,11 @@ export default class WeightedPool {
       currentBalances: params.currentBalances,
       protocolFeePercentage: params.protocolFeePercentage,
       data: TwammWeightedPoolEncoder.joinPlaceLongTermOrder(
-        params.tokenInIndex, params.tokenOutIndex, amount, params.numberOfBlockIntervals ?? 1000),
+        params.tokenInIndex,
+        params.tokenOutIndex,
+        amount,
+        params.numberOfBlockIntervals ?? 1000
+      ),
     };
   }
 
@@ -642,7 +646,7 @@ export default class WeightedPool {
       data: TwammWeightedPoolEncoder.exitWithdrawLongTermOrder(params.orderId),
     };
   }
-  
+
   private _buildMultiExitGivenInParams(params: MultiExitGivenInWeightedPool): JoinExitWeightedPool {
     return {
       from: params.from,

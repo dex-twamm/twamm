@@ -59,7 +59,6 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         // Initialize with current block and specified order block interval.
-
         _longTermOrders.initialize(block.number, orderBlockInterval);
     }
 
@@ -94,7 +93,6 @@ contract TwammWeightedPool is WeightedPool {
                 sender,
                 recipient,
                 scalingFactors,
-                updatedBalances,
                 userData
             );
             // Return 0 bpt when long term order is placed
@@ -143,11 +141,7 @@ contract TwammWeightedPool is WeightedPool {
         WeightedPoolUserData.ExitKind kind = userData.exitKind();
         if (kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER) {
             uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
-            (uint256 purchasedAmount, uint256 unsoldAmount) = _longTermOrders.cancelLongTermSwap(
-                sender,
-                orderId,
-                updatedBalances
-            );
+            (uint256 purchasedAmount, uint256 unsoldAmount) = _longTermOrders.cancelLongTermSwap(sender, orderId);
 
             // TODO handle dueProtocolFeeAmounts here
             if (_longTermOrders.orderMap[orderId].buyTokenIndex == 0) {
@@ -166,7 +160,7 @@ contract TwammWeightedPool is WeightedPool {
         }
         if (kind == WeightedPoolUserData.ExitKind.WITHDRAW_LONG_TERM_ORDER) {
             uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
-            uint256 proceeds = _longTermOrders.withdrawProceedsFromLongTermSwap(sender, orderId, updatedBalances);
+            uint256 proceeds = _longTermOrders.withdrawProceedsFromLongTermSwap(sender, orderId);
 
             // TODO handle dueProtocolFeeAmounts here
             if (_longTermOrders.orderMap[orderId].sellTokenIndex == 0) {
@@ -220,7 +214,6 @@ contract TwammWeightedPool is WeightedPool {
         address sender,
         address recipient,
         uint256[] memory scalingFactors,
-        uint256[] memory updatedBalances,
         bytes memory userData
     )
         internal
@@ -230,7 +223,7 @@ contract TwammWeightedPool is WeightedPool {
             uint256
         )
     {
-        return _longTermOrders.performLongTermSwap(recipient, userData, updatedBalances);
+        return _longTermOrders.performLongTermSwap(recipient, userData);
     }
 
     function _getUpdatedPoolBalances(uint256[] memory balances) internal view returns (uint256[] memory) {
