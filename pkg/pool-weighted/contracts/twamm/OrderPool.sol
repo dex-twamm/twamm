@@ -41,6 +41,7 @@ library OrderPoolLib {
         if (self.currentSalesRate != 0) {
             //floating point arithmetic
             self.rewardFactor = self.rewardFactor.add(amount.divDown(self.currentSalesRate));
+            console.log("Increase in reward factor = ", amount.divDown(self.currentSalesRate), self.rewardFactor);
         }
     }
 
@@ -66,16 +67,17 @@ library OrderPoolLib {
     }
 
     //@notice cancel order and remove from the order pool
-    function cancelOrder(OrderPool storage self, uint256 orderId)
-        internal
-        returns (uint256 unsoldAmount, uint256 purchasedAmount)
-    {
+    function cancelOrder(
+        OrderPool storage self,
+        uint256 orderId,
+        uint256 lastVirtualOrderBlock
+    ) internal returns (uint256 unsoldAmount, uint256 purchasedAmount) {
         uint256 expiry = self.orderExpiry[orderId];
-        require(expiry > block.number, "order already finished");
+        require(expiry > lastVirtualOrderBlock, "order already finished");
 
         //calculate amount that wasn't sold, and needs to be returned
         uint256 salesRate = self.salesRate[orderId];
-        uint256 blocksRemaining = Math.sub(expiry, block.number);
+        uint256 blocksRemaining = Math.sub(expiry, lastVirtualOrderBlock);
         unsoldAmount = blocksRemaining.fromUint().mulDown(salesRate);
 
         //calculate amount of other token that was purchased
@@ -92,14 +94,18 @@ library OrderPoolLib {
     //@notice withdraw proceeds from pool for a given order. This can be done before or after the order has expired.
     //If the order has expired, we calculate the reward factor at time of expiry. If order has not yet expired, we
     //use current reward factor, and update the reward factor at time of staking (effectively creating a new order)
-    function withdrawProceeds(OrderPool storage self, uint256 orderId) internal returns (uint256 totalReward) {
+    function withdrawProceeds(
+        OrderPool storage self,
+        uint256 orderId,
+        uint256 lastVirtualOrderBlock
+    ) internal returns (uint256 totalReward) {
         uint256 stakedAmount = self.salesRate[orderId];
         require(stakedAmount > 0, "sales rate amount must be positive");
         uint256 orderExpiry = self.orderExpiry[orderId];
         uint256 rewardFactorAtSubmission = self.rewardFactorAtSubmission[orderId];
 
         //if order has expired, we need to calculate the reward factor at expiry
-        if (block.number > orderExpiry) {
+        if (lastVirtualOrderBlock > orderExpiry) {
             uint256 rewardFactorAtExpiry = self.rewardFactorAtBlock[orderExpiry];
             totalReward = rewardFactorAtExpiry.sub(rewardFactorAtSubmission).mulDown(stakedAmount);
             //remove stake
