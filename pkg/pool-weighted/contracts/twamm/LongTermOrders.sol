@@ -122,7 +122,7 @@ library LongTermOrdersLib {
         require(order.owner == sender, "sender must be order owner");
 
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
-        (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(orderId, self.lastVirtualOrderBlock);
+        (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(orderId);
 
         require(unsoldAmount > 0 || purchasedAmount > 0, "no proceeds to withdraw");
 
@@ -143,63 +143,36 @@ library LongTermOrdersLib {
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
         require(orderPool.orderExpiry[orderId] <= block.number, "Order not expired yet");
 
-        proceeds = orderPool.withdrawProceeds(orderId, self.lastVirtualOrderBlock);
+        proceeds = orderPool.withdrawProceeds(orderId);
 
         require(proceeds > 0, "no proceeds to withdraw");
         //update long term order balances
         _removeFromLongTermOrdersBalance(self, order.sellTokenIndex, proceeds);
     }
 
-    //@notice executes all virtual orders until current block is reached.
-    function executeVirtualOrdersUntilCurrentBlock(LongTermOrders storage self, uint256[] memory balances) internal {
-        uint256 tokenAStart = balances[0];
-        uint256 tokenBStart = balances[1];
-
-        uint256 nextExpiryBlock = Math.add(
-            Math.sub(self.lastVirtualOrderBlock, Math.mod(self.lastVirtualOrderBlock, self.orderBlockInterval)),
-            self.orderBlockInterval
-        );
-        //iterate through blocks eligible for order expiries, moving state forward
-        while (nextExpiryBlock < block.number) {
-            (tokenAStart, tokenBStart) = _executeVirtualTradesAndOrderExpiries(
-                self,
-                tokenAStart,
-                tokenBStart,
-                nextExpiryBlock
-            );
-            nextExpiryBlock = Math.add(nextExpiryBlock, self.orderBlockInterval);
-        }
-        //finally, move state to current block if necessary
-        if (self.lastVirtualOrderBlock != block.number) {
-            _executeVirtualTradesAndOrderExpiries(self, tokenAStart, tokenBStart, block.number);
-        }
-    }
-
     //@notice executes all virtual orders between current lastVirtualOrderBlock and blockNumber also handles
     //orders that expire at end of final block. This assumes that no orders expire inside the given interval
     function _executeVirtualTradesAndOrderExpiries(
         LongTermOrders storage self,
-        uint256 tokenAStart,
-        uint256 tokenBStart,
+        uint256[] memory balances,
         uint256 blockNumber
-    ) private returns (uint256, uint256) {
+    ) private {
         //amount sold from virtual trades
         uint256 blockNumberIncrement = Math.sub(blockNumber, self.lastVirtualOrderBlock).fromUint();
-        console.log("blockNumberIncrement", blockNumber, self.lastVirtualOrderBlock);
         uint256 tokenASellAmount = self.orderPoolMap[0].currentSalesRate.mulDown(blockNumberIncrement);
         uint256 tokenBSellAmount = self.orderPoolMap[1].currentSalesRate.mulDown(blockNumberIncrement);
 
+        //initial amm balance
+        uint256 tokenAStart = balances[0];
+        uint256 tokenBStart = balances[1];
+
         //updated balances from sales
-        console.log("Start values", tokenAStart, tokenBStart);
-        console.log(tokenASellAmount, tokenBSellAmount);
-        (uint256 tokenAOut, uint256 tokenBOut, uint256 ammEndTokenA, uint256 ammEndTokenB) = _computeVirtualBalances(
+        (uint256 tokenAOut, uint256 tokenBOut) = _computeVirtualBalances(
             tokenAStart,
             tokenBStart,
             tokenASellAmount,
             tokenBSellAmount
         );
-        console.log("Out values", tokenAOut, tokenBOut);
-        console.log("Out values", ammEndTokenA, ammEndTokenB);
 
         //update balances reserves
         if (tokenAOut > 0) {
@@ -228,8 +201,23 @@ library LongTermOrdersLib {
 
         //update last virtual trade block
         self.lastVirtualOrderBlock = blockNumber;
+    }
 
-        return (ammEndTokenA, ammEndTokenB);
+    //@notice executes all virtual orders until current block is reached.
+    function executeVirtualOrdersUntilCurrentBlock(LongTermOrders storage self, uint256[] memory balances) internal {
+        uint256 nextExpiryBlock = Math.add(
+            Math.sub(self.lastVirtualOrderBlock, Math.mod(self.lastVirtualOrderBlock, self.orderBlockInterval)),
+            self.orderBlockInterval
+        );
+        //iterate through blocks eligible for order expiries, moving state forward
+        while (nextExpiryBlock < block.number) {
+            _executeVirtualTradesAndOrderExpiries(self, balances, nextExpiryBlock);
+            nextExpiryBlock = Math.add(nextExpiryBlock, self.orderBlockInterval);
+        }
+        //finally, move state to current block if necessary
+        if (self.lastVirtualOrderBlock != block.number) {
+            _executeVirtualTradesAndOrderExpiries(self, balances, block.number);
+        }
     }
 
     //@notice computes the result of virtual trades by the token pools
@@ -238,30 +226,17 @@ library LongTermOrdersLib {
         uint256 tokenBStart,
         uint256 tokenAIn,
         uint256 tokenBIn
-    )
-        private
-        pure
-        returns (
-            uint256 tokenAOut,
-            uint256 tokenBOut,
-            uint256 ammEndTokenA,
-            uint256 ammEndTokenB
-        )
-    {
+    ) private pure returns (uint256 tokenAOut, uint256 tokenBOut) {
         //if no tokens are sold to the pool, we don't need to execute any orders
         if (tokenAIn == 0 && tokenBIn == 0) {
             tokenAOut = 0;
             tokenBOut = 0;
-            ammEndTokenA = tokenAStart;
-            ammEndTokenB = tokenBStart;
         }
         //in the case where only one pool is selling, we just perform a normal swap
         else if (tokenAIn == 0) {
             //constant product formula
             tokenAOut = tokenAStart.mulDown(tokenBIn).divDown(tokenBStart.add(tokenBIn));
             tokenBOut = 0;
-            ammEndTokenA = tokenAStart - tokenAOut;
-            ammEndTokenB = tokenBStart + tokenBIn;
         } else if (tokenBIn == 0) {
             tokenAOut = 0;
             //contant product formula
@@ -274,7 +249,7 @@ library LongTermOrdersLib {
             uint256 outA = tokenAStart.add(tokenAIn).sub(endA);
             uint256 outB = tokenBStart.add(tokenBIn).sub(endB);
 
-            return (outA, outB, endA, endB);
+            return (outA, outB);
         }
     }
 
