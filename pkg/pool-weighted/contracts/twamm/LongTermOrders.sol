@@ -152,8 +152,7 @@ library LongTermOrdersLib {
 
     //@notice executes all virtual orders until current block is reached.
     function executeVirtualOrdersUntilCurrentBlock(LongTermOrders storage self, uint256[] memory balances) internal {
-        uint256 tokenAStart = balances[0];
-        uint256 tokenBStart = balances[1];
+        (uint256 tokenAStart, uint256 tokenBStart) = (balances[0], balances[1]);
 
         uint256 nextExpiryBlock = Math.add(
             Math.sub(self.lastVirtualOrderBlock, Math.mod(self.lastVirtualOrderBlock, self.orderBlockInterval)),
@@ -198,21 +197,20 @@ library LongTermOrdersLib {
             tokenASellAmount,
             tokenBSellAmount
         );
-        console.log("Out values", tokenAOut, tokenBOut);
         console.log("Out values", ammEndTokenA, ammEndTokenB);
+        console.log(tokenAOut, tokenBOut);
 
         //update balances reserves
-        if (tokenAOut > 0) {
-            if (tokenAOut > tokenASellAmount) {
-                _addToLongTermOrdersBalance(self, 0, tokenAOut.sub(tokenASellAmount));
-            } else {
-                _addToLongTermOrdersBalance(self, 0, tokenASellAmount.sub(tokenAOut));
-            }
+        if (tokenAOut > tokenASellAmount) {
+            _addToLongTermOrdersBalance(self, 0, tokenAOut.sub(tokenASellAmount));
+        } else {
+            _addToLongTermOrdersBalance(self, 0, tokenASellAmount.sub(tokenAOut));
         }
 
-        if (tokenBOut > 0) {
-            if (tokenBOut > tokenBSellAmount) _addToLongTermOrdersBalance(self, 1, tokenBOut.sub(tokenBSellAmount));
-            else _addToLongTermOrdersBalance(self, 1, tokenBSellAmount.sub(tokenBOut));
+        if (tokenBOut > tokenBSellAmount) {
+            _addToLongTermOrdersBalance(self, 1, tokenBOut.sub(tokenBSellAmount));
+        } else {
+            _addToLongTermOrdersBalance(self, 1, tokenBSellAmount.sub(tokenBOut));
         }
 
         //distribute proceeds to pools
@@ -266,6 +264,8 @@ library LongTermOrdersLib {
             tokenAOut = 0;
             //contant product formula
             tokenBOut = tokenBStart.mulDown(tokenAIn).divDown(tokenAStart.add(tokenAIn));
+            ammEndTokenA = tokenAStart + tokenAIn;
+            ammEndTokenB = tokenBStart - tokenBOut;
         }
         //when both pools sell, we use the TWAMM formula
         else {
@@ -327,9 +327,9 @@ library LongTermOrdersLib {
         uint256 balance
     ) internal {
         if (tokenIndex == 0) {
-            self.balanceA = self.balanceA.add(balance);
+            self.balanceA = self.balanceA.sub(balance);
         } else if (tokenIndex == 1) {
-            self.balanceB = self.balanceB.add(balance);
+            self.balanceB = self.balanceB.sub(balance);
         }
     }
 

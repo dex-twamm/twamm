@@ -62,8 +62,8 @@ contract MockLongTermOrders {
         return _longTermOrders.orderId;
     }
 
-    function getBalanceA() external view returns (uint256) {
-        return _longTermOrders.balanceA;
+    function getTokenBalances() external view returns (uint256, uint256) {
+        return (_longTermOrders.balanceA, _longTermOrders.balanceB);
     }
 
     function getBalanceB() external view returns (uint256) {
