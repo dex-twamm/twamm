@@ -91,10 +91,11 @@ describe('TwammWeightedPool', function () {
             await tokens.approve({ from: owner, to: await pool.getVault() });
 
             await pool.init({ from: owner, initialBalances });
+            await tokens.approve({ from: other, to: await pool.getVault() });
           });
 
           it('can execute Long Term Order', async () => {
-            await tokens.approve({ from: other, to: await pool.getVault() });
+            
             const longTermOrder = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
