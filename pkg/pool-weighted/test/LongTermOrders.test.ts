@@ -182,7 +182,7 @@ describe('LongTermOrders', function () {
 
       verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('202995883094633276320'));
       verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
-      verifyTokenBalances(tokenBalances, bn('100202807333033617914'), bn('202803220035599308'));
+      verifyTokenBalances(tokenBalances, bn('99797192666966382086'), bn('202803220035599308'));
     });
 
     it('can place long term order in both direction of same interval and execute', async () => {
@@ -201,7 +201,7 @@ describe('LongTermOrders', function () {
 
       verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('203999999440537538095'));
       verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('204000000559470409300'));
-      verifyTokenBalances(tokenBalances, bn('100000002036708803633'), bn('100000002036708790109'));
+      verifyTokenBalances(tokenBalances, bn('100000002036708803633'), bn('99999997963291209891'));
     });
 
     it('can place long term order in both direction of diff sale rate and execute', async () => {
@@ -217,7 +217,7 @@ describe('LongTermOrders', function () {
 
       verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('204012457946465326377'));
       verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('203987543329374243561'));
-      verifyTokenBalances(tokenBalances, bn('100610612681539143706'), bn('200610649968600611782'));
+      verifyTokenBalances(tokenBalances, bn('100610612681539143706'), bn('199389350031399388218'));
     });
 
     it('can place long term order in both direction, execute and cancel first order', async () => {
@@ -233,7 +233,7 @@ describe('LongTermOrders', function () {
 
       verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('204012457946465326377'));
       verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('203987543329374243561'));
-      verifyTokenBalances(tokenBalances, bn('100610612681539143706'), bn('200610649968600611782'));
+      verifyTokenBalances(tokenBalances, bn('100610612681539143706'), bn('199389350031399388218'));
 
       await longTermOrders.cancelLongTermSwap(anAddress.address, 0);
 
@@ -243,8 +243,33 @@ describe('LongTermOrders', function () {
 
       verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('204012457946465326377'));
       verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('203987543329374243561'));
-      verifyTokenBalances(tokenBalances, bn('812420963671191572'), bn('200406831138542701621'));
+      verifyTokenBalances(tokenBalances, bn('812420963671191572'), bn('199185531201341478057'));
     });
+
+    // it('can place long term order in one direction, execute and withdraw order', async () => {
+    //   await placeLongTermOrder(anAddress.address, 0, 1, fp(100), 3);
+
+    //   const currentExecBlockNumber = await moveForwardNBlocks(4 * ORDER_BLOCK_INTERVAL);
+    //   await longTermOrders.executeVirtualOrdersUntilCurrentBlock([fp(10000), fp(10000)]);
+
+    //   let orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
+    //   let orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
+    //   let tokenBalances = await longTermOrders.getTokenBalances();
+
+    //   verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('393049602727022081856'));
+    //   verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
+    //   verifyTokenBalances(tokenBalances, bn('1122923248902847537'), bn('297908981364596278033'));
+
+    //   await longTermOrders.withdrawProceedsFromLongTermSwap(anAddress.address, 0);
+
+    //   orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
+    //   orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
+    //   tokenBalances = await longTermOrders.getTokenBalances();
+
+    //   verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('393049602727022081856'));
+    //   verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
+    //   verifyTokenBalances(tokenBalances, fp(0), fp(0));
+    // });
 
     it('can place long term order in both direction, execute and withdraw first order', async () => {
       const [, salesRateA] = await placeLongTermOrder(anAddress.address, 0, 1, fp(100), 3);
@@ -259,7 +284,7 @@ describe('LongTermOrders', function () {
 
       verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('393111698492602697555'));
       verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('408078839317253156679'));
-      verifyTokenBalances(tokenBalances, bn('198934082639420177763'), bn('297964876282151274637'));
+      verifyTokenBalances(tokenBalances, bn('1122923248902847537'), bn('297908981364596278033'));
 
       await longTermOrders.withdrawProceedsFromLongTermSwap(anAddress.address, 0);
 
@@ -269,7 +294,7 @@ describe('LongTermOrders', function () {
 
       verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('393111698492602697555'));
       verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('408078839317253156679'));
-      verifyTokenBalances(tokenBalances, bn('99412133653951140587'), bn('297964876282151274637'));
+      verifyTokenBalances(tokenBalances, bn('1122923248902847537'), bn('198387032379127240857'));
     });
   });
 });

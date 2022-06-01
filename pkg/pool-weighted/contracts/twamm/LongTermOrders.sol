@@ -51,6 +51,28 @@ library LongTermOrdersLib {
         self.orderBlockInterval = orderBlockInterval;
     }
 
+    function performLongTermSwap(
+        LongTermOrders storage self,
+        address owner,
+        bytes memory orderData
+    )
+        internal
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        (
+            uint256 sellTokenIndex,
+            uint256 buyTokenIndex,
+            uint256 amountIn,
+            uint256 numberOfBlockIntervals
+        ) = WeightedPoolUserData.placeLongTermOrder(orderData);
+
+        return _addLongTermSwap(self, owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
+    }
+
     //@notice adds long term swap to order pool
     function _addLongTermSwap(
         LongTermOrders storage self,
@@ -90,28 +112,6 @@ library LongTermOrdersLib {
         return (orderId, amountAIn, amountBIn);
     }
 
-    function performLongTermSwap(
-        LongTermOrders storage self,
-        address owner,
-        bytes memory orderData
-    )
-        internal
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
-        (
-            uint256 sellTokenIndex,
-            uint256 buyTokenIndex,
-            uint256 amountIn,
-            uint256 numberOfBlockIntervals
-        ) = WeightedPoolUserData.placeLongTermOrder(orderData);
-
-        return _addLongTermSwap(self, owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
-    }
-
     //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
     function cancelLongTermSwap(
         LongTermOrders storage self,
@@ -147,7 +147,7 @@ library LongTermOrdersLib {
 
         require(proceeds > 0, "no proceeds to withdraw");
         //update long term order balances
-        _removeFromLongTermOrdersBalance(self, order.sellTokenIndex, proceeds);
+        _removeFromLongTermOrdersBalance(self, order.buyTokenIndex, proceeds);
     }
 
     //@notice executes all virtual orders until current block is reached.
@@ -184,7 +184,7 @@ library LongTermOrdersLib {
     ) private returns (uint256, uint256) {
         //amount sold from virtual trades
         uint256 blockNumberIncrement = Math.sub(blockNumber, self.lastVirtualOrderBlock).fromUint();
-        console.log("blockNumberIncrement", blockNumber, self.lastVirtualOrderBlock);
+        console.log("blockNumberIncrement", self.orderPoolMap[0].currentSalesRate, blockNumberIncrement);
         uint256 tokenASellAmount = self.orderPoolMap[0].currentSalesRate.mulDown(blockNumberIncrement);
         uint256 tokenBSellAmount = self.orderPoolMap[1].currentSalesRate.mulDown(blockNumberIncrement);
 
@@ -201,17 +201,8 @@ library LongTermOrdersLib {
         console.log(tokenAOut, tokenBOut);
 
         //update balances reserves
-        if (tokenAOut > tokenASellAmount) {
-            _addToLongTermOrdersBalance(self, 0, tokenAOut.sub(tokenASellAmount));
-        } else {
-            _addToLongTermOrdersBalance(self, 0, tokenASellAmount.sub(tokenAOut));
-        }
-
-        if (tokenBOut > tokenBSellAmount) {
-            _addToLongTermOrdersBalance(self, 1, tokenBOut.sub(tokenBSellAmount));
-        } else {
-            _addToLongTermOrdersBalance(self, 1, tokenBSellAmount.sub(tokenBOut));
-        }
+        _addToLongTermOrdersBalance(self, 0, tokenAOut.toSignedFixedPoint().sub(tokenASellAmount.toSignedFixedPoint()));
+        _addToLongTermOrdersBalance(self, 1, tokenBOut.toSignedFixedPoint().sub(tokenBSellAmount.toSignedFixedPoint()));
 
         //distribute proceeds to pools
         OrderPoolLib.OrderPool storage orderPoolA = self.orderPoolMap[0];
@@ -256,25 +247,22 @@ library LongTermOrdersLib {
         //in the case where only one pool is selling, we just perform a normal swap
         else if (tokenAIn == 0) {
             //constant product formula
-            tokenAOut = tokenAStart.mulDown(tokenBIn).divDown(tokenBStart.add(tokenBIn));
             tokenBOut = 0;
-            ammEndTokenA = tokenAStart - tokenAOut;
-            ammEndTokenB = tokenBStart + tokenBIn;
+            ammEndTokenB = tokenBStart.add(tokenBIn);
+            tokenAOut = tokenAStart.mulDown(tokenBIn).divDown(ammEndTokenB);
+            ammEndTokenA = tokenAStart.sub(tokenAOut);
         } else if (tokenBIn == 0) {
             tokenAOut = 0;
-            //contant product formula
-            tokenBOut = tokenBStart.mulDown(tokenAIn).divDown(tokenAStart.add(tokenAIn));
-            ammEndTokenA = tokenAStart + tokenAIn;
-            ammEndTokenB = tokenBStart - tokenBOut;
+            ammEndTokenA = tokenAStart.add(tokenAIn);
+            tokenBOut = tokenBStart.mulDown(tokenAIn).divDown(ammEndTokenA);
+            ammEndTokenB = tokenBStart.sub(tokenBOut);
         }
         //when both pools sell, we use the TWAMM formula
         else {
-            uint256 endA = _computeAmmEndTokenA(tokenAIn, tokenBIn, tokenAStart, tokenBStart);
-            uint256 endB = tokenAStart.divDown(endA).mulDown(tokenBStart);
-            uint256 outA = tokenAStart.add(tokenAIn).sub(endA);
-            uint256 outB = tokenBStart.add(tokenBIn).sub(endB);
-
-            return (outA, outB, endA, endB);
+            ammEndTokenA = _computeAmmEndTokenA(tokenAIn, tokenBIn, tokenAStart, tokenBStart);
+            ammEndTokenB = tokenAStart.divDown(ammEndTokenA).mulDown(tokenBStart);
+            tokenAOut = tokenAStart.add(tokenAIn).sub(ammEndTokenA);
+            tokenBOut = tokenBStart.add(tokenBIn).sub(ammEndTokenB);
         }
     }
 
@@ -307,6 +295,18 @@ library LongTermOrdersLib {
         uint256 cDenominator = c1.add(c2);
 
         c = cNumerator.divDown(cDenominator.toSignedFixedPoint());
+    }
+
+    function _addToLongTermOrdersBalance(
+        LongTermOrders storage self,
+        uint256 tokenIndex,
+        int256 balance
+    ) internal {
+        if (tokenIndex == 0) {
+            self.balanceA = Math.add(self.balanceA.toSignedFixedPoint(), balance).toFixedPoint();
+        } else if (tokenIndex == 1) {
+            self.balanceB = Math.add(self.balanceB.toSignedFixedPoint(), balance).toFixedPoint();
+        }
     }
 
     function _addToLongTermOrdersBalance(
