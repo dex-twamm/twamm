@@ -92,6 +92,7 @@ contract TwammWeightedPool is WeightedPool {
             (uint256 orderId, uint256 amountAIn, uint256 amountBIn) = _registerLongTermOrder(
                 sender,
                 recipient,
+                updatedBalances,
                 scalingFactors,
                 userData
             );
@@ -213,6 +214,7 @@ contract TwammWeightedPool is WeightedPool {
     function _registerLongTermOrder(
         address sender,
         address recipient,
+        uint256[] memory balances,
         uint256[] memory scalingFactors,
         bytes memory userData
     )
@@ -223,7 +225,7 @@ contract TwammWeightedPool is WeightedPool {
             uint256
         )
     {
-        return _longTermOrders.performLongTermSwap(recipient, userData);
+        return _longTermOrders.performLongTermSwap(recipient, balances, userData);
     }
 
     function _getUpdatedPoolBalances(uint256[] memory balances) internal view returns (uint256[] memory) {

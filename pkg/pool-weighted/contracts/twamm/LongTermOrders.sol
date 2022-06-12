@@ -54,6 +54,7 @@ library LongTermOrdersLib {
     function performLongTermSwap(
         LongTermOrders storage self,
         address owner,
+        uint256[] memory balances,
         bytes memory orderData
     )
         internal
@@ -63,6 +64,8 @@ library LongTermOrdersLib {
             uint256
         )
     {
+        executeVirtualOrdersUntilCurrentBlock(self, balances);
+
         (
             uint256 sellTokenIndex,
             uint256 buyTokenIndex,
@@ -152,6 +155,7 @@ library LongTermOrdersLib {
 
     //@notice executes all virtual orders until current block is reached.
     function executeVirtualOrdersUntilCurrentBlock(LongTermOrders storage self, uint256[] memory balances) internal {
+        console.log("startBlock", self.lastVirtualOrderBlock, "endBlock", block.number);
         (uint256 tokenAStart, uint256 tokenBStart) = (balances[0], balances[1]);
 
         uint256 nextExpiryBlock = Math.add(
@@ -170,8 +174,17 @@ library LongTermOrdersLib {
         }
         //finally, move state to current block if necessary
         if (self.lastVirtualOrderBlock != block.number) {
-            _executeVirtualTradesAndOrderExpiries(self, tokenAStart, tokenBStart, block.number);
+            (tokenAStart, tokenBStart) = _executeVirtualTradesAndOrderExpiries(
+                self,
+                tokenAStart,
+                tokenBStart,
+                block.number
+            );
         }
+
+        // TODO verify this
+        balances[0] = tokenAStart;
+        balances[1] = tokenBStart;
     }
 
     //@notice executes all virtual orders between current lastVirtualOrderBlock and blockNumber also handles
@@ -182,23 +195,27 @@ library LongTermOrdersLib {
         uint256 tokenBStart,
         uint256 blockNumber
     ) private returns (uint256, uint256) {
+        console.log(self.lastVirtualOrderBlock, blockNumber);
         //amount sold from virtual trades
         uint256 blockNumberIncrement = Math.sub(blockNumber, self.lastVirtualOrderBlock).fromUint();
-        console.log("blockNumberIncrement", self.orderPoolMap[0].currentSalesRate, blockNumberIncrement);
         uint256 tokenASellAmount = self.orderPoolMap[0].currentSalesRate.mulDown(blockNumberIncrement);
         uint256 tokenBSellAmount = self.orderPoolMap[1].currentSalesRate.mulDown(blockNumberIncrement);
-
+        {
+            console.log("In calculate balances");
+            console.log("BalanceA", self.balanceA, "BalanceB", self.balanceB);
+            console.log("aIn", tokenASellAmount, "bIn", tokenBSellAmount);
+            console.log("aStart", tokenAStart, "bStart", tokenBStart);
+        }
         //updated balances from sales
-        console.log("Start values", tokenAStart, tokenBStart);
-        console.log(tokenASellAmount, tokenBSellAmount);
         (uint256 tokenAOut, uint256 tokenBOut, uint256 ammEndTokenA, uint256 ammEndTokenB) = _computeVirtualBalances(
             tokenAStart,
             tokenBStart,
             tokenASellAmount,
             tokenBSellAmount
         );
-        console.log("Out values", ammEndTokenA, ammEndTokenB);
-        console.log(tokenAOut, tokenBOut);
+
+        console.log("aAmmEnd", ammEndTokenA, "bAmmEnd", ammEndTokenB);
+        console.log("aOut", tokenAOut, "bOut", tokenBOut);
 
         //update balances reserves
         _addToLongTermOrdersBalance(self, 0, tokenAOut.toSignedFixedPoint().sub(tokenASellAmount.toSignedFixedPoint()));
@@ -229,7 +246,6 @@ library LongTermOrdersLib {
         uint256 tokenBIn
     )
         private
-        pure
         returns (
             uint256 tokenAOut,
             uint256 tokenBOut,
@@ -272,7 +288,7 @@ library LongTermOrdersLib {
         uint256 tokenBIn,
         uint256 aStart,
         uint256 bStart
-    ) private pure returns (uint256 ammEndTokenA) {
+    ) private returns (uint256 ammEndTokenA) {
         uint256 k = aStart.mulUp(bStart);
         int256 c = _computeC(tokenAIn, tokenBIn, aStart, bStart);
         uint256 ePow = FixedPoint.fromUint(4).mulDown(tokenAIn).mulDown(tokenBIn).divDown(k).sqrt();

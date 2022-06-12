@@ -166,12 +166,10 @@ library FixedPoint {
         return x / ONE;
     }
 
-    function fromSignedFixedPoint(int256 x) internal pure returns (uint256) {
-        return uint256(x);
-    }
-
     function toSignedFixedPoint(uint256 x) internal pure returns (int256) {
-        return int256(x);
+        int256 y = int256(x);
+        _require(y >= 0, Errors.OVERFLOW);
+        return y;
     }
 
     // TODO proper implementation for below complex functions.

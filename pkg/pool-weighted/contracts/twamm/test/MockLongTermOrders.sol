@@ -27,7 +27,11 @@ contract MockLongTermOrders {
         _longTermOrders.initialize(lastVirtualOrderBlock, orderBlockInterval);
     }
 
-    function performLongTermSwap(address owner, bytes memory orderData)
+    function performLongTermSwap(
+        address owner,
+        uint256[] memory balances,
+        bytes memory orderData
+    )
         external
         returns (
             uint256,
@@ -35,7 +39,7 @@ contract MockLongTermOrders {
             uint256
         )
     {
-        return _longTermOrders.performLongTermSwap(owner, orderData);
+        return _longTermOrders.performLongTermSwap(owner, balances, orderData);
     }
 
     function executeVirtualOrdersUntilCurrentBlock(uint256[] memory balances) external {

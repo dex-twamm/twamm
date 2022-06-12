@@ -41,7 +41,6 @@ library OrderPoolLib {
         if (self.currentSalesRate != 0) {
             //floating point arithmetic
             self.rewardFactor = self.rewardFactor.add(amount.divDown(self.currentSalesRate));
-            console.log("Increase in reward factor = ", amount.divDown(self.currentSalesRate), self.rewardFactor);
         }
     }
 

@@ -77,6 +77,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@babel/runtime@npm:^7.18.3":
+  version: 7.18.3
+  resolution: "@babel/runtime@npm:7.18.3"
+  dependencies:
+    regenerator-runtime: ^0.13.4
+  checksum: 70aa471de7452e9ad6d1f7ef880b76558b102a97d81aaf3251a6d70b90de7388ac0e7f5a9f5b5266ee046df92451cd7e1b310c043a5f131704949138d4790643
+  languageName: node
+  linkType: hard
+
 "@balancer-labs/balancer-js@workspace:*, @balancer-labs/balancer-js@workspace:pkg/balancer-js":
   version: 0.0.0-use.local
   resolution: "@balancer-labs/balancer-js@workspace:pkg/balancer-js"
@@ -543,6 +552,7 @@ __metadata:
     lodash.range: ^3.2.0
     lodash.times: ^4.3.2
     lodash.zip: ^4.2.0
+    mathjs: ^10.6.1
     mocha: ^8.2.1
     nodemon: ^2.0.4
     prettier: ^2.1.2
@@ -9298,6 +9308,25 @@ fsevents@~2.1.1:
   bin:
     mathjs: bin/cli.js
   checksum: acebe9f36e6c9b0fa0dcc033be4004af8e3a6cd27665139e362a292d1148b5521976d04fd1ce038dd419107b36e14474f855cc09bdf5d79a9476078a1d44d568
+  languageName: node
+  linkType: hard
+
+"mathjs@npm:^10.6.1":
+  version: 10.6.1
+  resolution: "mathjs@npm:10.6.1"
+  dependencies:
+    "@babel/runtime": ^7.18.3
+    complex.js: ^2.1.1
+    decimal.js: ^10.3.1
+    escape-latex: ^1.2.0
+    fraction.js: ^4.2.0
+    javascript-natural-sort: ^0.7.1
+    seedrandom: ^3.0.5
+    tiny-emitter: ^2.1.0
+    typed-function: ^2.1.0
+  bin:
+    mathjs: bin/cli.js
+  checksum: 171eb25f0a75dfef6dff579223f75dfd15cfbb2d17b131c2913b900a57973ca6282b880f803f9cf6d630405fca2b9f4f8d076ac1f0d7b922234102c489df00df
   languageName: node
   linkType: hard
 

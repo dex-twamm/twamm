@@ -81,10 +81,7 @@ library SignedFixedPoint {
     }
 
     function toFixedPoint(int256 x) internal pure returns (uint256) {
-        return uint256(x);
-    }
-
-    function fromFixedPoint(uint256 x) internal pure returns (uint256) {
+        _require(x >= 0, Errors.UNDERFLOW);
         return uint256(x);
     }
 }
