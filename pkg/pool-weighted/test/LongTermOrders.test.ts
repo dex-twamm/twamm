@@ -102,13 +102,10 @@ describe('LongTermOrders', function () {
     endBlock: number,
     blockInterval: number
   ): [BigNumber, BigNumber, BigNumber, BigNumber] {
-    console.log('**=========**');
     let lastVirtualOrderBlock = startBlock;
     let nextExpiryBlock = startBlock - (startBlock % blockInterval) + blockInterval;
 
-    console.log('startBlock', startBlock, 'endBlock', endBlock);
     while (nextExpiryBlock < endBlock) {
-      console.log(decimal(lastVirtualOrderBlock), decimal(nextExpiryBlock));
       [aStart, bStart, balanceA, balanceB] = calculateBalances(
         aStart,
         bStart,
@@ -124,7 +121,6 @@ describe('LongTermOrders', function () {
     }
 
     if (lastVirtualOrderBlock != endBlock) {
-      console.log(decimal(lastVirtualOrderBlock), decimal(endBlock));
       [aStart, bStart, balanceA, balanceB] = calculateBalances(
         aStart,
         bStart,
@@ -137,7 +133,6 @@ describe('LongTermOrders', function () {
       );
     }
 
-    console.log('=========');
     return [aStart, bStart, balanceA, balanceB];
   }
 
@@ -151,14 +146,10 @@ describe('LongTermOrders', function () {
     lastVirtualOrderBlock: number,
     nextExpiryBlock: number
   ) {
-    console.log('In calculate balances');
-    console.log('BalanceA', balanceA.toString(), 'BalanceB', balanceB.toString());
     let outA: BigNumber, outB: BigNumber, aAmmEnd: BigNumber, bAmmEnd: BigNumber;
     aIn = aIn.mul(nextExpiryBlock - lastVirtualOrderBlock);
     bIn = bIn.mul(nextExpiryBlock - lastVirtualOrderBlock);
     const k = aStart.mul(bStart);
-    console.log('aIn', aIn.toString(), 'bIn', bIn.toString());
-    console.log('aStart', aStart.toString(), 'bStart', bStart.toString());
 
     if (aIn.isZero() && !bIn.isZero()) {
       outA = aStart.mul(bIn).div(bStart.add(bIn));
@@ -193,9 +184,6 @@ describe('LongTermOrders', function () {
     balanceA = balanceA.sub(aIn).add(outA);
     balanceB = balanceB.sub(bIn).add(outB);
 
-    console.log('aAmmEnd', aAmmEnd.toString(), 'bAmmEnd', bAmmEnd.toString());
-    console.log('outA', outA.toString(), 'outB', outB.toString());
-    // console.log('balanceA', balanceA.toString(), 'balanceB', balanceB.toString());
     return [aAmmEnd, bAmmEnd, balanceA, balanceB];
   }
 
@@ -607,7 +595,6 @@ describe('LongTermOrders', function () {
     });
 
     it('can place long term order in both direction, execute and withdraw first order', async () => {
-      console.log(decimal(sqrt(bn(100))));
       const orderIntervalA = 3,
         orderIntervalB = 500,
         orderAmountA = fp(100),
