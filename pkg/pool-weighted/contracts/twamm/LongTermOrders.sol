@@ -110,7 +110,7 @@ library LongTermOrdersLib {
 
         uint256 orderId = self.orderId;
 
-        self.orderId = Math.add(self.orderId, 1);
+        self.orderId = self.orderId + 1;
 
         return (orderId, amountAIn, amountBIn);
     }
@@ -120,8 +120,15 @@ library LongTermOrdersLib {
         LongTermOrders storage self,
         address sender,
         uint256 orderId
-    ) internal returns (uint256 purchasedAmount, uint256 unsoldAmount) {
-        Order storage order = self.orderMap[orderId];
+    )
+        internal
+        returns (
+            uint256 purchasedAmount,
+            uint256 unsoldAmount,
+            Order memory order
+        )
+    {
+        order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
 
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
@@ -132,6 +139,9 @@ library LongTermOrdersLib {
         //update LongTermOrders balances
         _removeFromLongTermOrdersBalance(self, order.buyTokenIndex, purchasedAmount);
         _removeFromLongTermOrdersBalance(self, order.sellTokenIndex, unsoldAmount);
+
+        // clean up order data
+        delete self.orderMap[orderId];
     }
 
     //@notice withdraw proceeds from a long term swap (can be expired or ongoing)
@@ -139,8 +149,8 @@ library LongTermOrdersLib {
         LongTermOrders storage self,
         address sender,
         uint256 orderId
-    ) internal returns (uint256 proceeds) {
-        Order storage order = self.orderMap[orderId];
+    ) internal returns (uint256 proceeds, Order memory order) {
+        order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
 
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
@@ -151,6 +161,9 @@ library LongTermOrdersLib {
         require(proceeds > 0, "no proceeds to withdraw");
         //update long term order balances
         _removeFromLongTermOrdersBalance(self, order.buyTokenIndex, proceeds);
+
+        // clean up order data
+        delete self.orderMap[orderId];
     }
 
     //@notice executes all virtual orders until current block is reached.

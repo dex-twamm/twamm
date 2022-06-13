@@ -32,6 +32,34 @@ contract TwammWeightedPool is WeightedPool {
 
     LongTermOrdersLib.LongTermOrders internal _longTermOrders;
 
+    event LongTermOrderPlaced(
+        uint256 id,
+        IERC20 indexed buyToken,
+        IERC20 indexed sellToken,
+        uint256 saleRate,
+        address owner,
+        uint256 expirationBlock
+    );
+    event LongTermOrderWithdrawn(
+        uint256 id,
+        IERC20 indexed buyToken,
+        IERC20 indexed sellToken,
+        uint256 saleRate,
+        address owner,
+        uint256 expirationBlock,
+        uint256 proceeds
+    );
+    event LongTermOrderCancelled(
+        uint256 id,
+        IERC20 indexed buyToken,
+        IERC20 indexed sellToken,
+        uint256 saleRate,
+        address owner,
+        uint256 expirationBlock,
+        uint256 proceeds,
+        uint256 unsoldAmount
+    );
+
     constructor(
         IVault vault,
         string memory name,
@@ -96,6 +124,15 @@ contract TwammWeightedPool is WeightedPool {
                 scalingFactors,
                 userData
             );
+
+            emit LongTermOrderPlaced(
+                _longTermOrders.orderMap[orderId].id,
+                _longTermOrders.orderMap[orderId].sellTokenIndex == 0 ? _token0 : _token1,
+                _longTermOrders.orderMap[orderId].buyTokenIndex == 0 ? _token0 : _token1,
+                _longTermOrders.orderMap[orderId].saleRate,
+                _longTermOrders.orderMap[orderId].owner,
+                _longTermOrders.orderMap[orderId].expirationBlock
+            );
             // Return 0 bpt when long term order is placed
             // TODO add protocol fees
             return (uint256(0), _getSizeTwoArray(amountAIn, amountBIn), _getSizeTwoArray(0, 0));
@@ -141,46 +178,10 @@ contract TwammWeightedPool is WeightedPool {
 
         WeightedPoolUserData.ExitKind kind = userData.exitKind();
         if (kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER) {
-            uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
-            (uint256 purchasedAmount, uint256 unsoldAmount) = _longTermOrders.cancelLongTermSwap(sender, orderId);
-
-            // TODO handle dueProtocolFeeAmounts here
-            if (_longTermOrders.orderMap[orderId].buyTokenIndex == 0) {
-                return (
-                    uint256(0),
-                    _getSizeTwoArray(purchasedAmount, unsoldAmount),
-                    _getSizeTwoArray(uint256(0), uint256(0))
-                );
-            } else {
-                return (
-                    uint256(0),
-                    _getSizeTwoArray(unsoldAmount, purchasedAmount),
-                    _getSizeTwoArray(uint256(0), uint256(0))
-                );
-            }
+            return _cancelLongTermOrder(sender, userData);
         }
         if (kind == WeightedPoolUserData.ExitKind.WITHDRAW_LONG_TERM_ORDER) {
-            uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
-            uint256 proceeds = _longTermOrders.withdrawProceedsFromLongTermSwap(sender, orderId);
-
-            // TODO handle dueProtocolFeeAmounts here
-            if (_longTermOrders.orderMap[orderId].sellTokenIndex == 0) {
-                return (uint256(0), _getSizeTwoArray(uint256(0), proceeds), _getSizeTwoArray(uint256(0), uint256(0)));
-            } else {
-                return (uint256(0), _getSizeTwoArray(proceeds, uint256(0)), _getSizeTwoArray(uint256(0), uint256(0)));
-            }
-        } else {
-            return
-                super._onExitPool(
-                    poolId,
-                    sender,
-                    recipient,
-                    updatedBalances,
-                    lastChangeBlock,
-                    protocolSwapFeePercentage,
-                    scalingFactors,
-                    userData
-                );
+            return _withdrawLongTermOrder(sender, userData);
         }
     }
 
@@ -226,6 +227,77 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         return _longTermOrders.performLongTermSwap(recipient, balances, userData);
+    }
+
+    function _cancelLongTermOrder(address sender, bytes memory userData)
+        internal
+        returns (
+            uint256,
+            uint256[] memory,
+            uint256[] memory
+        )
+    {
+        uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
+        (uint256 purchasedAmount, uint256 unsoldAmount, LongTermOrdersLib.Order memory order) = _longTermOrders
+            .cancelLongTermSwap(sender, orderId);
+
+        emit LongTermOrderCancelled(
+            order.id,
+            order.buyTokenIndex == 0 ? _token0 : _token1,
+            order.sellTokenIndex == 0 ? _token0 : _token1,
+            order.saleRate,
+            order.owner,
+            order.expirationBlock,
+            purchasedAmount,
+            unsoldAmount
+        );
+
+        // TODO handle dueProtocolFeeAmounts here
+        if (_longTermOrders.orderMap[orderId].buyTokenIndex == 0) {
+            return (
+                uint256(0),
+                _getSizeTwoArray(purchasedAmount, unsoldAmount),
+                _getSizeTwoArray(uint256(0), uint256(0))
+            );
+        } else {
+            return (
+                uint256(0),
+                _getSizeTwoArray(unsoldAmount, purchasedAmount),
+                _getSizeTwoArray(uint256(0), uint256(0))
+            );
+        }
+    }
+
+    function _withdrawLongTermOrder(address sender, bytes memory userData)
+        internal
+        returns (
+            uint256,
+            uint256[] memory,
+            uint256[] memory
+        )
+    {
+        uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
+        (uint256 proceeds, LongTermOrdersLib.Order memory order) = _longTermOrders.withdrawProceedsFromLongTermSwap(
+            sender,
+            orderId
+        );
+
+        emit LongTermOrderWithdrawn(
+            order.id,
+            order.buyTokenIndex == 0 ? _token0 : _token1,
+            order.sellTokenIndex == 0 ? _token0 : _token1,
+            order.saleRate,
+            order.owner,
+            order.expirationBlock,
+            proceeds
+        );
+
+        // TODO handle dueProtocolFeeAmounts here
+        if (_longTermOrders.orderMap[orderId].sellTokenIndex == 0) {
+            return (uint256(0), _getSizeTwoArray(uint256(0), proceeds), _getSizeTwoArray(uint256(0), uint256(0)));
+        } else {
+            return (uint256(0), _getSizeTwoArray(proceeds, uint256(0)), _getSizeTwoArray(uint256(0), uint256(0)));
+        }
     }
 
     function _getUpdatedPoolBalances(uint256[] memory balances) internal view returns (uint256[] memory) {

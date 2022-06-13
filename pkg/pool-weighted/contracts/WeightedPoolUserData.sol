@@ -64,7 +64,16 @@ library WeightedPoolUserData {
         (, bptAmountOut) = abi.decode(self, (JoinKind, uint256));
     }
 
-    function placeLongTermOrder(bytes memory self) internal pure returns (uint256 tokenInIndex, uint256 tokenOutIndex, uint256 amountIn, uint256 numberOfBlockIntervals) {
+    function placeLongTermOrder(bytes memory self)
+        internal
+        pure
+        returns (
+            uint256 tokenInIndex,
+            uint256 tokenOutIndex,
+            uint256 amountIn,
+            uint256 numberOfBlockIntervals
+        )
+    {
         (, tokenInIndex, tokenOutIndex, amountIn, numberOfBlockIntervals) = abi.decode(
             self,
             (JoinKind, uint256, uint256, uint256, uint256)

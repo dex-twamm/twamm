@@ -46,11 +46,21 @@ contract MockLongTermOrders {
         _longTermOrders.executeVirtualOrdersUntilCurrentBlock(balances);
     }
 
-    function cancelLongTermSwap(address sender, uint256 orderId) external returns (uint256, uint256) {
+    function cancelLongTermSwap(address sender, uint256 orderId)
+        external
+        returns (
+            uint256,
+            uint256,
+            LongTermOrdersLib.Order memory
+        )
+    {
         return _longTermOrders.cancelLongTermSwap(sender, orderId);
     }
 
-    function withdrawProceedsFromLongTermSwap(address sender, uint256 orderId) external returns (uint256) {
+    function withdrawProceedsFromLongTermSwap(address sender, uint256 orderId)
+        external
+        returns (uint256, LongTermOrdersLib.Order memory)
+    {
         return _longTermOrders.withdrawProceedsFromLongTermSwap(sender, orderId);
     }
 
