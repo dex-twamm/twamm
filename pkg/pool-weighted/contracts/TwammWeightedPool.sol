@@ -113,7 +113,9 @@ contract TwammWeightedPool is WeightedPool {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
-        _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
+        (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
+            updatedBalances
+        );
 
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
@@ -175,7 +177,9 @@ contract TwammWeightedPool is WeightedPool {
         // shouldn't we use updated values after all virtual orders are executed?
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
-        _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
+        (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
+            updatedBalances
+        );
 
         WeightedPoolUserData.ExitKind kind = userData.exitKind();
         if (kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER) {
@@ -212,8 +216,10 @@ contract TwammWeightedPool is WeightedPool {
         }
 
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
-
-        _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
+        (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
+            updatedBalances
+        );
+        // TODO match balances with re-calculated updated balances, should match
 
         if (_token0 == request.tokenIn) {
             return super.onSwap(request, updatedBalances[0], updatedBalances[1]);

@@ -73,8 +73,8 @@ library LongTermOrdersLib {
             uint256 numberOfBlockIntervals
         ) = WeightedPoolUserData.placeLongTermOrder(orderData);
 
-        _require(amountIn > balances[buyTokenIndex].mulUp(1e14), Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW);
-        _require(amountIn < balances[buyTokenIndex].mulUp(1e17), Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE);
+        _require(amountIn > balances[sellTokenIndex].mulUp(1e14), Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW);
+        _require(amountIn < balances[sellTokenIndex].mulUp(1e17), Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE);
 
         return _addLongTermSwap(self, owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
     }
@@ -168,14 +168,20 @@ library LongTermOrdersLib {
     }
 
     //@notice executes all virtual orders until current block is reached.
-    function executeVirtualOrdersUntilCurrentBlock(LongTermOrders storage self, uint256[] memory balances) internal {
+    function executeVirtualOrdersUntilCurrentBlock(LongTermOrders storage self, uint256[] memory balances)
+        internal
+        returns (uint256 ammTokenA, uint256 ammTokenB)
+    {
+        ammTokenA = balances[0];
+        ammTokenB = balances[1];
+
         uint256 nextExpiryBlock = Math.add(
             Math.sub(self.lastVirtualOrderBlock, Math.mod(self.lastVirtualOrderBlock, self.orderBlockInterval)),
             self.orderBlockInterval
         );
         //iterate through blocks eligible for order expiries, moving state forward
         while (nextExpiryBlock < block.number) {
-            (balances[0], balances[1]) = _executeVirtualTradesAndOrderExpiries(
+            (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
                 self,
                 balances[0],
                 balances[1],
@@ -185,13 +191,7 @@ library LongTermOrdersLib {
         }
         //finally, move state to current block if necessary
         if (self.lastVirtualOrderBlock != block.number) {
-            // TODO verify that balances being returned are getting updated correctly
-            (balances[0], balances[1]) = _executeVirtualTradesAndOrderExpiries(
-                self,
-                balances[0],
-                balances[1],
-                block.number
-            );
+            (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(self, ammTokenA, ammTokenB, block.number);
         }
     }
 
