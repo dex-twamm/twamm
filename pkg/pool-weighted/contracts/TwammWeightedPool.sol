@@ -37,7 +37,7 @@ contract TwammWeightedPool is WeightedPool {
         IERC20 indexed buyToken,
         IERC20 indexed sellToken,
         uint256 saleRate,
-        address owner,
+        address indexed owner,
         uint256 expirationBlock
     );
     event LongTermOrderWithdrawn(
@@ -45,7 +45,7 @@ contract TwammWeightedPool is WeightedPool {
         IERC20 indexed buyToken,
         IERC20 indexed sellToken,
         uint256 saleRate,
-        address owner,
+        address indexed owner,
         uint256 expirationBlock,
         uint256 proceeds
     );
@@ -54,7 +54,7 @@ contract TwammWeightedPool is WeightedPool {
         IERC20 indexed buyToken,
         IERC20 indexed sellToken,
         uint256 saleRate,
-        address owner,
+        address indexed owner,
         uint256 expirationBlock,
         uint256 proceeds,
         uint256 unsoldAmount
@@ -86,6 +86,7 @@ contract TwammWeightedPool is WeightedPool {
             owner
         )
     {
+        _require(tokens.length == 2, Errors.NOT_TWO_TOKENS);
         // Initialize with current block and specified order block interval.
         _longTermOrders.initialize(block.number, orderBlockInterval);
     }

@@ -73,6 +73,9 @@ library LongTermOrdersLib {
             uint256 numberOfBlockIntervals
         ) = WeightedPoolUserData.placeLongTermOrder(orderData);
 
+        _require(amountIn > balances[buyTokenIndex].mulUp(1e14), Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW);
+        _require(amountIn < balances[buyTokenIndex].mulUp(1e17), Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE);
+
         return _addLongTermSwap(self, owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
     }
 
@@ -129,12 +132,10 @@ library LongTermOrdersLib {
         )
     {
         order = self.orderMap[orderId];
-        require(order.owner == sender, "sender must be order owner");
+        _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
         (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(orderId, self.lastVirtualOrderBlock);
-
-        require(unsoldAmount > 0 || purchasedAmount > 0, "no proceeds to withdraw");
 
         //update LongTermOrders balances
         _removeFromLongTermOrdersBalance(self, order.buyTokenIndex, purchasedAmount);
