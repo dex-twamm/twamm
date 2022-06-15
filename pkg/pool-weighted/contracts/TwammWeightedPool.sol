@@ -183,6 +183,18 @@ contract TwammWeightedPool is WeightedPool {
         }
         if (kind == WeightedPoolUserData.ExitKind.WITHDRAW_LONG_TERM_ORDER) {
             return _withdrawLongTermOrder(sender, userData);
+        } else {
+            return
+                super._onExitPool(
+                    poolId,
+                    sender,
+                    recipient,
+                    updatedBalances,
+                    lastChangeBlock,
+                    protocolSwapFeePercentage,
+                    scalingFactors,
+                    userData
+                );
         }
     }
 
