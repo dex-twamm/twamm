@@ -128,10 +128,10 @@ library LongTermOrdersLib {
         returns (
             uint256 purchasedAmount,
             uint256 unsoldAmount,
-            Order memory order
+            Order memory cancelledOrder
         )
     {
-        order = self.orderMap[orderId];
+        Order memory order = self.orderMap[orderId];
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
@@ -141,8 +141,18 @@ library LongTermOrdersLib {
         _removeFromLongTermOrdersBalance(self, order.buyTokenIndex, purchasedAmount);
         _removeFromLongTermOrdersBalance(self, order.sellTokenIndex, unsoldAmount);
 
+        cancelledOrder = Order(
+            order.id,
+            order.expirationBlock,
+            order.saleRate,
+            order.owner,
+            order.sellTokenIndex,
+            order.buyTokenIndex
+        );
+
         // clean up order data
-        delete self.orderMap[orderId];
+        // TODO verify this, returning 0 values in test
+        // delete self.orderMap[orderId];
     }
 
     //@notice withdraw proceeds from a long term swap (can be expired or ongoing)
@@ -150,8 +160,8 @@ library LongTermOrdersLib {
         LongTermOrders storage self,
         address sender,
         uint256 orderId
-    ) internal returns (uint256 proceeds, Order memory order) {
-        order = self.orderMap[orderId];
+    ) internal returns (uint256 proceeds, Order memory withdrawnOrder) {
+        Order memory order = self.orderMap[orderId];
         require(order.owner == sender, "sender must be order owner");
 
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
@@ -163,8 +173,18 @@ library LongTermOrdersLib {
         //update long term order balances
         _removeFromLongTermOrdersBalance(self, order.buyTokenIndex, proceeds);
 
+        withdrawnOrder = Order(
+            order.id,
+            order.expirationBlock,
+            order.saleRate,
+            order.owner,
+            order.sellTokenIndex,
+            order.buyTokenIndex
+        );
+
         // clean up order data
-        delete self.orderMap[orderId];
+        // TODO verify this, returning 0 values in test
+        // delete self.orderMap[orderId];
     }
 
     //@notice executes all virtual orders until current block is reached.

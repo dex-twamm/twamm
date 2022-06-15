@@ -20,9 +20,7 @@ async function moveForwardNBlocks(n: number) {
 
 // TODO(codesherpa): Add real tests. Current tests are duplicate of WeightedPool tests
 describe('TwammWeightedPool', function () {
-  
   describe('long term order tests', () => {
-
     let owner: SignerWithAddress, other: SignerWithAddress;
 
     before('setup signers', async () => {
@@ -72,7 +70,13 @@ describe('TwammWeightedPool', function () {
 
           it('can execute one-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
-            let longTermOrder = await pool.placeLongTermOrder({ from: other, amountIn: fp(1.0), tokenInIndex: 0, tokenOutIndex: 1, numberOfBlockIntervals: 10 });
+            let longTermOrder = await pool.placeLongTermOrder({
+              from: other,
+              amountIn: fp(1.0),
+              tokenInIndex: 0,
+              tokenOutIndex: 1,
+              numberOfBlockIntervals: 10,
+            });
 
             // Move forward 80 blocks with one swap after every 20 blocks.
             for (let j = 0; j < 4; j++) {
@@ -90,7 +94,13 @@ describe('TwammWeightedPool', function () {
 
           it('can cancel one-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
-            let longTermOrder = await pool.placeLongTermOrder({ from: other, amountIn: fp(1.0), tokenInIndex: 0, tokenOutIndex: 1, numberOfBlockIntervals: 10 });
+            let longTermOrder = await pool.placeLongTermOrder({
+              from: other,
+              amountIn: fp(1.0),
+              tokenInIndex: 0,
+              tokenOutIndex: 1,
+              numberOfBlockIntervals: 10,
+            });
 
             // Move forward 40 blocks with one swap after every 10 blocks.
             for (let j = 0; j < 4; j++) {
@@ -108,20 +118,32 @@ describe('TwammWeightedPool', function () {
 
           it('can execute two-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
-            let longTermOrder1 = await pool.placeLongTermOrder({ from: other, amountIn: fp(1.0), tokenInIndex: 0, tokenOutIndex: 1, numberOfBlockIntervals: 10 });
-            let longTermOrder2 = await pool.placeLongTermOrder({ from: other, amountIn: fp(10.0), tokenInIndex: 1, tokenOutIndex: 0, numberOfBlockIntervals: 10 });
+            let longTermOrder1 = await pool.placeLongTermOrder({
+              from: other,
+              amountIn: fp(1.0),
+              tokenInIndex: 0,
+              tokenOutIndex: 1,
+              numberOfBlockIntervals: 10,
+            });
+            let longTermOrder2 = await pool.placeLongTermOrder({
+              from: other,
+              amountIn: fp(10.0),
+              tokenInIndex: 1,
+              tokenOutIndex: 0,
+              numberOfBlockIntervals: 10,
+            });
 
             // Move forward 80 blocks with one swap after every 20 blocks.
             for (let j = 0; j < 4; j++) {
               await moveForwardNBlocks(20);
-              var result = await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
+              await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
             }
 
             // Move forward to end of expiry block of the long term order.
             await moveForwardNBlocks(20);
 
-            var withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
-            var withdrawResult1 = await pool.withdrawLongTermOrder({ orderId: 1, from: other });
+            const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
+            const withdrawResult1 = await pool.withdrawLongTermOrder({ orderId: 1, from: other });
             expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
             expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.95));
 
