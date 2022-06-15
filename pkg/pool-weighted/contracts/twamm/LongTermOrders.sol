@@ -128,10 +128,10 @@ library LongTermOrdersLib {
         returns (
             uint256 purchasedAmount,
             uint256 unsoldAmount,
-            Order memory cancelledOrder
+            Order memory order
         )
     {
-        Order memory order = self.orderMap[orderId];
+        order = self.orderMap[orderId];
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
@@ -141,18 +141,8 @@ library LongTermOrdersLib {
         _removeFromLongTermOrdersBalance(self, order.buyTokenIndex, purchasedAmount);
         _removeFromLongTermOrdersBalance(self, order.sellTokenIndex, unsoldAmount);
 
-        cancelledOrder = Order(
-            order.id,
-            order.expirationBlock,
-            order.saleRate,
-            order.owner,
-            order.sellTokenIndex,
-            order.buyTokenIndex
-        );
-
         // clean up order data
-        // TODO verify this, returning 0 values in test
-        // delete self.orderMap[orderId];
+        delete self.orderMap[orderId];
     }
 
     //@notice withdraw proceeds from a long term swap (can be expired or ongoing)
@@ -160,31 +150,21 @@ library LongTermOrdersLib {
         LongTermOrders storage self,
         address sender,
         uint256 orderId
-    ) internal returns (uint256 proceeds, Order memory withdrawnOrder) {
-        Order memory order = self.orderMap[orderId];
-        require(order.owner == sender, "sender must be order owner");
+    ) internal returns (uint256 proceeds, Order memory order) {
+        order = self.orderMap[orderId];
+        _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
-        require(orderPool.orderExpiry[orderId] <= block.number, "Order not expired yet");
+        _require(orderPool.orderExpiry[orderId] <= block.number, Errors.LONG_TERM_ORDER_ORDER_NOT_COMPLETED);
 
         proceeds = orderPool.withdrawProceeds(orderId, self.lastVirtualOrderBlock);
 
-        require(proceeds > 0, "no proceeds to withdraw");
+        _require(proceeds > 0, Errors.NO_PROCEEDS_TO_WITHDRAW);
         //update long term order balances
         _removeFromLongTermOrdersBalance(self, order.buyTokenIndex, proceeds);
 
-        withdrawnOrder = Order(
-            order.id,
-            order.expirationBlock,
-            order.saleRate,
-            order.owner,
-            order.sellTokenIndex,
-            order.buyTokenIndex
-        );
-
         // clean up order data
-        // TODO verify this, returning 0 values in test
-        // delete self.orderMap[orderId];
+        delete self.orderMap[orderId];
     }
 
     //@notice executes all virtual orders until current block is reached.

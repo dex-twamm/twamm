@@ -166,6 +166,8 @@ library Errors {
     uint256 internal constant UNINITIALIZED_POOL_CONTROLLER = 345;
     uint256 internal constant LONG_TERM_ORDER_AMOUNT_TOO_LOW = 346;
     uint256 internal constant LONG_TERM_ORDER_AMOUNT_TOO_LARGE = 347;
+    uint256 internal constant LONG_TERM_ORDER_ORDER_NOT_COMPLETED = 348;
+    uint256 internal constant NO_PROCEEDS_TO_WITHDRAW = 349;
 
     // Lib
     uint256 internal constant REENTRANCY = 400;
