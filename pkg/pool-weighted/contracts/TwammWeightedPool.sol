@@ -26,6 +26,8 @@ import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
  * @dev Basic Weighted Pool with immutable weights.
  */
 contract TwammWeightedPool is WeightedPool {
+    uint256 private constant _MAX_TOKENS = 2;
+
     using LongTermOrdersLib for LongTermOrdersLib.LongTermOrders;
     using WeightedPoolUserData for bytes;
     using FixedPoint for uint256;
@@ -86,7 +88,7 @@ contract TwammWeightedPool is WeightedPool {
             owner
         )
     {
-        _require(tokens.length == 2, Errors.NOT_TWO_TOKENS);
+        _require(tokens.length == _MAX_TOKENS, Errors.NOT_TWO_TOKENS);
         // Initialize with current block and specified order block interval.
         _longTermOrders.initialize(block.number, orderBlockInterval);
     }
@@ -219,7 +221,6 @@ contract TwammWeightedPool is WeightedPool {
         (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
             updatedBalances
         );
-        // TODO match balances with re-calculated updated balances, should match
 
         if (_token0 == request.tokenIn) {
             return super.onSwap(request, updatedBalances[0], updatedBalances[1]);

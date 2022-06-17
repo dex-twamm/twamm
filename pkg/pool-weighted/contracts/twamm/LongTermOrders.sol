@@ -39,6 +39,8 @@ library LongTermOrdersLib {
         uint256 orderId;
         //@notice mapping from order ids to Orders
         mapping(uint256 => Order) orderMap;
+        uint256 _maxltoOrderAmountToAmmBalanceRatio;
+        uint256 _minltoOrderAmountToAmmBalanceRatio;
     }
 
     //@notice initialize state
@@ -49,6 +51,9 @@ library LongTermOrdersLib {
     ) internal {
         self.lastVirtualOrderBlock = lastVirtualOrderBlock;
         self.orderBlockInterval = orderBlockInterval;
+
+        self._maxltoOrderAmountToAmmBalanceRatio = 1e17;
+        self._minltoOrderAmountToAmmBalanceRatio = 1e14;
     }
 
     function performLongTermSwap(
@@ -73,8 +78,14 @@ library LongTermOrdersLib {
             uint256 numberOfBlockIntervals
         ) = WeightedPoolUserData.placeLongTermOrder(orderData);
 
-        _require(amountIn > balances[sellTokenIndex].mulUp(1e14), Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW);
-        _require(amountIn < balances[sellTokenIndex].mulUp(1e17), Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE);
+        _require(
+            amountIn > balances[sellTokenIndex].mulUp(self._minltoOrderAmountToAmmBalanceRatio),
+            Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW
+        );
+        _require(
+            amountIn < balances[sellTokenIndex].mulUp(self._maxltoOrderAmountToAmmBalanceRatio),
+            Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
+        );
 
         return _addLongTermSwap(self, owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
     }
@@ -181,12 +192,7 @@ library LongTermOrdersLib {
         );
         //iterate through blocks eligible for order expiries, moving state forward
         while (nextExpiryBlock < block.number) {
-            (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
-                self,
-                balances[0],
-                balances[1],
-                nextExpiryBlock
-            );
+            (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(self, ammTokenA, ammTokenB, nextExpiryBlock);
             nextExpiryBlock = Math.add(nextExpiryBlock, self.orderBlockInterval);
         }
         //finally, move state to current block if necessary
