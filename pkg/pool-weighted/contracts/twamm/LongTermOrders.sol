@@ -39,8 +39,8 @@ library LongTermOrdersLib {
         uint256 orderId;
         //@notice mapping from order ids to Orders
         mapping(uint256 => Order) orderMap;
-        uint256 _maxltoOrderAmountToAmmBalanceRatio;
-        uint256 _minltoOrderAmountToAmmBalanceRatio;
+        uint256 maxltoOrderAmountToAmmBalanceRatio;
+        uint256 minltoOrderAmountToAmmBalanceRatio;
     }
 
     //@notice initialize state
@@ -52,8 +52,8 @@ library LongTermOrdersLib {
         self.lastVirtualOrderBlock = lastVirtualOrderBlock;
         self.orderBlockInterval = orderBlockInterval;
 
-        self._maxltoOrderAmountToAmmBalanceRatio = 1e17;
-        self._minltoOrderAmountToAmmBalanceRatio = 1e14;
+        self.maxltoOrderAmountToAmmBalanceRatio = 1e17;
+        self.minltoOrderAmountToAmmBalanceRatio = 1e14;
     }
 
     function performLongTermSwap(
@@ -79,11 +79,11 @@ library LongTermOrdersLib {
         ) = WeightedPoolUserData.placeLongTermOrder(orderData);
 
         _require(
-            amountIn > balances[sellTokenIndex].mulUp(self._minltoOrderAmountToAmmBalanceRatio),
+            amountIn > balances[sellTokenIndex].mulUp(self.minltoOrderAmountToAmmBalanceRatio),
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW
         );
         _require(
-            amountIn < balances[sellTokenIndex].mulUp(self._maxltoOrderAmountToAmmBalanceRatio),
+            amountIn < balances[sellTokenIndex].mulUp(self.maxltoOrderAmountToAmmBalanceRatio),
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
         );
 

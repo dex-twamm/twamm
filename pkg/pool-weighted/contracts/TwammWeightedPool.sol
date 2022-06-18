@@ -21,12 +21,14 @@ import "hardhat/console.sol";
 import "./twamm/LongTermOrders.sol";
 import "./WeightedPoolUserData.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/Ownable.sol";
 
 /**
  * @dev Basic Weighted Pool with immutable weights.
  */
-contract TwammWeightedPool is WeightedPool {
+contract TwammWeightedPool is WeightedPool, Ownable {
     uint256 private constant _MAX_TOKENS = 2;
+    uint256 private constant _ALLOWED_WEIGHT = 0.5e18;
 
     using LongTermOrdersLib for LongTermOrdersLib.LongTermOrders;
     using WeightedPoolUserData for bytes;
@@ -89,6 +91,9 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         _require(tokens.length == _MAX_TOKENS, Errors.NOT_TWO_TOKENS);
+        _require(normalizedWeights[0] == _ALLOWED_WEIGHT, Errors.WEIGHTS_NOT_ALLOWED);
+        _require(normalizedWeights[1] == _ALLOWED_WEIGHT, Errors.WEIGHTS_NOT_ALLOWED);
+
         // Initialize with current block and specified order block interval.
         _longTermOrders.initialize(block.number, orderBlockInterval);
     }
@@ -347,5 +352,13 @@ contract TwammWeightedPool is WeightedPool {
         // return WeightedMath._calculateInvariant(normalizedWeights, updatedBalances);
         // TODO Considering constant product amm
         return updatedBalances[0].mulUp(updatedBalances[1]);
+    }
+
+    function setMaxltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {
+        _longTermOrders.maxltoOrderAmountToAmmBalanceRatio = amountToAmmBalanceRation;
+    }
+
+    function setMinltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {
+        _longTermOrders.minltoOrderAmountToAmmBalanceRatio = amountToAmmBalanceRation;
     }
 }

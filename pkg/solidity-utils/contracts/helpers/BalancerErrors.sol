@@ -168,6 +168,7 @@ library Errors {
     uint256 internal constant LONG_TERM_ORDER_AMOUNT_TOO_LARGE = 347;
     uint256 internal constant LONG_TERM_ORDER_ORDER_NOT_COMPLETED = 348;
     uint256 internal constant NO_PROCEEDS_TO_WITHDRAW = 349;
+    uint256 internal constant WEIGHTS_NOT_ALLOWED = 350;
 
     // Lib
     uint256 internal constant REENTRANCY = 400;
