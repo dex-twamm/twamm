@@ -61,7 +61,7 @@ describe('TwammWeightedPoolFactory', function () {
     ).wait();
 
     const event = expectEvent.inReceipt(receipt, 'PoolCreated');
-    return deployedAt('WeightedPool', event.args.pool);
+    return deployedAt('TwammWeightedPool', event.args.pool);
   }
 
   describe('constructor arguments', () => {
