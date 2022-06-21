@@ -343,8 +343,8 @@ contract TwammWeightedPool is WeightedPool {
         returns (uint256)
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
-        // return WeightedMath._calculateInvariant(normalizedWeights, updatedBalances);
+        return WeightedMath._calculateInvariant(normalizedWeights, updatedBalances);
         // TODO Considering constant product amm
-        return updatedBalances[0].mulUp(updatedBalances[1]);
+        //return updatedBalances[0].mulUp(updatedBalances[1]);
     }
 }
