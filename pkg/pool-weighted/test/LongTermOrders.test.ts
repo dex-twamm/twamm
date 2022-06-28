@@ -225,13 +225,14 @@ describe('LongTermOrders', function () {
       numberOfBlockIntervals: number,
       balances: [BigNumber, BigNumber]
     ): Promise<[number, BigNumber]> {
-      const orderData = TwammWeightedPoolEncoder.joinPlaceLongTermOrder(
+      await longTermOrders.performLongTermSwap(
+        address,
+        balances,
         tokenInIndex,
         tokenOutIndex,
         amount,
         numberOfBlockIntervals
       );
-      await longTermOrders.performLongTermSwap(address, balances, orderData);
       const lastBlock = await lastBlockNumber();
 
       return [lastBlock, getSaleRate(amount, numberOfBlockIntervals, lastBlock)];

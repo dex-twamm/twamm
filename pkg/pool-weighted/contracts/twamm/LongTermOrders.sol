@@ -60,7 +60,10 @@ library LongTermOrdersLib {
         LongTermOrders storage self,
         address owner,
         uint256[] memory balances,
-        bytes memory orderData
+        uint256 sellTokenIndex,
+        uint256 buyTokenIndex,
+        uint256 amountIn,
+        uint256 numberOfBlockIntervals
     )
         internal
         returns (
@@ -70,13 +73,6 @@ library LongTermOrdersLib {
         )
     {
         executeVirtualOrdersUntilCurrentBlock(self, balances);
-
-        (
-            uint256 sellTokenIndex,
-            uint256 buyTokenIndex,
-            uint256 amountIn,
-            uint256 numberOfBlockIntervals
-        ) = WeightedPoolUserData.placeLongTermOrder(orderData);
 
         _require(
             amountIn > balances[sellTokenIndex].mulUp(self.minltoOrderAmountToAmmBalanceRatio),

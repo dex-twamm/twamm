@@ -209,11 +209,39 @@ contract TwammWeightedPool is WeightedPool, Ownable {
         }
     }
 
-    function onSwap(
+    function _onSwapGivenIn(
+        SwapRequest memory swapRequest,
+        uint256 currentBalanceTokenIn,
+        uint256 currentBalanceTokenOut
+    ) internal virtual override whenNotPaused returns (uint256) {
+        uint256[] memory balances = _onSwapHook(swapRequest, currentBalanceTokenIn, currentBalanceTokenOut);
+
+        if (_token0 == swapRequest.tokenIn) {
+            return super._onSwapGivenIn(swapRequest, balances[0], balances[1]);
+        } else {
+            return super._onSwapGivenIn(swapRequest, balances[1], balances[0]);
+        }
+    }
+
+    function _onSwapGivenOut(
+        SwapRequest memory swapRequest,
+        uint256 currentBalanceTokenIn,
+        uint256 currentBalanceTokenOut
+    ) internal virtual override whenNotPaused returns (uint256) {
+        uint256[] memory balances = _onSwapHook(swapRequest, currentBalanceTokenIn, currentBalanceTokenOut);
+
+        if (_token0 == swapRequest.tokenIn) {
+            return super._onSwapGivenOut(swapRequest, balances[0], balances[1]);
+        } else {
+            return super._onSwapGivenOut(swapRequest, balances[1], balances[0]);
+        }
+    }
+
+    function _onSwapHook(
         SwapRequest memory request,
         uint256 balanceTokenIn,
         uint256 balanceTokenOut
-    ) public virtual override onlyVault(request.poolId) returns (uint256) {
+    ) internal returns (uint256[] memory) {
         uint256[] memory balances = new uint256[](2);
 
         if (_token0 == request.tokenIn) {
@@ -227,11 +255,7 @@ contract TwammWeightedPool is WeightedPool, Ownable {
             updatedBalances
         );
 
-        if (_token0 == request.tokenIn) {
-            return super.onSwap(request, updatedBalances[0], updatedBalances[1]);
-        } else {
-            return super.onSwap(request, updatedBalances[1], updatedBalances[0]);
-        }
+        return updatedBalances;
     }
 
     /**
@@ -251,7 +275,23 @@ contract TwammWeightedPool is WeightedPool, Ownable {
             uint256
         )
     {
-        return _longTermOrders.performLongTermSwap(recipient, balances, userData);
+        (
+            uint256 sellTokenIndex,
+            uint256 buyTokenIndex,
+            uint256 amountIn,
+            uint256 numberOfBlockIntervals
+        ) = WeightedPoolUserData.placeLongTermOrder(userData);
+
+        _upscale(amountIn, scalingFactors[sellTokenIndex]);
+        return
+            _longTermOrders.performLongTermSwap(
+                recipient,
+                balances,
+                sellTokenIndex,
+                buyTokenIndex,
+                amountIn,
+                numberOfBlockIntervals
+            );
     }
 
     function _cancelLongTermOrder(address sender, bytes memory userData)

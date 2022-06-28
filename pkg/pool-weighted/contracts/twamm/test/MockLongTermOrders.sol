@@ -30,7 +30,10 @@ contract MockLongTermOrders {
     function performLongTermSwap(
         address owner,
         uint256[] memory balances,
-        bytes memory orderData
+        uint256 sellTokenIndex,
+        uint256 buyTokenIndex,
+        uint256 amountIn,
+        uint256 numberOfBlockIntervals
     )
         external
         returns (
@@ -39,7 +42,15 @@ contract MockLongTermOrders {
             uint256
         )
     {
-        return _longTermOrders.performLongTermSwap(owner, balances, orderData);
+        return
+            _longTermOrders.performLongTermSwap(
+                owner,
+                balances,
+                sellTokenIndex,
+                buyTokenIndex,
+                amountIn,
+                numberOfBlockIntervals
+            );
     }
 
     function executeVirtualOrdersUntilCurrentBlock(uint256[] memory balances) external {
