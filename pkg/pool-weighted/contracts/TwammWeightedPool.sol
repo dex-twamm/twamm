@@ -17,7 +17,6 @@ pragma experimental ABIEncoderV2;
 
 import "./WeightedPool.sol";
 
-import "hardhat/console.sol";
 import "./twamm/LongTermOrders.sol";
 import "./WeightedPoolUserData.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
