@@ -746,4 +746,8 @@ export default class WeightedPool {
     const result = await this.instance.getCollectedManagementFees();
     return { amounts: result.collectedFees, tokenAddresses: result.tokens };
   }
+
+  async initializeLongTermOrdersContract(): Promise<void> {
+    await this.instance.initializeLongTermOrdersContract();
+  }
 }

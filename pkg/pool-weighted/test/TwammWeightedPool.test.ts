@@ -4,6 +4,7 @@ import { fp } from '@balancer-labs/v2-helpers/src/numbers';
 
 import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
+import { deploy } from '@balancer-labs/v2-helpers/src/contract';
 import TokenList from '@balancer-labs/v2-helpers/src/models/tokens/TokenList';
 import WeightedPool from '@balancer-labs/v2-helpers/src/models/pools/weighted/WeightedPool';
 import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/weighted/types';
@@ -45,6 +46,8 @@ describe('TwammWeightedPool', function () {
 
     context('when initialized with swaps enabled', () => {
       sharedBeforeEach('deploy pool', async () => {
+        const longTermOrdersContract = await deploy('LongTermOrdersContract');
+
         const params = {
           tokens,
           weights,
@@ -52,8 +55,12 @@ describe('TwammWeightedPool', function () {
           poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
           swapEnabledOnStart: true,
           orderBlockInterval: 10,
+          longTermOrdersContract: longTermOrdersContract.address,
         };
         pool = await WeightedPool.create(params);
+        await longTermOrdersContract.transferOwnership(pool.address);
+        await pool.initializeLongTermOrdersContract();
+
       });
 
       describe('permissioned actions', () => {
@@ -79,7 +86,7 @@ describe('TwammWeightedPool', function () {
             });
 
             // Move forward 80 blocks with one swap after every 20 blocks.
-            for (let j = 0; j < 4; j++) {
+            for (let j = 0; j < 5; j++) {
               await moveForwardNBlocks(20);
               const result = await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
             }
@@ -103,7 +110,7 @@ describe('TwammWeightedPool', function () {
             });
 
             // Move forward 40 blocks with one swap after every 10 blocks.
-            for (let j = 0; j < 4; j++) {
+            for (let j = 0; j < 5; j++) {
               await moveForwardNBlocks(10);
               const result = await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
             }
@@ -112,8 +119,8 @@ describe('TwammWeightedPool', function () {
             await moveForwardNBlocks(10);
 
             const cancelResult = await pool.cancelLongTermOrder({ orderId: 0, from: other });
-            expect(cancelResult.amountsOut[0]).to.be.gte(fp(0.4));
-            expect(cancelResult.amountsOut[1]).to.be.lte(fp(2.2));
+            expect(cancelResult.amountsOut[0]).to.be.gte(fp(0.35));
+            expect(cancelResult.amountsOut[1]).to.be.lte(fp(2.5));
           });
 
           it('can execute two-way Long Term Order', async () => {
@@ -134,7 +141,7 @@ describe('TwammWeightedPool', function () {
             });
 
             // Move forward 80 blocks with one swap after every 20 blocks.
-            for (let j = 0; j < 4; j++) {
+            for (let j = 0; j < 5; j++) {
               await moveForwardNBlocks(20);
               await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
             }

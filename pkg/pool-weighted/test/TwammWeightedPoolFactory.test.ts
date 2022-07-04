@@ -20,6 +20,8 @@ describe('TwammWeightedPoolFactory', function () {
   let assetManagers: string[];
   let assetManager: SignerWithAddress, owner: SignerWithAddress;
 
+  let longTermOrdersContract: Contract;
+
   const NAME = 'Balancer Pool Token';
   const SYMBOL = 'BPT';
   const POOL_SWAP_FEE_PERCENTAGE = fp(0.01);
@@ -44,6 +46,8 @@ describe('TwammWeightedPoolFactory', function () {
 
     assetManagers = Array(tokens.length).fill(ZERO_ADDRESS);
     assetManagers[0] = assetManager.address;
+
+    longTermOrdersContract = await deploy('LongTermOrdersContract');
   });
 
   async function createPool(): Promise<Contract> {
@@ -53,10 +57,10 @@ describe('TwammWeightedPoolFactory', function () {
         SYMBOL,
         tokens.addresses,
         WEIGHTS,
-        assetManagers,
         POOL_SWAP_FEE_PERCENTAGE,
         owner.address,
-        100
+        100,
+        longTermOrdersContract.address
       )
     ).wait();
 
@@ -85,14 +89,6 @@ describe('TwammWeightedPoolFactory', function () {
 
     it('starts with no BPT', async () => {
       expect(await pool.totalSupply()).to.be.equal(0);
-    });
-
-    it('sets the asset managers', async () => {
-      await tokens.asyncEach(async (token, i) => {
-        const poolId = await pool.getPoolId();
-        const info = await vault.getPoolTokenInfo(poolId, token);
-        expect(info.assetManager).to.equal(assetManagers[i]);
-      });
     });
 
     it('sets swap fee', async () => {

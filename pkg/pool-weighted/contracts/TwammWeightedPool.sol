@@ -21,43 +21,17 @@ import "./twamm/LongTermOrders.sol";
 import "./WeightedPoolUserData.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @dev Basic Weighted Pool with immutable weights.
  */
 contract TwammWeightedPool is WeightedPool {
-    using LongTermOrdersLib for LongTermOrdersLib.LongTermOrders;
     using WeightedPoolUserData for bytes;
     using FixedPoint for uint256;
 
-    LongTermOrdersLib.LongTermOrders internal _longTermOrders;
-
-    event LongTermOrderPlaced(
-        uint256 id,
-        IERC20 indexed buyToken,
-        IERC20 indexed sellToken,
-        uint256 saleRate,
-        address indexed owner,
-        uint256 expirationBlock
-    );
-    event LongTermOrderWithdrawn(
-        uint256 id,
-        IERC20 indexed buyToken,
-        IERC20 indexed sellToken,
-        uint256 saleRate,
-        address indexed owner,
-        uint256 expirationBlock,
-        uint256 proceeds
-    );
-    event LongTermOrderCancelled(
-        uint256 id,
-        IERC20 indexed buyToken,
-        IERC20 indexed sellToken,
-        uint256 saleRate,
-        address indexed owner,
-        uint256 expirationBlock,
-        uint256 proceeds,
-        uint256 unsoldAmount
-    );
+    LongTermOrdersContract public _longTermOrders;
+    uint256 internal _orderBlockInterval;
 
     constructor(
         IVault vault,
@@ -65,12 +39,12 @@ contract TwammWeightedPool is WeightedPool {
         string memory symbol,
         IERC20[] memory tokens,
         uint256[] memory normalizedWeights,
-        address[] memory assetManagers,
         uint256 swapFeePercentage,
         uint256 pauseWindowDuration,
         uint256 bufferPeriodDuration,
         address owner,
-        uint256 orderBlockInterval
+        uint256 orderBlockInterval,
+        address longTermOrdersContractAddress
     )
         WeightedPool(
             vault,
@@ -78,7 +52,7 @@ contract TwammWeightedPool is WeightedPool {
             symbol,
             tokens,
             normalizedWeights,
-            assetManagers,
+            new address[](tokens.length), // Pass the zero address: Twamms can't have asset managers
             swapFeePercentage,
             pauseWindowDuration,
             bufferPeriodDuration,
@@ -86,8 +60,15 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         _require(tokens.length == 2, Errors.NOT_TWO_TOKENS);
+        _longTermOrders = LongTermOrdersContract(longTermOrdersContractAddress);
+        _orderBlockInterval = orderBlockInterval;
+    }
+
+    function initializeLongTermOrdersContract() public {
         // Initialize with current block and specified order block interval.
-        _longTermOrders.initialize(block.number, orderBlockInterval);
+        // TODO: Might be able to remove the first parameter. Since we'll
+        // always initialize with current block.number.
+        _longTermOrders.initialize(block.number, _orderBlockInterval);
     }
 
     function _onJoinPool(
@@ -119,7 +100,7 @@ contract TwammWeightedPool is WeightedPool {
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
         if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
-            (uint256 orderId, uint256 amountAIn, uint256 amountBIn) = _registerLongTermOrder(
+            (, uint256 amountAIn, uint256 amountBIn) = _registerLongTermOrder(
                 sender,
                 recipient,
                 updatedBalances,
@@ -127,14 +108,6 @@ contract TwammWeightedPool is WeightedPool {
                 userData
             );
 
-            emit LongTermOrderPlaced(
-                _longTermOrders.orderMap[orderId].id,
-                _longTermOrders.orderMap[orderId].sellTokenIndex == 0 ? _token0 : _token1,
-                _longTermOrders.orderMap[orderId].buyTokenIndex == 0 ? _token0 : _token1,
-                _longTermOrders.orderMap[orderId].saleRate,
-                _longTermOrders.orderMap[orderId].owner,
-                _longTermOrders.orderMap[orderId].expirationBlock
-            );
             // Return 0 bpt when long term order is placed
             // TODO add protocol fees
             return (uint256(0), _getSizeTwoArray(amountAIn, amountBIn), _getSizeTwoArray(0, 0));
@@ -231,10 +204,11 @@ contract TwammWeightedPool is WeightedPool {
      * Registers the long term order with the Pool.
      */
     function _registerLongTermOrder(
-        address sender,
+        // TODO: Can we just remove this function and directly call _longTermOrders.performLongTermSwap?
+        address /* sender */,
         address recipient,
         uint256[] memory balances,
-        uint256[] memory scalingFactors,
+        uint256[] memory /* scalingFactors */,
         bytes memory userData
     )
         internal
@@ -256,19 +230,8 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
-        (uint256 purchasedAmount, uint256 unsoldAmount, LongTermOrdersLib.Order memory order) = _longTermOrders
+        (uint256 purchasedAmount, uint256 unsoldAmount, LongTermOrdersContract.Order memory order) = _longTermOrders
             .cancelLongTermSwap(sender, orderId);
-
-        emit LongTermOrderCancelled(
-            order.id,
-            order.buyTokenIndex == 0 ? _token0 : _token1,
-            order.sellTokenIndex == 0 ? _token0 : _token1,
-            order.saleRate,
-            order.owner,
-            order.expirationBlock,
-            purchasedAmount,
-            unsoldAmount
-        );
 
         // TODO handle dueProtocolFeeAmounts here
         if (order.buyTokenIndex == 0) {
@@ -295,19 +258,9 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
-        (uint256 proceeds, LongTermOrdersLib.Order memory order) = _longTermOrders.withdrawProceedsFromLongTermSwap(
+        (uint256 proceeds, LongTermOrdersContract.Order memory order) = _longTermOrders.withdrawProceedsFromLongTermSwap(
             sender,
             orderId
-        );
-
-        emit LongTermOrderWithdrawn(
-            order.id,
-            order.buyTokenIndex == 0 ? _token0 : _token1,
-            order.sellTokenIndex == 0 ? _token0 : _token1,
-            order.saleRate,
-            order.owner,
-            order.expirationBlock,
-            proceeds
         );
 
         // TODO handle dueProtocolFeeAmounts here

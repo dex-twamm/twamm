@@ -35,10 +35,10 @@ contract TwammWeightedPoolFactory is BasePoolSplitCodeFactory, FactoryWidePauseW
         string memory symbol,
         IERC20[] memory tokens,
         uint256[] memory weights,
-        address[] memory assetManagers,
         uint256 swapFeePercentage,
         address owner,
-        uint256 orderBlockInterval
+        uint256 orderBlockInterval,
+        address longTermOrdersContract
     ) external returns (address) {
         (uint256 pauseWindowDuration, uint256 bufferPeriodDuration) = getPauseConfiguration();
 
@@ -50,12 +50,12 @@ contract TwammWeightedPoolFactory is BasePoolSplitCodeFactory, FactoryWidePauseW
                     symbol,
                     tokens,
                     weights,
-                    assetManagers,
                     swapFeePercentage,
                     pauseWindowDuration,
                     bufferPeriodDuration,
                     owner,
-                    orderBlockInterval
+                    orderBlockInterval,
+                    longTermOrdersContract
                 )
             );
     }
