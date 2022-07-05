@@ -70,7 +70,6 @@ export default class WeightedPool {
   vault: Vault;
   poolType: WeightedPoolType;
   swapEnabledOnStart: boolean;
-  orderBlockInterval?: BigNumberish;
   mustAllowlistLPs: boolean;
   managementSwapFeePercentage: BigNumberish;
 

@@ -31,7 +31,6 @@ contract TwammWeightedPool is WeightedPool {
     using FixedPoint for uint256;
 
     LongTermOrdersContract public _longTermOrders;
-    uint256 internal _orderBlockInterval;
 
     constructor(
         IVault vault,
@@ -43,7 +42,6 @@ contract TwammWeightedPool is WeightedPool {
         uint256 pauseWindowDuration,
         uint256 bufferPeriodDuration,
         address owner,
-        uint256 orderBlockInterval,
         address longTermOrdersContractAddress
     )
         WeightedPool(
@@ -61,14 +59,6 @@ contract TwammWeightedPool is WeightedPool {
     {
         _require(tokens.length == 2, Errors.NOT_TWO_TOKENS);
         _longTermOrders = LongTermOrdersContract(longTermOrdersContractAddress);
-        _orderBlockInterval = orderBlockInterval;
-    }
-
-    function initializeLongTermOrdersContract() public {
-        // Initialize with current block and specified order block interval.
-        // TODO: Might be able to remove the first parameter. Since we'll
-        // always initialize with current block.number.
-        _longTermOrders.initialize(block.number, _orderBlockInterval);
     }
 
     function _onJoinPool(
@@ -93,10 +83,12 @@ contract TwammWeightedPool is WeightedPool {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
-        (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
-            updatedBalances
-        );
-
+        if(address(_longTermOrders) != address(0)) {
+            (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
+                updatedBalances
+            );
+        }
+        
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
         if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
@@ -149,9 +141,11 @@ contract TwammWeightedPool is WeightedPool {
         // shouldn't we use updated values after all virtual orders are executed?
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
-        (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
-            updatedBalances
-        );
+        if(address(_longTermOrders) != address(0)) {
+            (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
+                updatedBalances
+            );
+        }
 
         WeightedPoolUserData.ExitKind kind = userData.exitKind();
         if (kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER) {
@@ -188,9 +182,11 @@ contract TwammWeightedPool is WeightedPool {
         }
 
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
-        (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
-            updatedBalances
-        );
+        if(address(_longTermOrders) != address(0)) {
+            (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
+                updatedBalances
+            );
+        }
         // TODO match balances with re-calculated updated balances, should match
 
         if (_token0 == request.tokenIn) {
@@ -274,8 +270,12 @@ contract TwammWeightedPool is WeightedPool {
     function _getUpdatedPoolBalances(uint256[] memory balances) internal view returns (uint256[] memory) {
         uint256[] memory updatedBalances = new uint256[](balances.length);
 
-        for (uint8 i = 0; i < balances.length; i++) {
-            updatedBalances[i] = balances[i] - _longTermOrders.getTokenBalanceFromLongTermOrder(i);
+        if(address(_longTermOrders) != address(0)) {
+            for (uint8 i = 0; i < balances.length; i++) {
+                updatedBalances[i] = balances[i] - _longTermOrders.getTokenBalanceFromLongTermOrder(i);
+            }
+        } else {
+            return balances;
         }
 
         return updatedBalances;

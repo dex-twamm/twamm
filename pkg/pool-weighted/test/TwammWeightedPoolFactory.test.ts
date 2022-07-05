@@ -47,8 +47,9 @@ describe('TwammWeightedPoolFactory', function () {
     assetManagers = Array(tokens.length).fill(ZERO_ADDRESS);
     assetManagers[0] = assetManager.address;
 
-    longTermOrdersContract = await deploy('LongTermOrdersContract');
-  });
+    longTermOrdersContract = await deploy(
+      'LongTermOrdersContract', {args: [10]});
+    });
 
   async function createPool(): Promise<Contract> {
     const receipt = await (
@@ -59,7 +60,6 @@ describe('TwammWeightedPoolFactory', function () {
         WEIGHTS,
         POOL_SWAP_FEE_PERCENTAGE,
         owner.address,
-        100,
         longTermOrdersContract.address
       )
     ).wait();

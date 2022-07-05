@@ -66,7 +66,6 @@ export default {
       oracleEnabled,
       poolType,
       swapEnabledOnStart,
-      orderBlockInterval,
       longTermOrdersContract,
       mustAllowlistLPs,
       managementSwapFeePercentage,
@@ -129,7 +128,6 @@ export default {
             pauseWindowDuration,
             bufferPeriodDuration,
             TypesConverter.toAddress(owner),
-            orderBlockInterval,
             longTermOrdersContract
           ],
           from,
@@ -190,7 +188,6 @@ export default {
       swapFeePercentage,
       oracleEnabled,
       swapEnabledOnStart,
-      orderBlockInterval,
       longTermOrdersContract,
       mustAllowlistLPs,
       managementSwapFeePercentage,
@@ -211,7 +208,6 @@ export default {
           weights,
           swapFeePercentage,
           owner,
-          orderBlockInterval,
           longTermOrdersContract
         );
         const receipt = await tx.wait();

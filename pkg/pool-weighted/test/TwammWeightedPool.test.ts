@@ -46,7 +46,8 @@ describe('TwammWeightedPool', function () {
 
     context('when initialized with swaps enabled', () => {
       sharedBeforeEach('deploy pool', async () => {
-        const longTermOrdersContract = await deploy('LongTermOrdersContract');
+        const longTermOrdersContract = await deploy(
+          'LongTermOrdersContract', {args: [10]});
 
         const params = {
           tokens,
@@ -54,13 +55,10 @@ describe('TwammWeightedPool', function () {
           owner: owner.address,
           poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
           swapEnabledOnStart: true,
-          orderBlockInterval: 10,
           longTermOrdersContract: longTermOrdersContract.address,
         };
         pool = await WeightedPool.create(params);
         await longTermOrdersContract.transferOwnership(pool.address);
-        await pool.initializeLongTermOrdersContract();
-
       });
 
       describe('permissioned actions', () => {

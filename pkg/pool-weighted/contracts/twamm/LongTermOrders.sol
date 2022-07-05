@@ -74,14 +74,9 @@ contract LongTermOrdersContract is Ownable {
 
     LongTermOrders self;
 
-    //@notice initialize state
-    function initialize(
-        uint256 lastVirtualOrderBlock,
-        uint256 orderBlockInterval
-    ) public onlyOwner {
-        console.log(orderBlockInterval);
-        self.lastVirtualOrderBlock = lastVirtualOrderBlock;
-        self.orderBlockInterval = orderBlockInterval;
+    constructor(uint256 _orderBlockInterval) Ownable() {
+        self.lastVirtualOrderBlock = block.number;
+        self.orderBlockInterval = _orderBlockInterval;
     }
 
     function performLongTermSwap(

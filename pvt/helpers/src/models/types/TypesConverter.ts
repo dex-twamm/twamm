@@ -63,7 +63,6 @@ export default {
       bufferPeriodDuration,
       oracleEnabled,
       swapEnabledOnStart,
-      orderBlockInterval,
       longTermOrdersContract,
       mustAllowlistLPs,
       managementSwapFeePercentage,
@@ -79,7 +78,6 @@ export default {
     if (!oracleEnabled) oracleEnabled = true;
     if (!assetManagers) assetManagers = Array(tokens.length).fill(ZERO_ADDRESS);
     if (!poolType) poolType = WeightedPoolType.WEIGHTED_POOL;
-    if (!orderBlockInterval) orderBlockInterval = 1000;
     if (!longTermOrdersContract) longTermOrdersContract = ZERO_ADDRESS;
     if (undefined == swapEnabledOnStart) swapEnabledOnStart = true;
     if (undefined == mustAllowlistLPs) mustAllowlistLPs = false;
@@ -95,7 +93,6 @@ export default {
       bufferPeriodDuration,
       oracleEnabled,
       swapEnabledOnStart,
-      orderBlockInterval,
       longTermOrdersContract,
       mustAllowlistLPs,
       managementSwapFeePercentage,

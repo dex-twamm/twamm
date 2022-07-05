@@ -37,7 +37,6 @@ contract TwammWeightedPoolFactory is BasePoolSplitCodeFactory, FactoryWidePauseW
         uint256[] memory weights,
         uint256 swapFeePercentage,
         address owner,
-        uint256 orderBlockInterval,
         address longTermOrdersContract
     ) external returns (address) {
         (uint256 pauseWindowDuration, uint256 bufferPeriodDuration) = getPauseConfiguration();
@@ -54,7 +53,6 @@ contract TwammWeightedPoolFactory is BasePoolSplitCodeFactory, FactoryWidePauseW
                     pauseWindowDuration,
                     bufferPeriodDuration,
                     owner,
-                    orderBlockInterval,
                     longTermOrdersContract
                 )
             );
