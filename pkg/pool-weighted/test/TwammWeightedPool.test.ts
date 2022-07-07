@@ -47,7 +47,7 @@ describe('TwammWeightedPool', function () {
     context('when initialized with swaps enabled', () => {
       sharedBeforeEach('deploy pool', async () => {
         const longTermOrdersContract = await deploy(
-          'LongTermOrdersContract', {args: [10]});
+          'LongTermOrders', {args: [10]});
 
         const params = {
           tokens,

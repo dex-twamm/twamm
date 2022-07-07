@@ -9,7 +9,7 @@ async function main() {
 
     console.log("Account balance:", (await deployer.getBalance()).toString());
 
-    let ltoContract = await deploy('LongTermOrdersContract', {from:deployer, args: [100]});
+    let ltoContract = await deploy('LongTermOrders', {from:deployer, args: [100]});
     console.log("LTO contract deployed to address:", ltoContract.address);
 
     const vaultContract = await deployedAt("IVault", "0xBA12222222228d8Ba445958a75a0704d566BF2C8");

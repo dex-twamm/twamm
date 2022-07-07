@@ -2,8 +2,8 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
-//@notice This is interface for LongTermOrdersContract
-abstract contract ILongTermOrdersContract {
+//@notice This is interface for LongTermOrders
+abstract contract ILongTermOrders {
 
     //@notice information associated with a long term order
     struct Order {

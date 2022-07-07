@@ -40,7 +40,7 @@ contract TwammWeightedPool is BaseWeightedPool {
     uint256 internal immutable _scalingFactor0;
     uint256 internal immutable _scalingFactor1;
 
-    ILongTermOrdersContract public _longTermOrders;
+    ILongTermOrders public _longTermOrders;
 
     uint256 internal immutable _normalizedWeight0;
     uint256 internal immutable _normalizedWeight1;
@@ -86,7 +86,7 @@ contract TwammWeightedPool is BaseWeightedPool {
             _require(normalizedWeights[i] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
         }
 
-        _longTermOrders = ILongTermOrdersContract(longTermOrdersContractAddress);
+        _longTermOrders = ILongTermOrders(longTermOrdersContractAddress);
     }
 
     function _getMaxTokens() internal pure virtual override returns (uint256) {
@@ -325,7 +325,7 @@ contract TwammWeightedPool is BaseWeightedPool {
         )
     {
         uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
-        (uint256 purchasedAmount, uint256 unsoldAmount, ILongTermOrdersContract.Order memory order) = _longTermOrders
+        (uint256 purchasedAmount, uint256 unsoldAmount, ILongTermOrders.Order memory order) = _longTermOrders
             .cancelLongTermSwap(sender, orderId);
 
         // TODO handle dueProtocolFeeAmounts here
@@ -353,7 +353,7 @@ contract TwammWeightedPool is BaseWeightedPool {
         )
     {
         uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
-        (uint256 proceeds, ILongTermOrdersContract.Order memory order) = _longTermOrders.withdrawProceedsFromLongTermSwap(
+        (uint256 proceeds, ILongTermOrders.Order memory order) = _longTermOrders.withdrawProceedsFromLongTermSwap(
             sender,
             orderId
         );

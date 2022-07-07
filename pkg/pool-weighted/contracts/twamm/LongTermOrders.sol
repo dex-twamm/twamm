@@ -13,7 +13,7 @@ import "../WeightedPoolUserData.sol";
 import "hardhat/console.sol";
 
 //@notice This library handles the state and execution of long term orders.
-contract LongTermOrdersContract is ILongTermOrdersContract, Ownable {
+contract LongTermOrders is ILongTermOrders, Ownable {
     using FixedPoint for uint256;
     using SignedFixedPoint for int256;
     using OrderPoolLib for OrderPoolLib.OrderPool;
