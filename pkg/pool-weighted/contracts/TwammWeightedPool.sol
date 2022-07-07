@@ -15,9 +15,9 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
-import "./WeightedPool.sol";
+import "./BaseWeightedPool.sol";
 
-import "./twamm/LongTermOrders.sol";
+import "./twamm/ILongTermOrders.sol";
 import "./WeightedPoolUserData.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 
@@ -26,11 +26,24 @@ import "hardhat/console.sol";
 /**
  * @dev Basic Weighted Pool with immutable weights.
  */
-contract TwammWeightedPool is WeightedPool {
+contract TwammWeightedPool is BaseWeightedPool {
     using WeightedPoolUserData for bytes;
     using FixedPoint for uint256;
 
-    LongTermOrdersContract public _longTermOrders;
+    uint256 private constant _MAX_TOKENS = 2;
+
+    uint256 private constant _totalTokens = 2;
+
+    IERC20 internal immutable _token0;
+    IERC20 internal immutable _token1;
+
+    uint256 internal immutable _scalingFactor0;
+    uint256 internal immutable _scalingFactor1;
+
+    ILongTermOrdersContract public _longTermOrders;
+
+    uint256 internal immutable _normalizedWeight0;
+    uint256 internal immutable _normalizedWeight1;
 
     constructor(
         IVault vault,
@@ -44,12 +57,11 @@ contract TwammWeightedPool is WeightedPool {
         address owner,
         address longTermOrdersContractAddress
     )
-        WeightedPool(
+        BaseWeightedPool(
             vault,
             name,
             symbol,
             tokens,
-            normalizedWeights,
             new address[](tokens.length), // Pass the zero address: Twamms can't have asset managers
             swapFeePercentage,
             pauseWindowDuration,
@@ -58,7 +70,94 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         _require(tokens.length == 2, Errors.NOT_TWO_TOKENS);
-        _longTermOrders = LongTermOrdersContract(longTermOrdersContractAddress);
+        InputHelpers.ensureInputLengthMatch(tokens.length, normalizedWeights.length);
+
+        // Immutable variables cannot be initialized inside an if statement, so we must do conditional assignments
+        _token0 = tokens[0];
+        _token1 = tokens[1];
+
+        _normalizedWeight0 = normalizedWeights[0];
+        _normalizedWeight1 = normalizedWeights[1];
+
+        _scalingFactor0 = _computeScalingFactor(tokens[0]);
+        _scalingFactor1 = _computeScalingFactor(tokens[1]);
+
+        for (uint8 i = 0; i < 2; i++) {
+            _require(normalizedWeights[i] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
+        }
+
+        _longTermOrders = ILongTermOrdersContract(longTermOrdersContractAddress);
+    }
+
+    function _getMaxTokens() internal pure virtual override returns (uint256) {
+        return _MAX_TOKENS;
+    }
+
+    function _getNormalizedWeight(IERC20 token) internal view virtual override returns (uint256) {
+        // prettier-ignore
+        if (token == _token0) { return _normalizedWeight0; }
+        else if (token == _token1) { return _normalizedWeight1; }
+        else {
+            _revert(Errors.INVALID_TOKEN);
+        }
+    }
+
+    function _getNormalizedWeights() internal view virtual override returns (uint256[] memory) {
+        uint256 totalTokens = _getTotalTokens();
+        uint256[] memory normalizedWeights = new uint256[](totalTokens);
+
+        // prettier-ignore
+        {
+            normalizedWeights[0] = _normalizedWeight0;
+            normalizedWeights[1] = _normalizedWeight1;
+        }
+
+        return normalizedWeights;
+    }
+
+    function _getNormalizedWeightsAndMaxWeightIndex()
+        internal
+        view
+        override
+        returns (uint256[] memory normalizedWeights, uint256 maxWeightTokenIndex)
+    {
+        normalizedWeights = _getNormalizedWeights();
+
+        maxWeightTokenIndex = 0;
+        uint256 maxNormalizedWeight = normalizedWeights[0];
+
+        for (uint256 i = 1; i < normalizedWeights.length; i++) {
+            if (normalizedWeights[i] > maxNormalizedWeight) {
+                maxWeightTokenIndex = i;
+                maxNormalizedWeight = normalizedWeights[i];
+            }
+        }
+    }
+
+    function _getTotalTokens() internal view virtual override returns (uint256) {
+        return _MAX_TOKENS;
+    }
+
+    function _scalingFactor(IERC20 token) internal view virtual override returns (uint256) {
+        // prettier-ignore
+        if (token == _token0) { return _scalingFactor0; }
+        else if (token == _token1) { return _scalingFactor1; }
+        else {
+            _revert(Errors.INVALID_TOKEN);
+        }
+    }
+
+    function _scalingFactors() internal view virtual override returns (uint256[] memory) {
+        uint256 totalTokens = _getTotalTokens();
+        uint256[] memory scalingFactors = new uint256[](totalTokens);
+
+        // prettier-ignore
+        {
+            scalingFactors[0] = _scalingFactor0;
+            scalingFactors[1] = _scalingFactor1;
+        }
+
+        return scalingFactors;
     }
 
     function _onJoinPool(
@@ -226,7 +325,7 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
-        (uint256 purchasedAmount, uint256 unsoldAmount, LongTermOrdersContract.Order memory order) = _longTermOrders
+        (uint256 purchasedAmount, uint256 unsoldAmount, ILongTermOrdersContract.Order memory order) = _longTermOrders
             .cancelLongTermSwap(sender, orderId);
 
         // TODO handle dueProtocolFeeAmounts here
@@ -254,7 +353,7 @@ contract TwammWeightedPool is WeightedPool {
         )
     {
         uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
-        (uint256 proceeds, LongTermOrdersContract.Order memory order) = _longTermOrders.withdrawProceedsFromLongTermSwap(
+        (uint256 proceeds, ILongTermOrdersContract.Order memory order) = _longTermOrders.withdrawProceedsFromLongTermSwap(
             sender,
             orderId
         );

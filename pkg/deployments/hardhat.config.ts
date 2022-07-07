@@ -52,4 +52,12 @@ export default {
   mocha: {
     timeout: 40000,
   },
+
+  // Uncomment to deploy pool to rinkeby testnet.
+  networks: {
+    rinkeby: {
+      url: `https://rinkeby.infura.io/v3/${process.env.INFURA_KEY}`,
+        accounts: [`0x${process.env.PRIVATE_KEY}`],
+      },
+    },
 };

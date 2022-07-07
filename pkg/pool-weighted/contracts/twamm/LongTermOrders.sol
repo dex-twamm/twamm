@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./ILongTermOrders.sol";
 import "./OrderPool.sol";
 import "./SignedFixedPoint.sol";
 import "../WeightedPoolUserData.sol";
@@ -12,7 +13,7 @@ import "../WeightedPoolUserData.sol";
 import "hardhat/console.sol";
 
 //@notice This library handles the state and execution of long term orders.
-contract LongTermOrdersContract is Ownable {
+contract LongTermOrdersContract is ILongTermOrdersContract, Ownable {
     using FixedPoint for uint256;
     using SignedFixedPoint for int256;
     using OrderPoolLib for OrderPoolLib.OrderPool;
@@ -45,16 +46,6 @@ contract LongTermOrdersContract is Ownable {
         uint256 unsoldAmount
     );
 
-    //@notice information associated with a long term order
-    struct Order {
-        uint256 id;
-        uint256 expirationBlock;
-        uint256 saleRate;
-        address owner;
-        uint256 sellTokenIndex;
-        uint256 buyTokenIndex;
-    }
-
     //@notice structure contains full state related to long term orders
     struct LongTermOrders {
         //@notice minimum block interval between order expiries
@@ -84,7 +75,7 @@ contract LongTermOrdersContract is Ownable {
         uint256[] memory balances,
         bytes memory orderData
     )
-        public onlyOwner
+        public override onlyOwner 
         returns (
             uint256,
             uint256,
@@ -160,7 +151,7 @@ contract LongTermOrdersContract is Ownable {
         address sender,
         uint256 orderId
     )
-        public onlyOwner
+        public override onlyOwner
         returns (
             uint256 purchasedAmount,
             uint256 unsoldAmount,
@@ -196,7 +187,7 @@ contract LongTermOrdersContract is Ownable {
     function withdrawProceedsFromLongTermSwap(
         address sender,
         uint256 orderId
-    ) public onlyOwner returns (uint256 proceeds, Order memory order) {
+    ) public override onlyOwner returns (uint256 proceeds, Order memory order) {
         order = self.orderMap[orderId];
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
@@ -225,7 +216,7 @@ contract LongTermOrdersContract is Ownable {
 
     //@notice executes all virtual orders until current block is reached.
     function executeVirtualOrdersUntilCurrentBlock(uint256[] memory balances)
-        public onlyOwner
+        public override onlyOwner
         returns (uint256 ammTokenA, uint256 ammTokenB)
     {
         ammTokenA = balances[0];
@@ -400,8 +391,9 @@ contract LongTermOrdersContract is Ownable {
         }
     }
 
+    // TODO: should this be public?
     function getTokenBalanceFromLongTermOrder(uint8 tokenIndex)
-        public
+        public override
         view
         returns (uint256 balance)
     {

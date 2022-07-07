@@ -1,5 +1,4 @@
 import { deploy, deployedAt } from '@balancer-labs/v2-helpers/src/contract';
-import Vault from '@balancer-labs/v2-helpers/src/models/vault/Vault';
 import { ethers } from 'hardhat';
 
 async function main() {
@@ -10,12 +9,15 @@ async function main() {
 
     console.log("Account balance:", (await deployer.getBalance()).toString());
 
+    let ltoContract = await deploy('LongTermOrdersContract', {from:deployer, args: [100]});
+    console.log("LTO contract deployed to address:", ltoContract.address);
+
     const vaultContract = await deployedAt("IVault", "0xBA12222222228d8Ba445958a75a0704d566BF2C8");
     let factoryContract = await deploy('TwammWeightedPoolFactory', {from:deployer, args: [vaultContract.address]});
     // let factoryContract = await deploy('WeightedPoolFactory', {from:deployer, args: [vaultContract.address]});
-    console.log(factoryContract.address);
-    console.log("Contract deployed to address:", factoryContract.address);
+    console.log("Factory contract deployed to address:", factoryContract.address);
 
+    
 }
 
 main()
