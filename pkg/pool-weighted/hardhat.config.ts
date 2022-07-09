@@ -23,9 +23,8 @@ export default {
     rinkeby: {
       url: API_URL,
       accounts: [`0x${PRIVATE_KEY}`],
-      gasPrice: 20000000000,
-      gas: 1000000000000000,
-      blockGasLimit: 1000000000000000
+      gasPrice: 20e9,
+      gas: 25e6,
    }
   },
   solidity: {
