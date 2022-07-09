@@ -15,56 +15,40 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
-import "./WeightedPool.sol";
+import "./BaseWeightedPool.sol";
 
-import "hardhat/console.sol";
-import "./twamm/LongTermOrders.sol";
+import "./twamm/ILongTermOrders.sol";
 import "./WeightedPoolUserData.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/Ownable.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @dev Basic Weighted Pool with immutable weights.
  */
-contract TwammWeightedPool is WeightedPool, Ownable {
-    uint256 private constant _MAX_TOKENS = 2;
-    uint256 private constant _ALLOWED_WEIGHT = 0.5e18;
-
-    using LongTermOrdersLib for LongTermOrdersLib.LongTermOrders;
+contract TwammWeightedPool is BaseWeightedPool, Ownable {
     using WeightedPoolUserData for bytes;
     using FixedPoint for uint256;
 
-    LongTermOrdersLib.LongTermOrders internal _longTermOrders;
+    uint256 private constant _MAX_TOKENS = 2;
+    uint256 private constant _ALLOWED_WEIGHT = 0.5e18;
+
+    uint256 private constant _totalTokens = 2;
+
+    IERC20 internal immutable _token0;
+    IERC20 internal immutable _token1;
+
+    uint256 internal immutable _scalingFactor0;
+    uint256 internal immutable _scalingFactor1;
+
+    ILongTermOrders public _longTermOrders;
+
+    uint256 internal immutable _normalizedWeight0;
+    uint256 internal immutable _normalizedWeight1;
 
     uint256 private _longTermSwapFeePercentage = 0;
-
-    event LongTermOrderPlaced(
-        uint256 id,
-        IERC20 indexed buyToken,
-        IERC20 indexed sellToken,
-        uint256 saleRate,
-        address indexed owner,
-        uint256 expirationBlock
-    );
-    event LongTermOrderWithdrawn(
-        uint256 id,
-        IERC20 indexed buyToken,
-        IERC20 indexed sellToken,
-        uint256 saleRate,
-        address indexed owner,
-        uint256 expirationBlock,
-        uint256 proceeds
-    );
-    event LongTermOrderCancelled(
-        uint256 id,
-        IERC20 indexed buyToken,
-        IERC20 indexed sellToken,
-        uint256 saleRate,
-        address indexed owner,
-        uint256 expirationBlock,
-        uint256 proceeds,
-        uint256 unsoldAmount
-    );
+>>>>>>> deploy_script
 
     event LongTermSwapFeePercentageChanged(uint256 longTermSwapFeePercentage);
 
@@ -74,33 +58,117 @@ contract TwammWeightedPool is WeightedPool, Ownable {
         string memory symbol,
         IERC20[] memory tokens,
         uint256[] memory normalizedWeights,
-        address[] memory assetManagers,
         uint256 swapFeePercentage,
         uint256 pauseWindowDuration,
         uint256 bufferPeriodDuration,
         address owner,
-        uint256 orderBlockInterval
+        address longTermOrdersContractAddress
     )
-        WeightedPool(
+        BaseWeightedPool(
             vault,
             name,
             symbol,
             tokens,
-            normalizedWeights,
-            assetManagers,
+            new address[](tokens.length), // Pass the zero address: Twamms can't have asset managers
             swapFeePercentage,
             pauseWindowDuration,
             bufferPeriodDuration,
             owner
         )
     {
-        _require(tokens.length == _MAX_TOKENS, Errors.NOT_TWO_TOKENS);
+        _require(tokens.length == 2, Errors.NOT_TWO_TOKENS);
+        InputHelpers.ensureInputLengthMatch(tokens.length, normalizedWeights.length);
+
         // TODO Fix tests for this
         // _require(normalizedWeights[0] == _ALLOWED_WEIGHT, Errors.WEIGHTS_NOT_ALLOWED);
         // _require(normalizedWeights[1] == _ALLOWED_WEIGHT, Errors.WEIGHTS_NOT_ALLOWED);
 
-        // Initialize with current block and specified order block interval.
-        _longTermOrders.initialize(block.number, orderBlockInterval);
+        // Immutable variables cannot be initialized inside an if statement, so we must do conditional assignments
+        _token0 = tokens[0];
+        _token1 = tokens[1];
+
+        _normalizedWeight0 = normalizedWeights[0];
+        _normalizedWeight1 = normalizedWeights[1];
+
+        _scalingFactor0 = _computeScalingFactor(tokens[0]);
+        _scalingFactor1 = _computeScalingFactor(tokens[1]);
+
+        for (uint8 i = 0; i < 2; i++) {
+            _require(normalizedWeights[i] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
+        }
+
+        _longTermOrders = ILongTermOrders(longTermOrdersContractAddress);
+    }
+
+    function _getMaxTokens() internal pure virtual override returns (uint256) {
+        return _MAX_TOKENS;
+    }
+
+    function _getNormalizedWeight(IERC20 token) internal view virtual override returns (uint256) {
+        // prettier-ignore
+        if (token == _token0) { return _normalizedWeight0; }
+        else if (token == _token1) { return _normalizedWeight1; }
+        else {
+            _revert(Errors.INVALID_TOKEN);
+        }
+    }
+
+    function _getNormalizedWeights() internal view virtual override returns (uint256[] memory) {
+        uint256 totalTokens = _getTotalTokens();
+        uint256[] memory normalizedWeights = new uint256[](totalTokens);
+
+        // prettier-ignore
+        {
+            normalizedWeights[0] = _normalizedWeight0;
+            normalizedWeights[1] = _normalizedWeight1;
+        }
+
+        return normalizedWeights;
+    }
+
+    function _getNormalizedWeightsAndMaxWeightIndex()
+        internal
+        view
+        override
+        returns (uint256[] memory normalizedWeights, uint256 maxWeightTokenIndex)
+    {
+        normalizedWeights = _getNormalizedWeights();
+
+        maxWeightTokenIndex = 0;
+        uint256 maxNormalizedWeight = normalizedWeights[0];
+
+        for (uint256 i = 1; i < normalizedWeights.length; i++) {
+            if (normalizedWeights[i] > maxNormalizedWeight) {
+                maxWeightTokenIndex = i;
+                maxNormalizedWeight = normalizedWeights[i];
+            }
+        }
+    }
+
+    function _getTotalTokens() internal view virtual override returns (uint256) {
+        return _MAX_TOKENS;
+    }
+
+    function _scalingFactor(IERC20 token) internal view virtual override returns (uint256) {
+        // prettier-ignore
+        if (token == _token0) { return _scalingFactor0; }
+        else if (token == _token1) { return _scalingFactor1; }
+        else {
+            _revert(Errors.INVALID_TOKEN);
+        }
+    }
+
+    function _scalingFactors() internal view virtual override returns (uint256[] memory) {
+        uint256 totalTokens = _getTotalTokens();
+        uint256[] memory scalingFactors = new uint256[](totalTokens);
+
+        // prettier-ignore
+        {
+            scalingFactors[0] = _scalingFactor0;
+            scalingFactors[1] = _scalingFactor1;
+        }
+
+        return scalingFactors;
     }
 
     function _onJoinPool(
@@ -125,28 +193,21 @@ contract TwammWeightedPool is WeightedPool, Ownable {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
-        (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
-            updatedBalances
-        );
-
+        if(address(_longTermOrders) != address(0)) {
+            (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
+                updatedBalances
+            );
+        }
+        
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
         if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
-            (uint256 orderId, uint256 amountAIn, uint256 amountBIn) = _registerLongTermOrder(
+            (, uint256 amountAIn, uint256 amountBIn) = _registerLongTermOrder(
                 sender,
                 recipient,
                 updatedBalances,
                 scalingFactors,
                 userData
-            );
-
-            emit LongTermOrderPlaced(
-                _longTermOrders.orderMap[orderId].id,
-                _longTermOrders.orderMap[orderId].sellTokenIndex == 0 ? _token0 : _token1,
-                _longTermOrders.orderMap[orderId].buyTokenIndex == 0 ? _token0 : _token1,
-                _longTermOrders.orderMap[orderId].saleRate,
-                _longTermOrders.orderMap[orderId].owner,
-                _longTermOrders.orderMap[orderId].expirationBlock
             );
 
             // Return 0 bpt when long term order is placed
@@ -187,9 +248,11 @@ contract TwammWeightedPool is WeightedPool, Ownable {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
-        (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
-            updatedBalances
-        );
+        if(address(_longTermOrders) != address(0)) {
+            (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
+                updatedBalances
+            );
+        }
 
         WeightedPoolUserData.ExitKind kind = userData.exitKind();
         if (kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER) {
@@ -253,9 +316,11 @@ contract TwammWeightedPool is WeightedPool, Ownable {
         }
 
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
-        (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
-            updatedBalances
-        );
+        if(address(_longTermOrders) != address(0)) {
+            (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
+                updatedBalances
+            );
+        }
 
         return updatedBalances;
     }
@@ -264,10 +329,11 @@ contract TwammWeightedPool is WeightedPool, Ownable {
      * Registers the long term order with the Pool.
      */
     function _registerLongTermOrder(
-        address sender,
+        // TODO: Can we just remove this function and directly call _longTermOrders.performLongTermSwap?
+        address /* sender */,
         address recipient,
         uint256[] memory balances,
-        uint256[] memory scalingFactors,
+        uint256[] memory /* scalingFactors */,
         bytes memory userData
     )
         internal
@@ -331,7 +397,7 @@ contract TwammWeightedPool is WeightedPool, Ownable {
         )
     {
         uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
-        (uint256 purchasedAmount, uint256 unsoldAmount, LongTermOrdersLib.Order memory order) = _longTermOrders
+        (uint256 purchasedAmount, uint256 unsoldAmount, ILongTermOrders.Order memory order) = _longTermOrders
             .cancelLongTermSwap(sender, orderId);
 
         (protocolFees, purchasedAmount, unsoldAmount) = _calculateLongTermOrderProtocolFees(
@@ -339,17 +405,6 @@ contract TwammWeightedPool is WeightedPool, Ownable {
             order.buyTokenIndex,
             unsoldAmount,
             purchasedAmount
-        );
-
-        emit LongTermOrderCancelled(
-            order.id,
-            order.buyTokenIndex == 0 ? _token0 : _token1,
-            order.sellTokenIndex == 0 ? _token0 : _token1,
-            order.saleRate,
-            order.owner,
-            order.expirationBlock,
-            purchasedAmount,
-            unsoldAmount
         );
 
         if (order.buyTokenIndex == 0) {
@@ -368,7 +423,7 @@ contract TwammWeightedPool is WeightedPool, Ownable {
         )
     {
         uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
-        (uint256 proceeds, LongTermOrdersLib.Order memory order) = _longTermOrders.withdrawProceedsFromLongTermSwap(
+        (uint256 proceeds, ILongTermOrders.Order memory order) = _longTermOrders.withdrawProceedsFromLongTermSwap(
             sender,
             orderId
         );
@@ -377,16 +432,6 @@ contract TwammWeightedPool is WeightedPool, Ownable {
             order.sellTokenIndex,
             order.buyTokenIndex,
             0,
-            proceeds
-        );
-
-        emit LongTermOrderWithdrawn(
-            order.id,
-            order.buyTokenIndex == 0 ? _token0 : _token1,
-            order.sellTokenIndex == 0 ? _token0 : _token1,
-            order.saleRate,
-            order.owner,
-            order.expirationBlock,
             proceeds
         );
 
@@ -400,8 +445,12 @@ contract TwammWeightedPool is WeightedPool, Ownable {
     function _getUpdatedPoolBalances(uint256[] memory balances) internal view returns (uint256[] memory) {
         uint256[] memory updatedBalances = new uint256[](balances.length);
 
-        for (uint8 i = 0; i < balances.length; i++) {
-            updatedBalances[i] = balances[i] - _longTermOrders.getTokenBalanceFromLongTermOrder(i);
+        if(address(_longTermOrders) != address(0)) {
+            for (uint8 i = 0; i < balances.length; i++) {
+                updatedBalances[i] = balances[i] - _longTermOrders.getTokenBalanceFromLongTermOrder(i);
+            }
+        } else {
+            return balances;
         }
 
         return updatedBalances;

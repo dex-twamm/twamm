@@ -66,7 +66,7 @@ export default {
       oracleEnabled,
       poolType,
       swapEnabledOnStart,
-      orderBlockInterval,
+      longTermOrdersContract,
       mustAllowlistLPs,
       managementSwapFeePercentage,
       owner,
@@ -124,12 +124,11 @@ export default {
             SYMBOL,
             tokens.addresses,
             weights,
-            assetManagers,
             swapFeePercentage,
             pauseWindowDuration,
             bufferPeriodDuration,
             TypesConverter.toAddress(owner),
-            orderBlockInterval,
+            longTermOrdersContract
           ],
           from,
           // libraries: { QueryProcessor: (await deploy('QueryProcessor')).address },
@@ -189,7 +188,7 @@ export default {
       swapFeePercentage,
       oracleEnabled,
       swapEnabledOnStart,
-      orderBlockInterval,
+      longTermOrdersContract,
       mustAllowlistLPs,
       managementSwapFeePercentage,
       poolType,
@@ -207,10 +206,9 @@ export default {
           SYMBOL,
           tokens.addresses,
           weights,
-          assetManagers,
           swapFeePercentage,
           owner,
-          orderBlockInterval
+          longTermOrdersContract
         );
         const receipt = await tx.wait();
         const event = expectEvent.inReceipt(receipt, 'PoolCreated');
