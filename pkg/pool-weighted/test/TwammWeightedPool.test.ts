@@ -46,8 +46,7 @@ describe('TwammWeightedPool', function () {
 
     context('when initialized with swaps enabled', () => {
       sharedBeforeEach('deploy pool', async () => {
-        const longTermOrdersContract = await deploy(
-          'LongTermOrders', {args: [10]});
+        const longTermOrdersContract = await deploy('LongTermOrders', { args: [10] });
 
         const params = {
           tokens,
@@ -71,6 +70,11 @@ describe('TwammWeightedPool', function () {
 
             await pool.init({ from: owner, initialBalances });
             await tokens.approve({ from: other, to: await pool.getVault() });
+          });
+
+          it('can get long term order contract address', async () => {
+            const longTermOrdersContractAddress = await pool.getLongTermOrderContractAddress();
+            expect(longTermOrdersContractAddress).to.be.not.undefined;
           });
 
           it('can execute one-way Long Term Order', async () => {

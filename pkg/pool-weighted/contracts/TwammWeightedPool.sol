@@ -48,7 +48,6 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
     uint256 internal immutable _normalizedWeight1;
 
     uint256 private _longTermSwapFeePercentage = 0;
->>>>>>> deploy_script
 
     event LongTermSwapFeePercentageChanged(uint256 longTermSwapFeePercentage);
 
@@ -193,12 +192,6 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
-        if(address(_longTermOrders) != address(0)) {
-            (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
-                updatedBalances
-            );
-        }
-        
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
         if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
@@ -213,6 +206,12 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
             // Return 0 bpt when long term order is placed
             return (uint256(0), _getSizeTwoArray(amountAIn, amountBIn), _getSizeTwoArray(0, 0));
         } else {
+            if (address(_longTermOrders) != address(0)) {
+                (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
+                    updatedBalances
+                );
+            }
+
             return
                 super._onJoinPool(
                     poolId,
@@ -248,18 +247,18 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
-        if(address(_longTermOrders) != address(0)) {
-            (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
-                updatedBalances
-            );
-        }
-
         WeightedPoolUserData.ExitKind kind = userData.exitKind();
         if (kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER) {
-            return _cancelLongTermOrder(sender, userData);
+            return _cancelLongTermOrder(sender, userData, updatedBalances);
         } else if (kind == WeightedPoolUserData.ExitKind.WITHDRAW_LONG_TERM_ORDER) {
-            return _withdrawLongTermOrder(sender, userData);
+            return _withdrawLongTermOrder(sender, userData, updatedBalances);
         } else {
+            if (address(_longTermOrders) != address(0)) {
+                (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
+                    updatedBalances
+                );
+            }
+
             return
                 super._onExitPool(
                     poolId,
@@ -316,7 +315,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
         }
 
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
-        if(address(_longTermOrders) != address(0)) {
+        if (address(_longTermOrders) != address(0)) {
             (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
                 updatedBalances
             );
@@ -330,10 +329,10 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
      */
     function _registerLongTermOrder(
         // TODO: Can we just remove this function and directly call _longTermOrders.performLongTermSwap?
-        address /* sender */,
+        address, /* sender */
         address recipient,
         uint256[] memory balances,
-        uint256[] memory /* scalingFactors */,
+        uint256[] memory scalingFactors,
         bytes memory userData
     )
         internal
@@ -388,7 +387,11 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
         );
     }
 
-    function _cancelLongTermOrder(address sender, bytes memory userData)
+    function _cancelLongTermOrder(
+        address sender,
+        bytes memory userData,
+        uint256[] memory balances
+    )
         internal
         returns (
             uint256,
@@ -398,7 +401,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
     {
         uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
         (uint256 purchasedAmount, uint256 unsoldAmount, ILongTermOrders.Order memory order) = _longTermOrders
-            .cancelLongTermSwap(sender, orderId);
+            .cancelLongTermSwap(sender, orderId, balances);
 
         (protocolFees, purchasedAmount, unsoldAmount) = _calculateLongTermOrderProtocolFees(
             order.sellTokenIndex,
@@ -414,7 +417,11 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
         }
     }
 
-    function _withdrawLongTermOrder(address sender, bytes memory userData)
+    function _withdrawLongTermOrder(
+        address sender,
+        bytes memory userData,
+        uint256[] memory balances
+    )
         internal
         returns (
             uint256,
@@ -425,7 +432,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
         uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
         (uint256 proceeds, ILongTermOrders.Order memory order) = _longTermOrders.withdrawProceedsFromLongTermSwap(
             sender,
-            orderId
+            orderId,
+            balances
         );
 
         (protocolFees, proceeds, ) = _calculateLongTermOrderProtocolFees(
@@ -445,7 +453,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
     function _getUpdatedPoolBalances(uint256[] memory balances) internal view returns (uint256[] memory) {
         uint256[] memory updatedBalances = new uint256[](balances.length);
 
-        if(address(_longTermOrders) != address(0)) {
+        if (address(_longTermOrders) != address(0)) {
             for (uint8 i = 0; i < balances.length; i++) {
                 updatedBalances[i] = balances[i] - _longTermOrders.getTokenBalanceFromLongTermOrder(i);
             }
@@ -475,16 +483,12 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
         // return updatedBalances[0].mulUp(updatedBalances[1]);
     }
 
-    function setMaxltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {
-        _longTermOrders.maxltoOrderAmountToAmmBalanceRatio = amountToAmmBalanceRation;
-    }
-
-    function setMinltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {
-        _longTermOrders.minltoOrderAmountToAmmBalanceRatio = amountToAmmBalanceRation;
-    }
-
     function setLongTermSwapFeePercentage(uint256 newLongTermSwapFeePercentage) external onlyOwner {
         _longTermSwapFeePercentage = newLongTermSwapFeePercentage;
         emit LongTermSwapFeePercentageChanged(newLongTermSwapFeePercentage);
+    }
+
+    function getLongTermOrderContractAddress() external view returns (address) {
+        return address(_longTermOrders);
     }
 }

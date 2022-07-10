@@ -65,14 +65,14 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 minltoOrderAmountToAmmBalanceRatio;
     }
 
-    LongTermOrders self;
+    LongTermOrders public longTermOrders;
 
     constructor(uint256 _orderBlockInterval) Ownable() {
-        self.lastVirtualOrderBlock = block.number;
-        self.orderBlockInterval = _orderBlockInterval;
+        longTermOrders.lastVirtualOrderBlock = block.number;
+        longTermOrders.orderBlockInterval = _orderBlockInterval;
 
-        self.maxltoOrderAmountToAmmBalanceRatio = 1e17;
-        self.minltoOrderAmountToAmmBalanceRatio = 1e14;
+        longTermOrders.maxltoOrderAmountToAmmBalanceRatio = 1e17;
+        longTermOrders.minltoOrderAmountToAmmBalanceRatio = 1e14;
     }
 
     function performLongTermSwap(
@@ -83,7 +83,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 amountIn,
         uint256 numberOfBlockIntervals
     )
-        public
+        external
         override
         onlyOwner
         returns (
@@ -92,19 +92,16 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             uint256
         )
     {
-        // TODO: This may not be required since executeVirtualOrdersUntilCurrentBlock
-        // is called onJoinPool
-        // executeVirtualOrdersUntilCurrentBlock(balances);
-
         _require(
-            amountIn > balances[sellTokenIndex].mulUp(self.minltoOrderAmountToAmmBalanceRatio),
+            amountIn > balances[sellTokenIndex].mulUp(longTermOrders.minltoOrderAmountToAmmBalanceRatio),
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW
         );
         _require(
-            amountIn < balances[sellTokenIndex].mulUp(self.maxltoOrderAmountToAmmBalanceRatio),
+            amountIn < balances[sellTokenIndex].mulUp(longTermOrders.maxltoOrderAmountToAmmBalanceRatio),
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
         );
 
+        executeVirtualOrdersUntilCurrentBlock(balances);
         return _addLongTermSwap(owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
     }
 
@@ -128,10 +125,17 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 sellingRate = amount.divDown(Math.sub(orderExpiry, block.number).fromUint());
 
         //add order to correct pool
-        self.orderPoolMap[from].depositOrder(self.orderId, sellingRate, orderExpiry);
+        longTermOrders.orderPoolMap[from].depositOrder(longTermOrders.orderId, sellingRate, orderExpiry);
 
         //add to order map
-        self.orderMap[self.orderId] = Order(self.orderId, orderExpiry, sellingRate, owner, from, to);
+        longTermOrders.orderMap[longTermOrders.orderId] = Order(
+            longTermOrders.orderId,
+            orderExpiry,
+            sellingRate,
+            owner,
+            from,
+            to
+        );
 
         // transfer sale amount to contract
         _addToLongTermOrdersBalance(from, amount);
@@ -139,25 +143,29 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 amountAIn = from == 0 ? amount : 0;
         uint256 amountBIn = from == 1 ? amount : 0;
 
-        uint256 orderId = self.orderId;
+        uint256 orderId = longTermOrders.orderId;
 
-        self.orderId = self.orderId + 1;
+        longTermOrders.orderId = longTermOrders.orderId + 1;
 
         emit LongTermOrderPlaced(
-            self.orderMap[self.orderId].id,
-            self.orderMap[self.orderId].sellTokenIndex,
-            self.orderMap[self.orderId].buyTokenIndex,
-            self.orderMap[self.orderId].saleRate,
-            self.orderMap[self.orderId].owner,
-            self.orderMap[self.orderId].expirationBlock
+            longTermOrders.orderMap[longTermOrders.orderId].id,
+            longTermOrders.orderMap[longTermOrders.orderId].sellTokenIndex,
+            longTermOrders.orderMap[longTermOrders.orderId].buyTokenIndex,
+            longTermOrders.orderMap[longTermOrders.orderId].saleRate,
+            longTermOrders.orderMap[longTermOrders.orderId].owner,
+            longTermOrders.orderMap[longTermOrders.orderId].expirationBlock
         );
 
         return (orderId, amountAIn, amountBIn);
     }
 
     //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
-    function cancelLongTermSwap(address sender, uint256 orderId)
-        public
+    function cancelLongTermSwap(
+        address sender,
+        uint256 orderId,
+        uint256[] memory balances
+    )
+        external
         override
         onlyOwner
         returns (
@@ -166,18 +174,20 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             Order memory order
         )
     {
-        order = self.orderMap[orderId];
+        executeVirtualOrdersUntilCurrentBlock(balances);
+
+        order = longTermOrders.orderMap[orderId];
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
-        OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
-        (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(orderId, self.lastVirtualOrderBlock);
+        OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
+        (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(orderId, longTermOrders.lastVirtualOrderBlock);
 
         //update LongTermOrders balances
         _removeFromLongTermOrdersBalance(order.buyTokenIndex, purchasedAmount);
         _removeFromLongTermOrdersBalance(order.sellTokenIndex, unsoldAmount);
 
         // clean up order data
-        delete self.orderMap[orderId];
+        delete longTermOrders.orderMap[orderId];
 
         emit LongTermOrderCancelled(
             order.id,
@@ -192,26 +202,27 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     }
 
     //@notice withdraw proceeds from a long term swap (can be expired or ongoing)
-    function withdrawProceedsFromLongTermSwap(address sender, uint256 orderId)
-        public
-        override
-        onlyOwner
-        returns (uint256 proceeds, Order memory order)
-    {
-        order = self.orderMap[orderId];
+    function withdrawProceedsFromLongTermSwap(
+        address sender,
+        uint256 orderId,
+        uint256[] memory balances
+    ) external override onlyOwner returns (uint256 proceeds, Order memory order) {
+        executeVirtualOrdersUntilCurrentBlock(balances);
+
+        order = longTermOrders.orderMap[orderId];
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
-        OrderPoolLib.OrderPool storage orderPool = self.orderPoolMap[order.sellTokenIndex];
+        OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
         _require(orderPool.orderExpiry[orderId] <= block.number, Errors.LONG_TERM_ORDER_ORDER_NOT_COMPLETED);
 
-        proceeds = orderPool.withdrawProceeds(orderId, self.lastVirtualOrderBlock);
+        proceeds = orderPool.withdrawProceeds(orderId, longTermOrders.lastVirtualOrderBlock);
 
         _require(proceeds > 0, Errors.NO_PROCEEDS_TO_WITHDRAW);
         //update long term order balances
         _removeFromLongTermOrdersBalance(order.buyTokenIndex, proceeds);
 
         // clean up order data
-        delete self.orderMap[orderId];
+        delete longTermOrders.orderMap[orderId];
 
         emit LongTermOrderWithdrawn(
             order.id,
@@ -235,16 +246,19 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         ammTokenB = balances[1];
 
         uint256 nextExpiryBlock = Math.add(
-            Math.sub(self.lastVirtualOrderBlock, Math.mod(self.lastVirtualOrderBlock, self.orderBlockInterval)),
-            self.orderBlockInterval
+            Math.sub(
+                longTermOrders.lastVirtualOrderBlock,
+                Math.mod(longTermOrders.lastVirtualOrderBlock, longTermOrders.orderBlockInterval)
+            ),
+            longTermOrders.orderBlockInterval
         );
         //iterate through blocks eligible for order expiries, moving state forward
         while (nextExpiryBlock < block.number) {
-            (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(balances[0], balances[1], nextExpiryBlock);
-            nextExpiryBlock = Math.add(nextExpiryBlock, self.orderBlockInterval);
+            (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(ammTokenA, ammTokenB, nextExpiryBlock);
+            nextExpiryBlock = Math.add(nextExpiryBlock, longTermOrders.orderBlockInterval);
         }
         //finally, move state to current block if necessary
-        if (self.lastVirtualOrderBlock != block.number) {
+        if (longTermOrders.lastVirtualOrderBlock != block.number) {
             (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(ammTokenA, ammTokenB, block.number);
         }
     }
@@ -257,9 +271,14 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 blockNumber
     ) private returns (uint256, uint256) {
         //amount sold from virtual trades
-        uint256 blockNumberIncrement = Math.sub(blockNumber, self.lastVirtualOrderBlock).fromUint();
-        uint256 tokenASellAmount = self.orderPoolMap[0].currentSalesRate.mulDown(blockNumberIncrement);
-        uint256 tokenBSellAmount = self.orderPoolMap[1].currentSalesRate.mulDown(blockNumberIncrement);
+        uint256 blockNumberIncrement = Math.sub(blockNumber, longTermOrders.lastVirtualOrderBlock).fromUint();
+        uint256 tokenASellAmount = longTermOrders.orderPoolMap[0].currentSalesRate.mulDown(blockNumberIncrement);
+        uint256 tokenBSellAmount = longTermOrders.orderPoolMap[1].currentSalesRate.mulDown(blockNumberIncrement);
+
+        console.log("aStart", "bStart", tokenAStart, tokenBStart);
+        console.log("aIn", "bIn", tokenASellAmount, tokenBSellAmount);
+        console.log("balanceA", "balanceB", longTermOrders.balanceA, longTermOrders.balanceB);
+        console.log("lastVirtualOrderBlock", "nextExpiryBlock", longTermOrders.lastVirtualOrderBlock, blockNumber);
 
         //updated balances from sales
         (uint256 tokenAOut, uint256 tokenBOut, uint256 ammEndTokenA, uint256 ammEndTokenB) = _computeVirtualBalances(
@@ -274,8 +293,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         _addToLongTermOrdersBalance(1, tokenBOut.toSignedFixedPoint().sub(tokenBSellAmount.toSignedFixedPoint()));
 
         //distribute proceeds to pools
-        OrderPoolLib.OrderPool storage orderPoolA = self.orderPoolMap[0];
-        OrderPoolLib.OrderPool storage orderPoolB = self.orderPoolMap[1];
+        OrderPoolLib.OrderPool storage orderPoolA = longTermOrders.orderPoolMap[0];
+        OrderPoolLib.OrderPool storage orderPoolB = longTermOrders.orderPoolMap[1];
 
         orderPoolA.distributePayment(tokenBOut);
         orderPoolB.distributePayment(tokenAOut);
@@ -285,7 +304,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         orderPoolB.updateStateFromBlockExpiry(blockNumber);
 
         //update last virtual trade block
-        self.lastVirtualOrderBlock = blockNumber;
+        longTermOrders.lastVirtualOrderBlock = blockNumber;
+
+        console.log("balanceA", "balanceB", longTermOrders.balanceA, longTermOrders.balanceB);
+        console.log("outA", "outB", tokenAOut, tokenBOut);
+        console.log("aAmmEnd", "bAmmEnd", ammEndTokenA, ammEndTokenB);
 
         return (ammEndTokenA, ammEndTokenB);
     }
@@ -368,31 +391,30 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
     function _addToLongTermOrdersBalance(uint256 tokenIndex, int256 balance) internal {
         if (tokenIndex == 0) {
-            self.balanceA = Math.add(self.balanceA.toSignedFixedPoint(), balance).toFixedPoint();
+            longTermOrders.balanceA = Math.add(longTermOrders.balanceA.toSignedFixedPoint(), balance).toFixedPoint();
         } else if (tokenIndex == 1) {
-            self.balanceB = Math.add(self.balanceB.toSignedFixedPoint(), balance).toFixedPoint();
+            longTermOrders.balanceB = Math.add(longTermOrders.balanceB.toSignedFixedPoint(), balance).toFixedPoint();
         }
     }
 
     function _addToLongTermOrdersBalance(uint256 tokenIndex, uint256 balance) internal {
         if (tokenIndex == 0) {
-            self.balanceA = Math.add(self.balanceA, balance);
+            longTermOrders.balanceA = Math.add(longTermOrders.balanceA, balance);
         } else if (tokenIndex == 1) {
-            self.balanceB = Math.add(self.balanceB, balance);
+            longTermOrders.balanceB = Math.add(longTermOrders.balanceB, balance);
         }
     }
 
     function _removeFromLongTermOrdersBalance(uint256 tokenIndex, uint256 balance) internal {
         if (tokenIndex == 0) {
-            self.balanceA = self.balanceA.sub(balance);
+            longTermOrders.balanceA = longTermOrders.balanceA.sub(balance);
         } else if (tokenIndex == 1) {
-            self.balanceB = self.balanceB.sub(balance);
+            longTermOrders.balanceB = longTermOrders.balanceB.sub(balance);
         }
     }
 
-    // TODO: should this be public?
-    function getTokenBalanceFromLongTermOrder(uint8 tokenIndex) public view override returns (uint256 balance) {
-        return tokenIndex == 0 ? self.balanceA : self.balanceB;
+    function getTokenBalanceFromLongTermOrder(uint8 tokenIndex) external view override returns (uint256 balance) {
+        return tokenIndex == 0 ? longTermOrders.balanceA : longTermOrders.balanceB;
     }
 
     function _getOrderExpiry(uint256 numberOfBlockIntervals) internal view returns (uint256) {
@@ -400,8 +422,39 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             Math.add(
                 // TODO: Why is there Math.add(numberOfBlockIntervals, 1)?
                 // Shouldn't this be orderBlockInterval * numberOfBlockIntervals?
-                Math.mul(self.orderBlockInterval, Math.add(numberOfBlockIntervals, 1)),
-                Math.sub(block.number, Math.mod(block.number, self.orderBlockInterval))
+                Math.mul(longTermOrders.orderBlockInterval, Math.add(numberOfBlockIntervals, 1)),
+                Math.sub(block.number, Math.mod(block.number, longTermOrders.orderBlockInterval))
             );
+    }
+
+    function setMaxltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {
+        longTermOrders.maxltoOrderAmountToAmmBalanceRatio = amountToAmmBalanceRation;
+    }
+
+    function setMinltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {
+        longTermOrders.minltoOrderAmountToAmmBalanceRatio = amountToAmmBalanceRation;
+    }
+
+    function getLongTermOrder(uint256 orderId)
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            address,
+            uint256,
+            uint256
+        )
+    {
+        Order memory order = longTermOrders.orderMap[orderId];
+        return (
+            order.id,
+            order.expirationBlock,
+            order.saleRate,
+            order.owner,
+            order.sellTokenIndex,
+            order.buyTokenIndex
+        );
     }
 }
