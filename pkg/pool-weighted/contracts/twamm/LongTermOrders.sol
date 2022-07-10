@@ -45,7 +45,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     );
 
     //@notice structure contains full state related to long term orders
-    struct LongTermOrders {
+    struct LongTermOrdersStruct {
         //@notice minimum block interval between order expiries
         uint256 orderBlockInterval;
         //@notice last virtual orders were executed immediately before this block
@@ -56,14 +56,14 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         //we maintain two order pools, one for each token that is tradable in the AMM
         mapping(uint256 => OrderPoolLib.OrderPool) orderPoolMap;
         //@notice incrementing counter for order ids
-        uint256 orderId;
+        uint256 lastOrderId;
         //@notice mapping from order ids to Orders
         mapping(uint256 => Order) orderMap;
         uint256 maxltoOrderAmountToAmmBalanceRatio;
         uint256 minltoOrderAmountToAmmBalanceRatio;
     }
 
-    LongTermOrders public longTermOrders;
+    LongTermOrdersStruct public longTermOrders;
 
     constructor(uint256 _orderBlockInterval) Ownable() {
         longTermOrders.lastVirtualOrderBlock = block.number;
@@ -118,16 +118,19 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             uint256
         )
     {
+        uint256 orderId = self.lastOrderId;
+        longTermOrders.lastOrderId++;
+        
         //determine the selling rate based on number of blocks to expiry and total amount
         uint256 orderExpiry = _getOrderExpiry(numberOfBlockIntervals);
         uint256 sellingRate = amount.divDown(Math.sub(orderExpiry, block.number).fromUint());
 
         //add order to correct pool
-        longTermOrders.orderPoolMap[from].depositOrder(longTermOrders.orderId, sellingRate, orderExpiry);
+        longTermOrders.orderPoolMap[from].depositOrder(orderId, sellingRate, orderExpiry);
 
         //add to order map
-        longTermOrders.orderMap[longTermOrders.orderId] = Order(
-            longTermOrders.orderId,
+        longTermOrders.orderMap[orderId] = Order(
+            orderId,
             orderExpiry,
             sellingRate,
             owner,
@@ -141,17 +144,13 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 amountAIn = from == 0 ? amount : 0;
         uint256 amountBIn = from == 1 ? amount : 0;
 
-        uint256 orderId = longTermOrders.orderId;
-
-        longTermOrders.orderId = longTermOrders.orderId + 1;
-
         emit LongTermOrderPlaced(
-            longTermOrders.orderMap[longTermOrders.orderId].id,
-            longTermOrders.orderMap[longTermOrders.orderId].sellTokenIndex,
-            longTermOrders.orderMap[longTermOrders.orderId].buyTokenIndex,
-            longTermOrders.orderMap[longTermOrders.orderId].saleRate,
-            longTermOrders.orderMap[longTermOrders.orderId].owner,
-            longTermOrders.orderMap[longTermOrders.orderId].expirationBlock
+            longTermOrders.orderMap[orderId].id,
+            longTermOrders.orderMap[orderId].sellTokenIndex,
+            longTermOrders.orderMap[orderId].buyTokenIndex,
+            longTermOrders.orderMap[orderId].saleRate,
+            longTermOrders.orderMap[orderId].owner,
+            longTermOrders.orderMap[orderId].expirationBlock
         );
 
         return (orderId, amountAIn, amountBIn);

@@ -244,7 +244,7 @@ describe('LongTermOrders', function () {
     return [
       bn((await longTermOrders.longTermOrders()).balanceA),
       bn((await longTermOrders.longTermOrders()).balanceB),
-      bn((await longTermOrders.longTermOrders()).orderId),
+      bn((await longTermOrders.longTermOrders()).lastOrderId),
       bn((await longTermOrders.longTermOrders()).lastVirtualOrderBlock),
       bn((await longTermOrders.longTermOrders()).orderBlockInterval),
     ];
