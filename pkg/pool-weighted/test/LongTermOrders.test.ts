@@ -1,10 +1,9 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
-import { Contract, BigNumber, FixedNumber } from 'ethers';
+import { Contract, BigNumber, BigNumberish } from 'ethers';
 import { decimal, fp, bn } from '@balancer-labs/v2-helpers/src/numbers';
 
 import { deploy } from '@balancer-labs/v2-helpers/src/contract';
-import { TwammWeightedPoolEncoder } from '@balancer-labs/balancer-js/src/pool-weighted/encoder';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
 import { lastBlockNumber } from '@balancer-labs/v2-helpers/src/time';
 import { Address } from 'cluster';
@@ -82,7 +81,13 @@ describe('LongTermOrders', function () {
   }
 
   function verifyTokenBalances(tokenBalances: [BigNumber, BigNumber], balanceA: BigNumber, balanceB: BigNumber) {
-    // console.log('Token Balances', decimal(tokenBalances[0]), decimal(tokenBalances[1]));
+    // console.log(
+    //   'Token Balances',
+    //   decimal(tokenBalances[0]),
+    //   decimal(tokenBalances[1]),
+    //   decimal(balanceA),
+    //   decimal(balanceB)
+    // );
     expect(tokenBalances[0]).to.be.equal(balanceA);
     expect(tokenBalances[1]).to.be.equal(balanceB);
   }
@@ -151,6 +156,11 @@ describe('LongTermOrders', function () {
     bIn = bIn.mul(nextExpiryBlock - lastVirtualOrderBlock);
     const k = aStart.mul(bStart);
 
+    // console.log('*aStart', 'bStart', decimal(aStart), decimal(bStart));
+    // console.log('*aIn', 'bIn', decimal(aIn), decimal(bIn));
+    // console.log('*balanceA', 'balanceB', decimal(balanceA), decimal(balanceB));
+    // console.log('*lastVirtualOrderBlock', 'nextExpiryBlock', lastVirtualOrderBlock, nextExpiryBlock);
+
     if (aIn.isZero() && !bIn.isZero()) {
       outA = aStart.mul(bIn).div(bStart.add(bIn));
       outB = bn(0);
@@ -184,6 +194,10 @@ describe('LongTermOrders', function () {
     balanceA = balanceA.sub(aIn).add(outA);
     balanceB = balanceB.sub(bIn).add(outB);
 
+    // console.log('*balanceA', 'balanceB', decimal(balanceA), decimal(balanceB));
+    // console.log('*outA', 'outB', decimal(outA), decimal(outB));
+    // console.log('*aAmmEnd', 'bAmmEnd', decimal(aAmmEnd), decimal(bAmmEnd));
+
     return [aAmmEnd, bAmmEnd, balanceA, balanceB];
   }
 
@@ -198,18 +212,55 @@ describe('LongTermOrders', function () {
     return amount.div(orderBlockInterval * (numberOfBlockIntervals + 1) - (blockNumber % orderBlockInterval));
   }
 
+  async function getOrderBlockInterval(): Promise<BigNumber> {
+    return bn((await longTermOrders.longTermOrders()).orderBlockInterval);
+  }
+
+  async function getLastVirtualOrderBlock(): Promise<BigNumber> {
+    return bn((await longTermOrders.longTermOrders()).lastVirtualOrderBlock);
+  }
+
+  async function getOrderDetails(
+    index: number
+  ): Promise<[BigNumber, BigNumber, BigNumber, Address, BigNumber, BigNumber]> {
+    return [
+      bn((await longTermOrders.longTermOrders()).orderMap[index].id),
+      bn((await longTermOrders.longTermOrders()).orderMap[index].expirationBlock),
+      bn((await longTermOrders.longTermOrders()).orderMap[index].saleRate),
+      (await longTermOrders.longTermOrders()).orderMap[index].owner.toString(),
+      bn((await longTermOrders.longTermOrders()).orderMap[index].sellTokenIndex),
+      bn((await longTermOrders.longTermOrders()).orderMap[index].buyTokenIndex),
+    ];
+  }
+
+  async function getOrderPoolDetails(tokenIndex: number): Promise<[BigNumber, BigNumber]> {
+    return [
+      bn((await longTermOrders.longTermOrders()).orderPoolMap[tokenIndex].currentSalesRate),
+      bn((await longTermOrders.longTermOrders()).orderPoolMap[tokenIndex].rewardFactor),
+    ];
+  }
+
+  async function getLongTermOrdersDetails(): Promise<[BigNumber, BigNumber, BigNumber, BigNumber, BigNumber]> {
+    return [
+      bn((await longTermOrders.longTermOrders()).balanceA),
+      bn((await longTermOrders.longTermOrders()).balanceB),
+      bn((await longTermOrders.longTermOrders()).orderId),
+      bn((await longTermOrders.longTermOrders()).lastVirtualOrderBlock),
+      bn((await longTermOrders.longTermOrders()).orderBlockInterval),
+    ];
+  }
+
   describe('init', () => {
     before('setup', async function () {
-      longTermOrders = await deploy('MockLongTermOrders');
+      longTermOrders = await deploy('LongTermOrders', { args: [orderBlockInterval] });
       [, anAddress] = await ethers.getSigners();
 
       blockNumber = await lastBlockNumber();
-      await longTermOrders.initialize(blockNumber, orderBlockInterval);
     });
 
     it('initialize long term orders library', async () => {
-      const lastVirtualOrderBlock = await longTermOrders.getLastVirtualOrderBlock();
-      const orderBlockInterval = await longTermOrders.getOrderBlockInterval();
+      const lastVirtualOrderBlock = await getLastVirtualOrderBlock();
+      const orderBlockInterval = await getOrderBlockInterval();
 
       expect(lastVirtualOrderBlock).to.be.equal(blockNumber);
       expect(orderBlockInterval).to.be.equal(orderBlockInterval);
@@ -239,11 +290,10 @@ describe('LongTermOrders', function () {
     }
 
     sharedBeforeEach('setup', async function () {
-      longTermOrders = await deploy('MockLongTermOrders');
+      longTermOrders = await deploy('LongTermOrders', { args: [orderBlockInterval] });
       [, anAddress, anAddress1, anAddress2] = await ethers.getSigners();
 
       blockNumber = await lastBlockNumber();
-      await longTermOrders.initialize(blockNumber, orderBlockInterval);
     });
 
     it('can place long term order', async () => {
@@ -261,10 +311,10 @@ describe('LongTermOrders', function () {
         ammBalances
       );
 
-      const orderDetails = await longTermOrders.getOrderDetails(0);
-      const orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      const orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      const longTermOrdersDetails = await longTermOrders.getLongTermOrdersDetails();
+      const orderDetails = await longTermOrders.getLongTermOrder(0);
+      // const orderPoolDetailsA = await getOrderPoolDetails(0);
+      // const orderPoolDetailsB = await getOrderPoolDetails(1);
+      const longTermOrdersDetails = await getLongTermOrdersDetails();
 
       verifyOrderDetails(
         orderDetails,
@@ -275,8 +325,8 @@ describe('LongTermOrders', function () {
         0,
         1
       );
-      verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, fp(0));
-      verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
+      // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, fp(0));
+      // verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
       verifyLongTermOrdersDetails(longTermOrdersDetails, amount, fp(0), 1, orderPlacementBlock, orderBlockInterval);
     });
 
@@ -297,9 +347,9 @@ describe('LongTermOrders', function () {
         ammBalances
       );
 
-      const orderDetails1 = await longTermOrders.getOrderDetails(0);
-      let orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      const longTermOrdersDetails1 = await longTermOrders.getLongTermOrdersDetails();
+      const orderDetails1 = await longTermOrders.getLongTermOrder(0);
+      // let orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
+      const longTermOrdersDetails1 = await getLongTermOrdersDetails();
 
       verifyOrderDetails(
         orderDetails1,
@@ -310,7 +360,7 @@ describe('LongTermOrders', function () {
         0,
         1
       );
-      verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, fp(0));
+      // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, fp(0));
       verifyLongTermOrdersDetails(longTermOrdersDetails1, amount1, fp(0), 1, orderPlacementBlockA, orderBlockInterval);
 
       const [orderPlacementBlockB, salesRateB] = await placeLongTermOrder(
@@ -334,10 +384,10 @@ describe('LongTermOrders', function () {
         orderBlockInterval
       );
 
-      const orderDetails2 = await longTermOrders.getOrderDetails(1);
-      const orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      const longTermOrdersDetails2 = await longTermOrders.getLongTermOrdersDetails();
+      const orderDetails2 = await longTermOrders.getLongTermOrder(1);
+      // const orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
+      // orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
+      const longTermOrdersDetails2 = await getLongTermOrdersDetails();
 
       verifyOrderDetails(
         orderDetails2,
@@ -348,8 +398,8 @@ describe('LongTermOrders', function () {
         1,
         0
       );
-      verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('999999009411580506'));
-      verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, fp(0));
+      // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('999999009411580506'));
+      // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, fp(0));
       verifyLongTermOrdersDetails(
         longTermOrdersDetails2,
         balanceA,
@@ -390,13 +440,13 @@ describe('LongTermOrders', function () {
         orderBlockInterval
       );
 
-      const orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      const orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      const tokenBalances = await longTermOrders.getTokenBalances();
+      // const orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
+      // const orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
+      const [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
 
-      verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('200995963815502579716'));
-      verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
-      verifyTokenBalances(tokenBalances, balanceA, balanceB);
+      // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('200995963815502579716'));
+      // verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
+      verifyTokenBalances([tokenBalanceA, tokenBalanceB], balanceA, balanceB);
     });
 
     it('can place long term order in both direction of same interval and execute', async () => {
@@ -429,13 +479,13 @@ describe('LongTermOrders', function () {
       await moveForwardNBlocks(2 * orderBlockInterval);
       await longTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
 
-      const orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      const orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      const tokenBalances = await longTermOrders.getTokenBalances();
+      // const orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
+      // const orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
+      const [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
 
-      verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('201999959178428795856'));
-      verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('201000040721681221460'));
-      verifyTokenBalances(tokenBalances, bn('99999002995988273709'), bn('100000997003912337562'));
+      // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('201999959178428795856'));
+      // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('201000040721681221460'));
+      verifyTokenBalances([tokenBalanceA, tokenBalanceB], bn('99999003015868180030'), bn('100000996984032426313'));
     });
 
     it('can place long term order in both direction of diff sale rate and execute', async () => {
@@ -479,13 +529,13 @@ describe('LongTermOrders', function () {
       await moveForwardNBlocks(2 * orderBlockInterval);
       await longTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
 
-      const orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      const orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      const tokenBalances = await longTermOrders.getTokenBalances();
+      // const orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
+      // const orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
+      const [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
 
-      verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('202012053981096173406'));
-      verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('200987947148768005531'));
-      verifyTokenBalances(tokenBalances, bn('100600634913255768555'), bn('199399329008347348615'));
+      // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('202012053981096173406'));
+      // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('200987947148768005531'));
+      verifyTokenBalances([tokenBalanceA, tokenBalanceB], bn('100600634913255768555'), bn('199399329008347348615'));
     });
 
     it('can place long term order in both direction, execute and cancel first order', async () => {
@@ -529,23 +579,23 @@ describe('LongTermOrders', function () {
       await moveForwardNBlocks(2 * orderBlockInterval);
       await longTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
 
-      let orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      let orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      let tokenBalances = await longTermOrders.getTokenBalances();
+      // let orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
+      // let orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
+      let [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
 
-      verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('202012053981096173406'));
-      verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('200987947148768005531'));
-      verifyTokenBalances(tokenBalances, bn('100600634913255768555'), bn('199399329008347348615'));
+      // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('202012053981096173406'));
+      // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('200987947148768005531'));
+      verifyTokenBalances([tokenBalanceA, tokenBalanceB], bn('100600634913255768555'), bn('199399329008347348615'));
 
       await longTermOrders.cancelLongTermSwap(anAddress.address, 0);
 
-      orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      tokenBalances = await longTermOrders.getTokenBalances();
+      // orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
+      // orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
+      [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
 
-      verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('202012053981096173406'));
-      verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('200987947148768005531'));
-      verifyTokenBalances(tokenBalances, bn('802443195387816421'), bn('199197508683674691615'));
+      // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('202012053981096173406'));
+      // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('200987947148768005531'));
+      verifyTokenBalances([tokenBalanceA, tokenBalanceB], bn('802443195387816421'), bn('199197508683674691615'));
     });
 
     it('can place long term order in one direction, execute and withdraw order', async () => {
@@ -576,23 +626,23 @@ describe('LongTermOrders', function () {
         orderBlockInterval
       );
 
-      let orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      let orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      let tokenBalances = await longTermOrders.getTokenBalances();
+      // let orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
+      // let orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
+      let [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
 
-      verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391089108910891089108'));
-      verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
-      verifyTokenBalances(tokenBalances, balanceA, balanceB);
+      // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391089108910891089108'));
+      // verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
+      verifyTokenBalances([tokenBalanceA, tokenBalanceB], balanceA, balanceB);
 
       await longTermOrders.withdrawProceedsFromLongTermSwap(anAddress.address, 0);
 
-      orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      tokenBalances = await longTermOrders.getTokenBalances();
+      // orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
+      // orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
+      [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
 
-      verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391089108910891089108'));
-      verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
-      verifyTokenBalances(tokenBalances, balanceA, bn(1));
+      // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391089108910891089108'));
+      // verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
+      verifyTokenBalances([tokenBalanceA, tokenBalanceB], balanceA, bn(1));
     });
 
     it('can place long term order in both direction, execute and withdraw first order', async () => {
@@ -661,23 +711,23 @@ describe('LongTermOrders', function () {
       //   orderBlockInterval
       // );
 
-      let orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      let orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      let tokenBalances = await longTermOrders.getTokenBalances();
+      // let orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
+      // let orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
+      let [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
 
-      verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391150274317278982266'));
-      verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('405038774564188060935'));
-      verifyTokenBalances(tokenBalances, bn('1617114922203010695'), bn('297424395764569057342'));
+      // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391150274317278982266'));
+      // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('405038774564188060935'));
+      verifyTokenBalances([tokenBalanceA, tokenBalanceB], bn('1617114922203010695'), bn('297424395764569057342'));
 
       await longTermOrders.withdrawProceedsFromLongTermSwap(anAddress.address, 0);
 
-      orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
-      orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      tokenBalances = await longTermOrders.getTokenBalances();
+      // orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
+      // orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
+      [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
 
-      verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391150274317278982266'));
-      verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('405038774564188060935'));
-      verifyTokenBalances(tokenBalances, bn('1617114922203010695'), bn('198399009861460454415'));
+      // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391150274317278982266'));
+      // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('405038774564188060935'));
+      verifyTokenBalances([tokenBalanceA, tokenBalanceB], bn('1617114922203010695'), bn('198399009861460454415'));
     });
   });
 });

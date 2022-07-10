@@ -411,6 +411,10 @@ export default class WeightedPool {
     return this.join(this._buildJoinPlaceLongTermOrderParams(params));
   }
 
+  async getLongTermOrderContractAddress(): Promise<string> {
+    return this.instance.getLongTermOrderContractAddress();
+  }
+
   // TODO(nuhbye): Probably don't need query for place long term order, since we'll give back 0 BPT always.
 
   async exitGivenOut(params: ExitGivenOutWeightedPool): Promise<ExitResult> {
