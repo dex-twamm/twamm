@@ -1,12 +1,13 @@
 import '@nomiclabs/hardhat-ethers';
 import '@nomiclabs/hardhat-waffle';
+import "@nomiclabs/hardhat-etherscan";
 
 import { hardhatBaseConfig } from '@balancer-labs/v2-common';
 import { name } from './package.json';
 
 require('dotenv').config();
 
-const { API_URL, PRIVATE_KEY } = process.env;
+const { API_URL, ETHERSCAN_KEY, PRIVATE_KEY } = process.env;
 
 import { task } from 'hardhat/config';
 import { TASK_COMPILE } from 'hardhat/builtin-tasks/task-names';
@@ -25,6 +26,11 @@ export default {
       gasPrice: 20e9,
       gas: 25e6,
    }
+  },
+  etherscan: {
+    // Your API key for Etherscan
+    // Obtain one at https://etherscan.io/
+    apiKey: ETHERSCAN_KEY
   },
   solidity: {
     compilers: [

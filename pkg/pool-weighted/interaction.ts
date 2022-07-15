@@ -6,17 +6,24 @@ import { ethers } from 'hardhat';
 import { lt } from 'lodash';
 import { fp } from '@balancer-labs/v2-helpers/src/numbers';
 
+const POOL_ID = "0xcde148bf4078d196a7d695743161da3d49e4989d000200000000000000000221";
+const OWNER_ADDRESS = '0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8';
+const TUSDT_TOKEN_ADDRESS = "0xD92E713d051C37EbB2561803a3b5FBAbc4962431";
+const FAUCET_TOKEN_ADDRESS = "0xFab46E002BbF0b4509813474841E0716E6730136";
+
+const VAULT_RINKEBY = '0xBA12222222228d8Ba445958a75a0704d566BF2C8';
+
 async function joinPool(vault: Contract) {
   const encodedRequest = defaultAbiCoder.encode(
     ['uint256', 'uint256[]', 'uint256'],
     [1, [fp(1e-12), fp(1.0)], 0]
   );
   const joinPoolResult = await vault.joinPool(
-    '0x125d09ccdca44761a0dbdfbb4b7bd666ed188d8600020000000000000000021e',
-    '0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8',
-    '0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8',
+    POOL_ID,
+    OWNER_ADDRESS,
+    OWNER_ADDRESS,
     {
-      assets: ["0xD92E713d051C37EbB2561803a3b5FBAbc4962431", "0xFab46E002BbF0b4509813474841E0716E6730136"],
+      assets: [TUSDT_TOKEN_ADDRESS, FAUCET_TOKEN_ADDRESS],
       maxAmountsIn: [MAX_UINT256, MAX_UINT256],
       fromInternalBalance: false,
       userData: encodedRequest,
@@ -33,11 +40,11 @@ async function placeLongTermOrder(
     [4, tokenInIndex, tokenOutIndex, amountIn, numberOfBlockIntervals]
   );
   const placeLtoTx = await vault.joinPool(
-    '0x125d09ccdca44761a0dbdfbb4b7bd666ed188d8600020000000000000000021e',
-    '0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8',
-    '0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8',
+    POOL_ID,
+    OWNER_ADDRESS,
+    OWNER_ADDRESS,
     {
-      assets: ["0xD92E713d051C37EbB2561803a3b5FBAbc4962431", "0xFab46E002BbF0b4509813474841E0716E6730136"],
+      assets: [TUSDT_TOKEN_ADDRESS, FAUCET_TOKEN_ADDRESS],
       maxAmountsIn: [MAX_UINT256, MAX_UINT256],
       fromInternalBalance: false,
       userData: encodedRequest,
@@ -54,7 +61,7 @@ async function swap(
 
     const swapTx = await vault.swap(
       {
-        poolId: '0x125d09ccdca44761a0dbdfbb4b7bd666ed188d8600020000000000000000021e',
+        poolId: POOL_ID,
         kind: kind,
         assetIn: tokenInAddress,
         assetOut: tokenOutAddress,
@@ -62,9 +69,9 @@ async function swap(
         userData: '0x',
       },
       {
-        sender: '0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8',
+        sender: OWNER_ADDRESS,
         fromInternalBalance: false,
-        recipient:'0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8',
+        recipient:OWNER_ADDRESS,
         toInternalBalance: false,
       },
       kind === 0 ? 0 : MAX_UINT256, // 0 if given in, infinite if given out.
@@ -80,11 +87,30 @@ async function withdrawLongTermOrder(vault: Contract, orderId: number) {
     ['uint256', 'uint256'], 
     [5, orderId]);
   const withdrawLtoTx = await vault.exitPool(
-    '0x125d09ccdca44761a0dbdfbb4b7bd666ed188d8600020000000000000000021e', // poolID
-    '0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8', // from
-    '0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8', // recipient
+    POOL_ID, // poolID
+    OWNER_ADDRESS, // from
+    OWNER_ADDRESS, // recipient
     {
-      assets: ["0xD92E713d051C37EbB2561803a3b5FBAbc4962431", "0xFab46E002BbF0b4509813474841E0716E6730136"],
+      assets: [TUSDT_TOKEN_ADDRESS, FAUCET_TOKEN_ADDRESS],
+      minAmountsOut: [0, 0],
+      fromInternalBalance: false,
+      userData: encodedRequest,
+    }
+  );
+  const withdrawLtoResult = await withdrawLtoTx.wait();
+  console.log(withdrawLtoResult);
+}
+
+async function cancelLongTermOrder(vault: Contract, orderId: number) {
+  const encodedRequest = defaultAbiCoder.encode(
+    ['uint256', 'uint256'], 
+    [4, orderId]);
+  const withdrawLtoTx = await vault.exitPool(
+    POOL_ID, // poolID
+    OWNER_ADDRESS, // from
+    OWNER_ADDRESS, // recipient
+    {
+      assets: [TUSDT_TOKEN_ADDRESS, FAUCET_TOKEN_ADDRESS],
       minAmountsOut: [0, 0],
       fromInternalBalance: false,
       userData: encodedRequest,
@@ -100,17 +126,23 @@ async function main() {
     console.log("Using account:", myAccount.address);
     console.log("Account balance:", (await myAccount.getBalance()).toString());
 
-    const vault = await deployedAt('v2-vault/Vault', '0xBA12222222228d8Ba445958a75a0704d566BF2C8'); // rinkeby vault
+    const vault = await deployedAt('v2-vault/Vault', VAULT_RINKEBY);
+
+    // const lto = await deployedAt('LongTermOrders', '0xae1a524c979a0e14d22240ce27b65bb918b12238');
+    // const transferTx = await lto.transferOwnership('0xcde148bF4078D196A7D695743161Da3D49e4989D');
+    // console.log(await transferTx.wait());
+
 
     // await placeLongTermOrder(vault, 1, 0, fp(0.1), 4);
 
-    await swap(vault, "0xFab46E002BbF0b4509813474841E0716E6730136", "0xD92E713d051C37EbB2561803a3b5FBAbc4962431",
-    fp(0.1));
+    // await swap(vault, FAUCET_TOKEN_ADDRESS, TUSDT_TOKEN_ADDRESS, fp(0.1));
 
-    // await swap(vault, "0xD92E713d051C37EbB2561803a3b5FBAbc4962431", "0xFab46E002BbF0b4509813474841E0716E6730136",
+    // await swap(vault, TUSDT_TOKEN_ADDRESS, FAUCET_TOKEN_ADDRESS,
     //   fp(1e-13));
 
-    // await withdrawLongTermOrder(vault, 1);
+    // await withdrawLongTermOrder(vault, 0);
+
+    await cancelLongTermOrder(vault, 1);
 }
 
 main()
