@@ -17,7 +17,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     using OrderPoolLib for OrderPoolLib.OrderPool;
 
     event LongTermOrderPlaced(
-        uint256 id,
+        uint256 orderId,
         uint256 indexed buyTokenIndex,
         uint256 indexed sellTokenIndex,
         uint256 saleRate,
@@ -25,7 +25,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 expirationBlock
     );
     event LongTermOrderWithdrawn(
-        uint256 id,
+        uint256 orderId,
         uint256 indexed buyTokenIndex,
         uint256 indexed sellTokenIndex,
         uint256 saleRate,
@@ -34,7 +34,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 proceeds
     );
     event LongTermOrderCancelled(
-        uint256 id,
+        uint256 orderId,
         uint256 indexed buyTokenIndex,
         uint256 indexed sellTokenIndex,
         uint256 saleRate,
@@ -118,7 +118,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             uint256
         )
     {
-        uint256 orderId = self.lastOrderId;
+        uint256 orderId = longTermOrders.lastOrderId;
         longTermOrders.lastOrderId++;
         
         //determine the selling rate based on number of blocks to expiry and total amount
@@ -146,8 +146,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
         emit LongTermOrderPlaced(
             longTermOrders.orderMap[orderId].id,
-            longTermOrders.orderMap[orderId].sellTokenIndex,
             longTermOrders.orderMap[orderId].buyTokenIndex,
+            longTermOrders.orderMap[orderId].sellTokenIndex,
             longTermOrders.orderMap[orderId].saleRate,
             longTermOrders.orderMap[orderId].owner,
             longTermOrders.orderMap[orderId].expirationBlock

@@ -12,6 +12,7 @@ import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/wei
 import { itBehavesAsWeightedPool } from './BaseWeightedPool.behavior';
 
 import { range } from 'lodash';
+import { Contract } from 'ethers';
 
 async function moveForwardNBlocks(n: number) {
   for (let index = 0; index < n; index++) {
@@ -38,6 +39,8 @@ describe('TwammWeightedPool', function () {
     // 1 token A = 4 token B
     const initialBalances = [fp(100.0), fp(400.0)];
 
+    let longTermOrdersContract: Contract;
+
     sharedBeforeEach('deploy tokens', async () => {
       allTokens = await TokenList.create(MAX_TOKENS + 1, { sorted: true });
       tokens = allTokens.subset(2);
@@ -46,7 +49,7 @@ describe('TwammWeightedPool', function () {
 
     context('when initialized with swaps enabled', () => {
       sharedBeforeEach('deploy pool', async () => {
-        const longTermOrdersContract = await deploy('LongTermOrders', { args: [10] });
+        longTermOrdersContract = await deploy('LongTermOrders', { args: [10] });
 
         const params = {
           tokens,
@@ -74,11 +77,22 @@ describe('TwammWeightedPool', function () {
 
           it('can get long term order contract address', async () => {
             const longTermOrdersContractAddress = await pool.getLongTermOrderContractAddress();
-            expect(longTermOrdersContractAddress).to.be.not.undefined;
+            expect(longTermOrdersContractAddress).to.be.equal(longTermOrdersContract.address);
           });
 
           it('can execute one-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
+
+            longTermOrdersContract.once(
+              "LongTermOrderPlaced",
+              (orderId, buyTokenIndex, sellTokenIndex, saleRate, orderOwner, expirationBlock, event) => {
+              expect(orderId).to.be.equal(0);
+              expect(sellTokenIndex).to.be.equal(0);
+              expect(buyTokenIndex).to.be.equal(1);
+              expect(saleRate).to.be.gt(0);
+              expect(orderOwner).to.be.equal(other.address);
+            })
+            
             let longTermOrder = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
@@ -86,6 +100,8 @@ describe('TwammWeightedPool', function () {
               tokenOutIndex: 1,
               numberOfBlockIntervals: 10,
             });
+
+            // console.log(longTermOrder.receipt);
 
             // Move forward 80 blocks with one swap after every 20 blocks.
             for (let j = 0; j < 5; j++) {

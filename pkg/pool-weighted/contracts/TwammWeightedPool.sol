@@ -368,7 +368,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable {
         uint256 unsoldAmount,
         uint256 purchasedAmount
     )
-        internal
+        internal view
         returns (
             uint256[] memory,
             uint256,
