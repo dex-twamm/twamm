@@ -192,11 +192,12 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         //iterate through blocks eligible for order expiries, moving state forward
         while (nextExpiryBlock < block.number) {
             (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(ammTokenA, ammTokenB, nextExpiryBlock);
-            nextExpiryBlock = Math.add(nextExpiryBlock, longTermOrders.orderBlockInterval);
+            nextExpiryBlock = Math.add(nextExpiryBlock, longTermOrders.orderBlockInterval, false);
         }
         //finally, move state to current block if necessary
         if (longTermOrders.lastVirtualOrderBlock != block.number) {
-            (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(ammTokenA, ammTokenB, block.number);
+            bool isExpiryBlock = Math.mod(block.number, longTermOrders.orderBlockInterval) == 0;
+            (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(ammTokenA, ammTokenB, block.number, isExpiryBlock);
         }
     }
 
@@ -206,6 +207,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 tokenAStart,
         uint256 tokenBStart,
         uint256 blockNumber
+        bool isExpiryBlock
     ) private returns (uint256, uint256) {
         //amount sold from virtual trades
         uint256 blockNumberIncrement = Math.sub(blockNumber, longTermOrders.lastVirtualOrderBlock).fromUint();
@@ -232,8 +234,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         orderPoolB.distributePayment(tokenAOut);
 
         //handle orders expiring at end of interval
-        orderPoolA.updateStateFromBlockExpiry(blockNumber);
-        orderPoolB.updateStateFromBlockExpiry(blockNumber);
+        // TODO verify added check if this is an actual expiry block
+        if (isExpiryBlock) {
+            orderPoolA.updateStateFromBlockExpiry(blockNumber);
+            orderPoolB.updateStateFromBlockExpiry(blockNumber);
+        }
 
         //update last virtual trade block
         longTermOrders.lastVirtualOrderBlock = blockNumber;

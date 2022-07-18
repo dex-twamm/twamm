@@ -51,8 +51,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
     mapping(uint256 => uint256) private _longTermOrderCollectedManagementFees;
 
-    uint256 private _longTermSwapFeePercentage = 0;
-    uint256 private _longTermSwapFeeUserCutPercentage = 0;
+    uint256 public longTermSwapFeePercentage = 0;
+    uint256 public longTermSwapFeeUserCutPercentage = 0;
 
     event LongTermOrderPlaced(
         uint256 orderId,
@@ -83,6 +83,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     );
 
     event LongTermSwapFeePercentageChanged(uint256 longTermSwapFeePercentage, uint256 longTermSwapFeeUserCutPercentage);
+    event LongTermOrderManagementFeesCollected(IERC20[] tokens, uint256[] amounts);
 
     constructor(
         IVault vault,
@@ -604,24 +605,22 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _downscaleDownArray(collectedFees, _scalingFactors());
     }
 
-    // todo fix this complete
-    // function withdrawCollectedManagementFees(address recipient) external onlyOwner whenNotPaused nonReentrant {
-    //     (IERC20[] memory tokens, uint256[] memory collectedFees) = getCollectedManagementFees();
+    function withdrawCollectedManagementFees(address recipient) external onlyOwner whenNotPaused nonReentrant {
+        uint256[] memory collectedFees = getCollectedManagementFees();
+        (IERC20[] memory tokens, , ) = getVault().getPoolTokens(getPoolId());
 
-    //     getVault().exitPool(
-    //         getPoolId(),
-    //         address(this),
-    //         payable(recipient),
-    //         IVault.ExitPoolRequest({
-    //             assets: _asIAsset(tokens),
-    //             minAmountsOut: collectedFees,
-    //             userData: abi.encode(WeightedPoolUserData.ExitKind.MANAGEMENT_FEE_TOKENS_OUT),
-    //             toInternalBalance: false
-    //         })
-    //     );
+        getVault().exitPool(
+            getPoolId(),
+            address(this),
+            payable(recipient),
+            IVault.ExitPoolRequest({
+                assets: _asIAsset(tokens),
+                minAmountsOut: collectedFees,
+                userData: abi.encode(WeightedPoolUserData.ExitKind.MANAGEMENT_FEE_TOKENS_OUT),
+                toInternalBalance: false
+            })
+        );
 
-    //     // Technically collectedFees is the minimum amount, not the actual amount. However, since no fees will be
-    //     // collected during the exit, it will also be the actual amount.
-    //     emit ManagementFeesCollected(tokens, collectedFees);
-    // }
+        emit LongTermOrderManagementFeesCollected(tokens, collectedFees);
+    }
 }
