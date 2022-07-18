@@ -10,39 +10,13 @@ import "./OrderPool.sol";
 import "./SignedFixedPoint.sol";
 import "../WeightedPoolUserData.sol";
 
+import "hardhat/console.sol";
+
 //@notice This library handles the state and execution of long term orders.
 contract LongTermOrders is ILongTermOrders, Ownable {
     using FixedPoint for uint256;
     using SignedFixedPoint for int256;
     using OrderPoolLib for OrderPoolLib.OrderPool;
-
-    event LongTermOrderPlaced(
-        uint256 orderId,
-        uint256 indexed buyTokenIndex,
-        uint256 indexed sellTokenIndex,
-        uint256 saleRate,
-        address indexed owner,
-        uint256 expirationBlock
-    );
-    event LongTermOrderWithdrawn(
-        uint256 orderId,
-        uint256 indexed buyTokenIndex,
-        uint256 indexed sellTokenIndex,
-        uint256 saleRate,
-        address indexed owner,
-        uint256 expirationBlock,
-        uint256 proceeds
-    );
-    event LongTermOrderCancelled(
-        uint256 orderId,
-        uint256 indexed buyTokenIndex,
-        uint256 indexed sellTokenIndex,
-        uint256 saleRate,
-        address indexed owner,
-        uint256 expirationBlock,
-        uint256 proceeds,
-        uint256 unsoldAmount
-    );
 
     //@notice structure contains full state related to long term orders
     struct LongTermOrdersStruct {
@@ -85,7 +59,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         override
         onlyOwner
         returns (
-            uint256,
+            Order memory,
             uint256,
             uint256
         )
@@ -98,6 +72,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             amountIn < balances[sellTokenIndex].mulUp(longTermOrders.maxltoOrderAmountToAmmBalanceRatio),
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
         );
+
+        // TODO add check for sales rate not greater than certain limit
 
         executeVirtualOrdersUntilCurrentBlock(balances);
         return _addLongTermSwap(owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
@@ -113,14 +89,14 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     )
         internal
         returns (
-            uint256,
+            Order memory,
             uint256,
             uint256
         )
     {
         uint256 orderId = longTermOrders.lastOrderId;
         longTermOrders.lastOrderId++;
-        
+
         //determine the selling rate based on number of blocks to expiry and total amount
         uint256 orderExpiry = _getOrderExpiry(numberOfBlockIntervals);
         uint256 sellingRate = amount.divDown(Math.sub(orderExpiry, block.number).fromUint());
@@ -129,14 +105,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         longTermOrders.orderPoolMap[from].depositOrder(orderId, sellingRate, orderExpiry);
 
         //add to order map
-        longTermOrders.orderMap[orderId] = Order(
-            orderId,
-            orderExpiry,
-            sellingRate,
-            owner,
-            from,
-            to
-        );
+        Order memory order = Order(orderId, orderExpiry, sellingRate, owner, from, to);
+        longTermOrders.orderMap[orderId] = order;
 
         // transfer sale amount to contract
         _addToLongTermOrdersBalance(from, amount);
@@ -144,16 +114,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 amountAIn = from == 0 ? amount : 0;
         uint256 amountBIn = from == 1 ? amount : 0;
 
-        emit LongTermOrderPlaced(
-            longTermOrders.orderMap[orderId].id,
-            longTermOrders.orderMap[orderId].buyTokenIndex,
-            longTermOrders.orderMap[orderId].sellTokenIndex,
-            longTermOrders.orderMap[orderId].saleRate,
-            longTermOrders.orderMap[orderId].owner,
-            longTermOrders.orderMap[orderId].expirationBlock
-        );
-
-        return (orderId, amountAIn, amountBIn);
+        return (order, amountAIn, amountBIn);
     }
 
     //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
@@ -185,17 +146,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
         // clean up order data
         delete longTermOrders.orderMap[orderId];
-
-        emit LongTermOrderCancelled(
-            order.id,
-            order.buyTokenIndex,
-            order.sellTokenIndex,
-            order.saleRate,
-            order.owner,
-            order.expirationBlock,
-            purchasedAmount,
-            unsoldAmount
-        );
     }
 
     //@notice withdraw proceeds from a long term swap (can be expired or ongoing)
@@ -220,16 +170,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
         // clean up order data
         delete longTermOrders.orderMap[orderId];
-
-        emit LongTermOrderWithdrawn(
-            order.id,
-            order.buyTokenIndex,
-            order.sellTokenIndex,
-            order.saleRate,
-            order.owner,
-            order.expirationBlock,
-            proceeds
-        );
     }
 
     //@notice executes all virtual orders until current block is reached.
@@ -406,10 +346,12 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     }
 
     function _getOrderExpiry(uint256 numberOfBlockIntervals) internal view returns (uint256) {
+        if (Math.mod(block.number, longTermOrders.orderBlockInterval) == 0) {
+            return Math.mul(longTermOrders.orderBlockInterval, Math.add(numberOfBlockIntervals, 1));
+        }
+
         return
             Math.add(
-                // TODO: Why is there Math.add(numberOfBlockIntervals, 1)?
-                // Shouldn't this be orderBlockInterval * numberOfBlockIntervals?
                 Math.mul(longTermOrders.orderBlockInterval, Math.add(numberOfBlockIntervals, 1)),
                 Math.sub(block.number, Math.mod(block.number, longTermOrders.orderBlockInterval))
             );

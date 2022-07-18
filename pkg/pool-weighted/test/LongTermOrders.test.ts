@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
-import { Contract, BigNumber, BigNumberish } from 'ethers';
+import { Contract, BigNumber } from 'ethers';
 import { decimal, fp, bn } from '@balancer-labs/v2-helpers/src/numbers';
 
 import { deploy } from '@balancer-labs/v2-helpers/src/contract';
@@ -250,6 +250,27 @@ describe('LongTermOrders', function () {
     ];
   }
 
+  async function placeLongTermOrder(
+    address: string,
+    tokenInIndex: number,
+    tokenOutIndex: number,
+    amount: BigNumber,
+    numberOfBlockIntervals: number,
+    balances: [BigNumber, BigNumber]
+  ): Promise<[number, BigNumber]> {
+    await longTermOrders.performLongTermSwap(
+      address,
+      balances,
+      tokenInIndex,
+      tokenOutIndex,
+      amount,
+      numberOfBlockIntervals
+    );
+    const lastBlock = await lastBlockNumber();
+
+    return [lastBlock, getSaleRate(amount, numberOfBlockIntervals, lastBlock)];
+  }
+
   describe('init', () => {
     before('setup', async function () {
       longTermOrders = await deploy('LongTermOrders', { args: [orderBlockInterval] });
@@ -267,28 +288,40 @@ describe('LongTermOrders', function () {
     });
   });
 
-  describe('place long term order', () => {
-    async function placeLongTermOrder(
-      address: string,
-      tokenInIndex: number,
-      tokenOutIndex: number,
-      amount: BigNumber,
-      numberOfBlockIntervals: number,
-      balances: [BigNumber, BigNumber]
-    ): Promise<[number, BigNumber]> {
-      await longTermOrders.performLongTermSwap(
-        address,
-        balances,
-        tokenInIndex,
-        tokenOutIndex,
+  describe('place long term order, order expiry calculation', () => {
+    before('setup', async function () {
+      longTermOrders = await deploy('LongTermOrders', { args: [orderBlockInterval] });
+      [, anAddress] = await ethers.getSigners();
+
+      blockNumber = await lastBlockNumber();
+    });
+
+    it('can calculate order expiry properly for border cases', async () => {
+      const amount = fp(100),
+        orderInterval = 100;
+
+      const ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
+
+      // Move to closest expiry block
+      await moveForwardNBlocks(orderBlockInterval - (await lastBlockNumber()) - 1);
+
+      const [orderPlacementBlock, salesRateA] = await placeLongTermOrder(
+        anAddress.address,
+        0,
+        1,
         amount,
-        numberOfBlockIntervals
+        orderInterval,
+        ammBalances
       );
-      const lastBlock = await lastBlockNumber();
 
-      return [lastBlock, getSaleRate(amount, numberOfBlockIntervals, lastBlock)];
-    }
+      const orderDetails = await longTermOrders.getLongTermOrder(0);
 
+      expect(orderPlacementBlock % orderBlockInterval == 0).to.be.true;
+      expect(orderDetails[1]).to.be.equal(orderPlacementBlock + orderInterval * orderBlockInterval);
+    });
+  });
+
+  describe('place long term order', () => {
     sharedBeforeEach('setup', async function () {
       longTermOrders = await deploy('LongTermOrders', { args: [orderBlockInterval] });
       [, anAddress, anAddress1, anAddress2] = await ethers.getSigners();
@@ -634,7 +667,7 @@ describe('LongTermOrders', function () {
       // verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
       verifyTokenBalances([tokenBalanceA, tokenBalanceB], balanceA, balanceB);
 
-      await longTermOrders.withdrawProceedsFromLongTermSwap(anAddress.address, 0);
+      await longTermOrders.withdrawProceedsFromLongTermSwap(anAddress.address, 0, ammBalances);
 
       // orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
       // orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
@@ -719,7 +752,7 @@ describe('LongTermOrders', function () {
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('405038774564188060935'));
       verifyTokenBalances([tokenBalanceA, tokenBalanceB], bn('1617114922203010695'), bn('297424395764569057342'));
 
-      await longTermOrders.withdrawProceedsFromLongTermSwap(anAddress.address, 0);
+      await longTermOrders.withdrawProceedsFromLongTermSwap(anAddress.address, 0, ammBalances);
 
       // orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
       // orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);

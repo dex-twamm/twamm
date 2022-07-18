@@ -25,7 +25,7 @@ abstract contract ILongTermOrders {
         external
         virtual
         returns (
-            uint256,
+            Order memory,
             uint256,
             uint256
         );

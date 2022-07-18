@@ -83,16 +83,17 @@ describe('TwammWeightedPool', function () {
           it('can execute one-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
 
-            longTermOrdersContract.once(
-              "LongTermOrderPlaced",
+            pool.instance.once(
+              'LongTermOrderPlaced',
               (orderId, buyTokenIndex, sellTokenIndex, saleRate, orderOwner, expirationBlock, event) => {
-              expect(orderId).to.be.equal(0);
-              expect(sellTokenIndex).to.be.equal(0);
-              expect(buyTokenIndex).to.be.equal(1);
-              expect(saleRate).to.be.gt(0);
-              expect(orderOwner).to.be.equal(other.address);
-            })
-            
+                expect(orderId).to.be.equal(0);
+                expect(sellTokenIndex).to.be.equal(0);
+                expect(buyTokenIndex).to.be.equal(1);
+                expect(saleRate).to.be.gt(0);
+                expect(orderOwner).to.be.equal(other.address);
+              }
+            );
+
             let longTermOrder = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
