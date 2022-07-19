@@ -346,14 +346,15 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     }
 
     function _getOrderExpiry(uint256 numberOfBlockIntervals) internal view returns (uint256) {
-        if (Math.mod(block.number, longTermOrders.orderBlockInterval) == 0) {
-            return Math.mul(longTermOrders.orderBlockInterval, Math.add(numberOfBlockIntervals, 1));
+        uint256 mod = Math.mod(block.number, longTermOrders.orderBlockInterval);
+        if (mod > 0) {
+            numberOfBlockIntervals = Math.add(numberOfBlockIntervals, 1);
         }
 
         return
             Math.add(
-                Math.mul(longTermOrders.orderBlockInterval, Math.add(numberOfBlockIntervals, 1)),
-                Math.sub(block.number, Math.mod(block.number, longTermOrders.orderBlockInterval))
+                Math.mul(longTermOrders.orderBlockInterval, numberOfBlockIntervals),
+                Math.sub(block.number, mod)
             );
     }
 
