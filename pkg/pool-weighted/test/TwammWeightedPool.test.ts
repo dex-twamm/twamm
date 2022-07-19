@@ -83,6 +83,7 @@ describe('TwammWeightedPool', function () {
           it('can execute one-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
 
+            let blockNum = await ethers.provider.getBlockNumber();
             pool.instance.once(
               'LongTermOrderPlaced',
               (orderId, buyTokenIndex, sellTokenIndex, saleRate, orderOwner, expirationBlock, event) => {
@@ -91,6 +92,9 @@ describe('TwammWeightedPool', function () {
                 expect(buyTokenIndex).to.be.equal(1);
                 expect(saleRate).to.be.gt(0);
                 expect(orderOwner).to.be.equal(other.address);
+                // Assuming block interval of 10.
+                expect(expirationBlock).to.be.gte(blockNum + 100);
+                expect(expirationBlock).to.be.lte(blockNum + 110);
               }
             );
 
@@ -138,8 +142,8 @@ describe('TwammWeightedPool', function () {
             await moveForwardNBlocks(10);
 
             const cancelResult = await pool.cancelLongTermOrder({ orderId: 0, from: other });
-            expect(cancelResult.amountsOut[0]).to.be.gte(fp(0.35));
-            expect(cancelResult.amountsOut[1]).to.be.lte(fp(2.5));
+            expect(cancelResult.amountsOut[0]).to.be.gte(fp(0.33));
+            expect(cancelResult.amountsOut[1]).to.be.lte(fp(2.7));
           });
 
           it('can execute two-way Long Term Order', async () => {
