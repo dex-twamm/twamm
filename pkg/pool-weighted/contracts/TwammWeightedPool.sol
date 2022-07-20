@@ -21,6 +21,7 @@ import "./twamm/ILongTermOrders.sol";
 import "./WeightedPoolUserData.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ReentrancyGuard.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/helpers/ERC20Helpers.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/Ownable.sol";
 
 import "hardhat/console.sol";
@@ -44,15 +45,15 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     uint256 internal immutable _scalingFactor0;
     uint256 internal immutable _scalingFactor1;
 
-    ILongTermOrders public _longTermOrders;
+    ILongTermOrders private _longTermOrders;
 
     uint256 internal immutable _normalizedWeight0;
     uint256 internal immutable _normalizedWeight1;
 
     mapping(uint256 => uint256) private _longTermOrderCollectedManagementFees;
 
-    uint256 private _longTermSwapFeePercentage = 0;
-    uint256 private _longTermSwapFeeUserCutPercentage = 0;
+    uint256 public longTermSwapFeePercentage = 0;
+    uint256 public longTermSwapFeeUserCutPercentage = 0;
 
     event LongTermOrderPlaced(
         uint256 orderId,
@@ -83,6 +84,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     );
 
     event LongTermSwapFeePercentageChanged(uint256 longTermSwapFeePercentage, uint256 longTermSwapFeeUserCutPercentage);
+    event LongTermOrderManagementFeesCollected(IERC20[] tokens, uint256[] amounts);
 
     constructor(
         IVault vault,
@@ -408,30 +410,16 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             );
     }
 
-    function _calculateLongTermOrderProtocolFees(
-        uint256 sellTokenIndex,
-        uint256 buyTokenIndex,
-        uint256 unsoldAmount,
-        uint256 purchasedAmount
-    )
+    function _calculateLongTermOrderProtocolFees(uint256 buyTokenIndex, uint256 purchasedAmount)
         internal
         view
-        returns (
-            uint256[] memory,
-            uint256,
-            uint256
-        )
+        returns (uint256[] memory, uint256)
     {
         uint256[] memory protocolFees = new uint256[](2);
 
-        protocolFees[sellTokenIndex] = unsoldAmount.mulUp(_longTermSwapFeePercentage);
-        protocolFees[buyTokenIndex] = purchasedAmount.mulUp(_longTermSwapFeePercentage);
+        protocolFees[buyTokenIndex] = purchasedAmount.mulUp(longTermSwapFeePercentage);
 
-        return (
-            protocolFees,
-            purchasedAmount.sub(protocolFees[buyTokenIndex]),
-            unsoldAmount.sub(protocolFees[sellTokenIndex])
-        );
+        return (protocolFees, purchasedAmount.sub(protocolFees[buyTokenIndex]));
     }
 
     function _emitEventOrderCancelled(
@@ -454,7 +442,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
     function _processLongTermOrderManagementFee(uint256[] memory protocolFees) internal {
         for (uint256 i = 0; i < protocolFees.length; i++) {
-            uint256 protocolFee = (FixedPoint.fromUint(1).sub(_longTermSwapFeeUserCutPercentage)).mulDown(
+            uint256 protocolFee = (FixedPoint.fromUint(1).sub(longTermSwapFeeUserCutPercentage)).mulDown(
                 protocolFees[i]
             );
 
@@ -479,16 +467,11 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         (uint256 purchasedAmount, uint256 unsoldAmount, ILongTermOrders.Order memory order) = _longTermOrders
             .cancelLongTermSwap(sender, orderId, balances);
 
-        _emitEventOrderCancelled(order, purchasedAmount, unsoldAmount, scalingFactors);
-
-        (protocolFees, purchasedAmount, unsoldAmount) = _calculateLongTermOrderProtocolFees(
-            order.sellTokenIndex,
-            order.buyTokenIndex,
-            unsoldAmount,
-            purchasedAmount
-        );
+        (protocolFees, purchasedAmount) = _calculateLongTermOrderProtocolFees(order.buyTokenIndex, purchasedAmount);
 
         _processLongTermOrderManagementFee(protocolFees);
+
+        _emitEventOrderCancelled(order, purchasedAmount, unsoldAmount, scalingFactors);
 
         if (order.buyTokenIndex == 0) {
             return (uint256(0), _getSizeTwoArray(purchasedAmount, unsoldAmount), _getSizeTwoArray(0, 0));
@@ -517,6 +500,10 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             balances
         );
 
+        (protocolFees, proceeds) = _calculateLongTermOrderProtocolFees(order.buyTokenIndex, proceeds);
+
+        _processLongTermOrderManagementFee(protocolFees);
+
         emit LongTermOrderWithdrawn(
             order.id,
             order.buyTokenIndex,
@@ -526,15 +513,6 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             order.expirationBlock,
             _downscaleDown(proceeds, scalingFactors[order.buyTokenIndex])
         );
-
-        (protocolFees, proceeds, ) = _calculateLongTermOrderProtocolFees(
-            order.sellTokenIndex,
-            order.buyTokenIndex,
-            0,
-            proceeds
-        );
-
-        _processLongTermOrderManagementFee(protocolFees);
 
         if (order.sellTokenIndex == 0) {
             return (uint256(0), _getSizeTwoArray(uint256(0), proceeds), _getSizeTwoArray(0, 0));
@@ -583,8 +561,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256 newLongTermSwapFeePercentage,
         uint256 newlongTermSwapFeeUserCutPercentage
     ) external onlyOwner {
-        _longTermSwapFeePercentage = newLongTermSwapFeePercentage;
-        _longTermSwapFeeUserCutPercentage = newlongTermSwapFeeUserCutPercentage;
+        longTermSwapFeePercentage = newLongTermSwapFeePercentage;
+        longTermSwapFeeUserCutPercentage = newlongTermSwapFeeUserCutPercentage;
 
         emit LongTermSwapFeePercentageChanged(newLongTermSwapFeePercentage, newlongTermSwapFeeUserCutPercentage);
     }
@@ -604,24 +582,22 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _downscaleDownArray(collectedFees, _scalingFactors());
     }
 
-    // todo fix this complete
-    // function withdrawCollectedManagementFees(address recipient) external onlyOwner whenNotPaused nonReentrant {
-    //     (IERC20[] memory tokens, uint256[] memory collectedFees) = getCollectedManagementFees();
+    function withdrawCollectedManagementFees(address recipient) external onlyOwner whenNotPaused nonReentrant {
+        uint256[] memory collectedFees = getCollectedManagementFees();
+        (IERC20[] memory tokens, , ) = getVault().getPoolTokens(getPoolId());
 
-    //     getVault().exitPool(
-    //         getPoolId(),
-    //         address(this),
-    //         payable(recipient),
-    //         IVault.ExitPoolRequest({
-    //             assets: _asIAsset(tokens),
-    //             minAmountsOut: collectedFees,
-    //             userData: abi.encode(WeightedPoolUserData.ExitKind.MANAGEMENT_FEE_TOKENS_OUT),
-    //             toInternalBalance: false
-    //         })
-    //     );
+        getVault().exitPool(
+            getPoolId(),
+            address(this),
+            payable(recipient),
+            IVault.ExitPoolRequest({
+                assets: _asIAsset(tokens),
+                minAmountsOut: collectedFees,
+                userData: abi.encode(WeightedPoolUserData.ExitKind.MANAGEMENT_FEE_TOKENS_OUT),
+                toInternalBalance: false
+            })
+        );
 
-    //     // Technically collectedFees is the minimum amount, not the actual amount. However, since no fees will be
-    //     // collected during the exit, it will also be the actual amount.
-    //     emit ManagementFeesCollected(tokens, collectedFees);
-    // }
+        emit LongTermOrderManagementFeesCollected(tokens, collectedFees);
+    }
 }

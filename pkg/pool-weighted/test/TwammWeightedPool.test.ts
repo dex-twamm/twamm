@@ -83,7 +83,7 @@ describe('TwammWeightedPool', function () {
           it('can execute one-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
 
-            let blockNum = await ethers.provider.getBlockNumber();
+            const blockNum = await ethers.provider.getBlockNumber();
             pool.instance.once(
               'LongTermOrderPlaced',
               (orderId, buyTokenIndex, sellTokenIndex, saleRate, orderOwner, expirationBlock, event) => {
@@ -98,7 +98,7 @@ describe('TwammWeightedPool', function () {
               }
             );
 
-            let longTermOrder = await pool.placeLongTermOrder({
+            const longTermOrder = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
               tokenInIndex: 0,
@@ -124,7 +124,7 @@ describe('TwammWeightedPool', function () {
 
           it('can cancel one-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
-            let longTermOrder = await pool.placeLongTermOrder({
+            const longTermOrder = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
               tokenInIndex: 0,
@@ -148,14 +148,14 @@ describe('TwammWeightedPool', function () {
 
           it('can execute two-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
-            let longTermOrder1 = await pool.placeLongTermOrder({
+            const longTermOrder1 = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
               tokenInIndex: 0,
               tokenOutIndex: 1,
               numberOfBlockIntervals: 10,
             });
-            let longTermOrder2 = await pool.placeLongTermOrder({
+            const longTermOrder2 = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(10.0),
               tokenInIndex: 1,
