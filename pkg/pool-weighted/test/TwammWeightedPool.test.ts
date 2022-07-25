@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
-import { fp } from '@balancer-labs/v2-helpers/src/numbers';
+import { fp, decimal } from '@balancer-labs/v2-helpers/src/numbers';
 
 import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
@@ -129,13 +129,14 @@ describe('TwammWeightedPool', function () {
             });
 
             // Move forward 40 blocks with one swap after every 10 blocks.
-            for (let j = 0; j < 5; j++) {
+            // Total blocks moved forward 40 + 5(swap transactions) = 45.
+            for (let j = 0; j < 4; j++) {
               await moveForwardNBlocks(10);
               const result = await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
             }
 
             // Move forward to mid of the long term order duration. I.e., t+50 blocks.
-            await moveForwardNBlocks(10);
+            await moveForwardNBlocks(5);
 
             const cancelResult = await pool.cancelLongTermOrder({ orderId: 0, from: other });
             expectEvent.inIndirectReceipt(
@@ -152,8 +153,8 @@ describe('TwammWeightedPool', function () {
               }
             );
 
-            expect(cancelResult.amountsOut[0]).to.be.gte(fp(0.33));
-            expect(cancelResult.amountsOut[1]).to.be.lte(fp(2.7));
+            expect(cancelResult.amountsOut[0]).to.be.eq(fp(0.5));
+            expect(cancelResult.amountsOut[1]).to.be.lte(fp(2));
           });
 
           it('can execute two-way Long Term Order', async () => {
