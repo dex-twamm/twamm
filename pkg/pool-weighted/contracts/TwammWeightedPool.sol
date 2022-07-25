@@ -131,10 +131,6 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         }
 
         _longTermOrders = ILongTermOrders(longTermOrdersContractAddress);
-
-        for (uint256 i = 0; i < tokens.length; i++) {
-            _longTermOrderCollectedManagementFees[i] = 0;
-        }
     }
 
     function _getMaxTokens() internal pure virtual override returns (uint256) {
