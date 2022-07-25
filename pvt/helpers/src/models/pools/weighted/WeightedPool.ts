@@ -432,7 +432,7 @@ export default class WeightedPool {
     other: SignerWithAddress
   ): Promise<VoidResult> {
     const pool = this.instance.connect(owner);
-    return pool.withdrawLongTermOrderCollectedManagementFees(other);
+    return pool.withdrawLongTermOrderCollectedManagementFees(other.address);
   }
 
   // TODO(nuhbye): Probably don't need query for place long term order, since we'll give back 0 BPT always.
