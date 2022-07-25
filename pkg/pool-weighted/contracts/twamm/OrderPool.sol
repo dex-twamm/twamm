@@ -31,6 +31,7 @@ library OrderPoolLib {
         //@notice reward factor per order at time of submission
         mapping(uint256 => uint256) rewardFactorAtSubmission;
         //@notice reward factor at a specific block
+        // TODO fix this as this will grow a lot with time.
         mapping(uint256 => uint256) rewardFactorAtBlock;
     }
 

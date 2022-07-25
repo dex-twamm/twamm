@@ -113,11 +113,10 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _require(tokens.length == 2, Errors.NOT_TWO_TOKENS);
         InputHelpers.ensureInputLengthMatch(tokens.length, normalizedWeights.length);
 
-        // TODO Fix tests for this
+        // TODO BaseWeightedPool tests failing because of this
         // _require(normalizedWeights[0] == _ALLOWED_WEIGHT, Errors.WEIGHTS_NOT_ALLOWED);
         // _require(normalizedWeights[1] == _ALLOWED_WEIGHT, Errors.WEIGHTS_NOT_ALLOWED);
 
-        // Immutable variables cannot be initialized inside an if statement, so we must do conditional assignments
         _token0 = tokens[0];
         _token1 = tokens[1];
 
@@ -559,12 +558,12 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
     function setLongTermSwapFeePercentage(
         uint256 newLongTermSwapFeePercentage,
-        uint256 newlongTermSwapFeeUserCutPercentage
-    ) external onlyOwner {
+        uint256 newLongTermSwapFeeUserCutPercentage
+    ) external onlyOwner whenNotPaused nonReentrant {
         longTermSwapFeePercentage = newLongTermSwapFeePercentage;
-        longTermSwapFeeUserCutPercentage = newlongTermSwapFeeUserCutPercentage;
+        longTermSwapFeeUserCutPercentage = newLongTermSwapFeeUserCutPercentage;
 
-        emit LongTermSwapFeePercentageChanged(newLongTermSwapFeePercentage, newlongTermSwapFeeUserCutPercentage);
+        emit LongTermSwapFeePercentageChanged(newLongTermSwapFeePercentage, newLongTermSwapFeeUserCutPercentage);
     }
 
     function getLongTermOrderContractAddress() external view returns (address) {
@@ -582,7 +581,12 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _downscaleDownArray(collectedFees, _scalingFactors());
     }
 
-    function withdrawCollectedManagementFees(address recipient) external onlyOwner whenNotPaused nonReentrant {
+    function withdrawLongTermOrderCollectedManagementFees(address recipient)
+        external
+        onlyOwner
+        whenNotPaused
+        nonReentrant
+    {
         uint256[] memory collectedFees = getCollectedManagementFees();
         (IERC20[] memory tokens, , ) = getVault().getPoolTokens(getPoolId());
 
