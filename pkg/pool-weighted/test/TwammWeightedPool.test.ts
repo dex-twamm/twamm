@@ -196,8 +196,8 @@ describe('TwammWeightedPool', function () {
             await tokens.approve({ from: other, to: await pool.getVault() });
 
             await pool.setLongTermSwapFeePercentage(owner, {
-              newLongTermSwapFeePercentage: fp(1),
-              newLongTermSwapFeeUserCutPercentage: fp(0.5),
+              newLongTermSwapFeePercentage: fp(0.01),
+              newLongTermSwapFeeUserCutPercentage: fp(0.005),
             });
 
             await pool.placeLongTermOrder({
@@ -219,7 +219,7 @@ describe('TwammWeightedPool', function () {
 
             const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
 
-            // await pool.withdrawLongTermOrderCollectedManagementFees(owner, other);
+            await pool.withdrawLongTermOrderCollectedManagementFees(owner, other);
 
             pool.instance.once('LongTermOrderManagementFeesCollected', (tokens, collectedFees, event) => {
               // TODO fix this to proper calculated fees
