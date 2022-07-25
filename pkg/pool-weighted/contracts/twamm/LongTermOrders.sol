@@ -33,7 +33,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 lastOrderId;
         //@notice mapping from order ids to Orders
         mapping(uint256 => Order) orderMap;
-        uint256 maxltoOrderAmountToAmmBalanceRatio;
+        uint256 maxPerBlockSaleRate;
         uint256 minltoOrderAmountToAmmBalanceRatio;
     }
 
@@ -43,7 +43,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         longTermOrders.lastVirtualOrderBlock = block.number;
         longTermOrders.orderBlockInterval = _orderBlockInterval;
 
-        longTermOrders.maxltoOrderAmountToAmmBalanceRatio = 1e17;
+        longTermOrders.maxPerBlockSaleRate = 1e16;
         longTermOrders.minltoOrderAmountToAmmBalanceRatio = 1e14;
     }
 
@@ -67,10 +67,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         _require(
             amountIn > balances[sellTokenIndex].mulUp(longTermOrders.minltoOrderAmountToAmmBalanceRatio),
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW
-        );
-        _require(
-            amountIn < balances[sellTokenIndex].mulUp(longTermOrders.maxltoOrderAmountToAmmBalanceRatio),
-            Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
         );
 
         // TODO add check for sales rate not greater than certain limit
@@ -103,6 +99,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
         //add order to correct pool
         longTermOrders.orderPoolMap[from].depositOrder(orderId, sellingRate, orderExpiry);
+
+        _require(
+            longTermOrders.orderPoolMap[from].currentSalesRate <= longTermOrders.maxPerBlockSaleRate,
+            Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
+        );
 
         //add to order map
         Order memory order = Order(orderId, orderExpiry, sellingRate, owner, from, to);
@@ -363,8 +364,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             );
     }
 
-    function setMaxltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {
-        longTermOrders.maxltoOrderAmountToAmmBalanceRatio = amountToAmmBalanceRation;
+    function setMaxPerBlockSaleRate(uint256 newMaxPerBlockSaleRate) external onlyOwner {
+        longTermOrders.maxPerBlockSaleRate = newMaxPerBlockSaleRate;
     }
 
     function setMinltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {

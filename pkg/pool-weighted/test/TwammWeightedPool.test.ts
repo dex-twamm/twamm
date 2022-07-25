@@ -142,6 +142,30 @@ describe('TwammWeightedPool', function () {
             await moveForwardNBlocks(10);
 
             const cancelResult = await pool.cancelLongTermOrder({ orderId: 0, from: other });
+
+            pool.instance.once(
+              'LongTermOrderCancelled',
+              (
+                orderId,
+                buyTokenIndex,
+                sellTokenIndex,
+                saleRate,
+                orderOwner,
+                expirationBlock,
+                proceeds,
+                unsoldAmount,
+                event
+              ) => {
+                expect(orderId).to.be.equal(0);
+                expect(sellTokenIndex).to.be.equal(0);
+                expect(buyTokenIndex).to.be.equal(1);
+                expect(saleRate).to.be.gt(0);
+                expect(orderOwner).to.be.equal(other.address);
+                expect(proceeds).to.be.eq(cancelResult.amountsOut[0]);
+                expect(unsoldAmount).to.be.eq(cancelResult.amountsOut[1]);
+              }
+            );
+
             expect(cancelResult.amountsOut[0]).to.be.gte(fp(0.33));
             expect(cancelResult.amountsOut[1]).to.be.lte(fp(2.7));
           });
@@ -157,7 +181,7 @@ describe('TwammWeightedPool', function () {
             });
             let longTermOrder2 = await pool.placeLongTermOrder({
               from: other,
-              amountIn: fp(10.0),
+              amountIn: fp(0.2),
               tokenInIndex: 1,
               tokenOutIndex: 0,
               numberOfBlockIntervals: 10,
@@ -173,12 +197,65 @@ describe('TwammWeightedPool', function () {
             await moveForwardNBlocks(20);
 
             const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
+
+            pool.instance.once(
+              'LongTermOrderWithdrawn',
+              (orderId, buyTokenIndex, sellTokenIndex, saleRate, orderOwner, expirationBlock, proceeds, event) => {
+                expect(orderId).to.be.equal(0);
+                expect(sellTokenIndex).to.be.equal(0);
+                expect(buyTokenIndex).to.be.equal(1);
+                expect(saleRate).to.be.gt(0);
+                expect(orderOwner).to.be.equal(other.address);
+                expect(proceeds).to.be.eq(withdrawResult.amountsOut[1]);
+              }
+            );
+
             const withdrawResult1 = await pool.withdrawLongTermOrder({ orderId: 1, from: other });
+
             expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
             expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.95));
 
-            expect(withdrawResult1.amountsOut[0]).to.be.gte(fp(2.45));
+            expect(withdrawResult1.amountsOut[0]).to.be.gte(fp(0.05));
             expect(withdrawResult1.amountsOut[1]).to.be.equal(fp(0));
+          });
+
+          it('can complete one-way Long Term Order and withdraw pool owner can withdraw fees', async () => {
+            await tokens.approve({ from: other, to: await pool.getVault() });
+
+            await pool.setLongTermSwapFeePercentage(owner, {
+              newLongTermSwapFeePercentage: fp(1),
+              newLongTermSwapFeeUserCutPercentage: fp(0.5),
+            });
+
+            const longTermOrder1 = await pool.placeLongTermOrder({
+              from: other,
+              amountIn: fp(1.0),
+              tokenInIndex: 0,
+              tokenOutIndex: 1,
+              numberOfBlockIntervals: 10,
+            });
+
+            // Move forward 80 blocks with one swap after every 20 blocks.
+            for (let j = 0; j < 5; j++) {
+              await moveForwardNBlocks(20);
+              await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
+            }
+
+            // Move forward to end of expiry block of the long term order.
+            await moveForwardNBlocks(20);
+
+            const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
+
+            await pool.withdrawLongTermOrderCollectedManagementFees(owner, { recipient: owner });
+
+            pool.instance.once('LongTermOrderManagementFeesCollected', (tokens, collectedFees, event) => {
+              // TODO fix this to proper calculated fees
+              const someFees = [1, 2];
+              expect(collectedFees).to.be.eq(someFees);
+            });
+
+            expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
+            expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.95));
           });
         });
       });
