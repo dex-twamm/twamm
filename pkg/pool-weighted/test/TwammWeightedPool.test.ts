@@ -8,6 +8,7 @@ import { deploy } from '@balancer-labs/v2-helpers/src/contract';
 import TokenList from '@balancer-labs/v2-helpers/src/models/tokens/TokenList';
 import WeightedPool from '@balancer-labs/v2-helpers/src/models/pools/weighted/WeightedPool';
 import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/weighted/types';
+import * as expectEvent from '@balancer-labs/v2-helpers/src/test/expectEvent';
 
 import { itBehavesAsWeightedPool } from './BaseWeightedPool.behavior';
 
@@ -83,22 +84,7 @@ describe('TwammWeightedPool', function () {
           it('can execute one-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
 
-            const blockNum = await ethers.provider.getBlockNumber();
-            pool.instance.once(
-              'LongTermOrderPlaced',
-              (orderId, buyTokenIndex, sellTokenIndex, saleRate, orderOwner, expirationBlock, event) => {
-                expect(orderId).to.be.equal(0);
-                expect(sellTokenIndex).to.be.equal(0);
-                expect(buyTokenIndex).to.be.equal(1);
-                expect(saleRate).to.be.gt(0);
-                expect(orderOwner).to.be.equal(other.address);
-                // Assuming block interval of 10.
-                expect(expirationBlock).to.be.gte(blockNum + 100);
-                expect(expirationBlock).to.be.lte(blockNum + 110);
-              }
-            );
-
-            const longTermOrder = await pool.placeLongTermOrder({
+            const placeResult = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
               tokenInIndex: 0,
@@ -106,7 +92,17 @@ describe('TwammWeightedPool', function () {
               numberOfBlockIntervals: 10,
             });
 
-            // console.log(longTermOrder.receipt);
+            expectEvent.inIndirectReceipt(
+              placeResult.receipt,
+              pool.instance.interface,
+              "LongTermOrderPlaced",
+              {
+                orderId: 0,
+                sellTokenIndex: 0,
+                buyTokenIndex: 1,
+                owner: other.address
+              }
+            );
 
             // Move forward 80 blocks with one swap after every 20 blocks.
             for (let j = 0; j < 5; j++) {
@@ -142,27 +138,17 @@ describe('TwammWeightedPool', function () {
             await moveForwardNBlocks(10);
 
             const cancelResult = await pool.cancelLongTermOrder({ orderId: 0, from: other });
-
-            pool.instance.once(
-              'LongTermOrderCancelled',
-              (
-                orderId,
-                buyTokenIndex,
-                sellTokenIndex,
-                saleRate,
-                orderOwner,
-                expirationBlock,
-                proceeds,
-                unsoldAmount,
-                event
-              ) => {
-                expect(orderId).to.be.equal(0);
-                expect(sellTokenIndex).to.be.equal(0);
-                expect(buyTokenIndex).to.be.equal(1);
-                expect(saleRate).to.be.gt(0);
-                expect(orderOwner).to.be.equal(other.address);
-                expect(proceeds).to.be.eq(cancelResult.amountsOut[0]);
-                expect(unsoldAmount).to.be.eq(cancelResult.amountsOut[1]);
+            expectEvent.inIndirectReceipt(
+              cancelResult.receipt,
+              pool.instance.interface,
+              "LongTermOrderCancelled",
+              {
+                orderId: 0,
+                sellTokenIndex: 0,
+                buyTokenIndex: 1,
+                owner: other.address,
+                proceeds: cancelResult.amountsOut[1],
+                unsoldAmount: cancelResult.amountsOut[0]
               }
             );
 
@@ -198,15 +184,16 @@ describe('TwammWeightedPool', function () {
 
             const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
 
-            pool.instance.once(
-              'LongTermOrderWithdrawn',
-              (orderId, buyTokenIndex, sellTokenIndex, saleRate, orderOwner, expirationBlock, proceeds, event) => {
-                expect(orderId).to.be.equal(0);
-                expect(sellTokenIndex).to.be.equal(0);
-                expect(buyTokenIndex).to.be.equal(1);
-                expect(saleRate).to.be.gt(0);
-                expect(orderOwner).to.be.equal(other.address);
-                expect(proceeds).to.be.eq(withdrawResult.amountsOut[1]);
+            expectEvent.inIndirectReceipt(
+              withdrawResult.receipt,
+              pool.instance.interface,
+              "LongTermOrderWithdrawn",
+              {
+                orderId: 0,
+                sellTokenIndex: 0,
+                buyTokenIndex: 1,
+                owner: other.address,
+                proceeds: withdrawResult.amountsOut[1]
               }
             );
 
