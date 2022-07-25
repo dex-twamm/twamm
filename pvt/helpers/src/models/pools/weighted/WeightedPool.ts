@@ -39,7 +39,6 @@ import {
   ExitCancelLongTermOrderTwammPool,
   ExitWithdrawLongTermOrderTwammPool,
   SetLongTermSwapFeePercentageRequest,
-  WithdrawLongTermOrderCollectedManagementFeesRequest,
 } from './types';
 import {
   calculateInvariant,
@@ -430,10 +429,10 @@ export default class WeightedPool {
 
   async withdrawLongTermOrderCollectedManagementFees(
     owner: SignerWithAddress,
-    params: WithdrawLongTermOrderCollectedManagementFeesRequest
+    other: SignerWithAddress
   ): Promise<VoidResult> {
     const pool = this.instance.connect(owner);
-    return pool.withdrawLongTermOrderCollectedManagementFees(params);
+    return pool.withdrawLongTermOrderCollectedManagementFees(other);
   }
 
   // TODO(nuhbye): Probably don't need query for place long term order, since we'll give back 0 BPT always.
