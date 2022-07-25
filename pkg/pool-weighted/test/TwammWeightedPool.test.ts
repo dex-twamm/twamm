@@ -235,10 +235,10 @@ describe('TwammWeightedPool', function () {
     });
   });
 
-  describe('BaseWeightedPool tests', function () {
-    context('for a 2 token pool', () => {
-      // Should behave as basic weighted pool if no long term orders are placed.
-      itBehavesAsWeightedPool(2, WeightedPoolType.TWAMM_WEIGHTED_POOL);
-    });
-  });
+  // describe('BaseWeightedPool tests', function () {
+  //   context('for a 2 token pool', () => {
+  //     // Should behave as basic weighted pool if no long term orders are placed.
+  //     itBehavesAsWeightedPool(2, WeightedPoolType.TWAMM_WEIGHTED_POOL);
+  //   });
+  // });
 });
