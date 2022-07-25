@@ -126,10 +126,6 @@ export type SetLongTermSwapFeePercentageRequest = {
   newLongTermSwapFeeUserCutPercentage: BigNumberish;
 };
 
-export type WithdrawLongTermOrderCollectedManagementFeesRequest = {
-  recipient: Account;
-};
-
 export type ExitGivenOutWeightedPool = {
   amountsOut: NAry<BigNumberish>;
   maximumBptIn?: BigNumberish;
