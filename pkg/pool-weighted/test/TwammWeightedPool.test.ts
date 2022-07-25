@@ -219,7 +219,7 @@ describe('TwammWeightedPool', function () {
 
             const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
 
-            // await pool.withdrawLongTermOrderCollectedManagementFees(owner, other);
+            await pool.withdrawLongTermOrderCollectedManagementFees(owner, other);
 
             pool.instance.once('LongTermOrderManagementFeesCollected', (tokens, collectedFees, event) => {
               // TODO fix this to proper calculated fees
@@ -235,10 +235,10 @@ describe('TwammWeightedPool', function () {
     });
   });
 
-  // describe('BaseWeightedPool tests', function () {
-  //   context('for a 2 token pool', () => {
-  //     // Should behave as basic weighted pool if no long term orders are placed.
-  //     itBehavesAsWeightedPool(2, WeightedPoolType.TWAMM_WEIGHTED_POOL);
-  //   });
-  // });
+  describe('BaseWeightedPool tests', function () {
+    context('for a 2 token pool', () => {
+      // Should behave as basic weighted pool if no long term orders are placed.
+      itBehavesAsWeightedPool(2, WeightedPoolType.TWAMM_WEIGHTED_POOL);
+    });
+  });
 });
