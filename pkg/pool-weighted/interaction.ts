@@ -6,7 +6,7 @@ import { ethers } from 'hardhat';
 import { lt } from 'lodash';
 import { fp } from '@balancer-labs/v2-helpers/src/numbers';
 
-const POOL_ID = "0xcde148bf4078d196a7d695743161da3d49e4989d000200000000000000000221";
+const POOL_ID = "0xc8a1b5027cc8b7ac2145dc7b786450cefee48fe8000200000000000000000227";
 const OWNER_ADDRESS = '0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8';
 const TUSDT_TOKEN_ADDRESS = "0xD92E713d051C37EbB2561803a3b5FBAbc4962431";
 const FAUCET_TOKEN_ADDRESS = "0xFab46E002BbF0b4509813474841E0716E6730136";
@@ -128,21 +128,21 @@ async function main() {
 
     const vault = await deployedAt('v2-vault/Vault', VAULT_RINKEBY);
 
-    // const lto = await deployedAt('LongTermOrders', '0xae1a524c979a0e14d22240ce27b65bb918b12238');
-    // const transferTx = await lto.transferOwnership('0xcde148bF4078D196A7D695743161Da3D49e4989D');
+    // const lto = await deployedAt('LongTermOrders', '0x0e369c2c2495152c80A386EdDaDd08c49C43E6ee');
+    // const transferTx = await lto.transferOwnership('0xc8a1B5027cC8B7Ac2145dC7B786450CEfEE48FE8');
     // console.log(await transferTx.wait());
 
 
-    // await placeLongTermOrder(vault, 1, 0, fp(0.1), 4);
+    // await placeLongTermOrder(vault, 1, 0, fp(0.1), 1);
 
     // await swap(vault, FAUCET_TOKEN_ADDRESS, TUSDT_TOKEN_ADDRESS, fp(0.1));
 
     // await swap(vault, TUSDT_TOKEN_ADDRESS, FAUCET_TOKEN_ADDRESS,
     //   fp(1e-13));
 
-    // await withdrawLongTermOrder(vault, 0);
+    await withdrawLongTermOrder(vault, 4);
 
-    await cancelLongTermOrder(vault, 1);
+    // await cancelLongTermOrder(vault, 3);
 }
 
 main()
