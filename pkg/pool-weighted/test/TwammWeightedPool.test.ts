@@ -196,8 +196,8 @@ describe('TwammWeightedPool', function () {
             await tokens.approve({ from: other, to: await pool.getVault() });
 
             await pool.setLongTermSwapFeePercentage(owner, {
-              newLongTermSwapFeePercentage: fp(1),
-              newLongTermSwapFeeUserCutPercentage: fp(0.5),
+              newLongTermSwapFeePercentage: fp(0.01),
+              newLongTermSwapFeeUserCutPercentage: fp(0.005),
             });
 
             await pool.placeLongTermOrder({
