@@ -25,7 +25,13 @@ export default {
     //     accounts: [`0x${PRIVATE_KEY}`],
     //     gasPrice: 20e9,
     //     gas: 25e6,
-    //  }
+    //  },
+      goerli: {
+        url: API_URL,
+        accounts: [`0x${PRIVATE_KEY}`],
+        // gasPrice: 20e9,
+        gas: 25e6,
+     }
   },
   etherscan: {
     // Your API key for Etherscan
