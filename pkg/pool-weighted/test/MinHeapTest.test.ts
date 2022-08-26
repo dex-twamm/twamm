@@ -7,7 +7,7 @@ import { deploy } from '@balancer-labs/v2-helpers/src/contract';
 describe('MinHeapTest', () => {
     let heap: Contract;
     beforeEach('setup', async function () {
-        heap = await deploy('MinHeap');
+        heap = await deploy('MinHeapTest');
     });
 
     it('should handle isEmpty properly', async () => {
