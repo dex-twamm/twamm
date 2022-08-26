@@ -3,21 +3,12 @@ pragma solidity ^0.7.0;
 
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 
-contract MinHeap {
+library MinHeap {
 
     using Math for uint256;
 
-    // The main operations of a minHeap are insert, removeMin, getMin & isEmpty.
-    constructor() public {
-        // Start at 0
-        heap = [0];
-    }
-
-    // We will be storing our heap in an array
-    uint256[] public heap;
-
     // Inserts adds in a value to our heap.
-    function insert(uint256 _value) public {
+    function insert(uint256[] storage heap, uint256 _value) internal {
         // Add the value to the end of our array
         heap.push(_value);
         // Start at the end of the array
@@ -34,7 +25,7 @@ contract MinHeap {
     }
 
     // RemoveMax pops off the root element of the heap (the highest value here) and rebalances the heap
-    function removeMin() public returns(uint256){
+    function removeMin(uint256[] storage heap) internal returns(uint256) {
         // Ensure the heap exists
         require(heap.length > 1);
         // take the root value of the heap
@@ -78,16 +69,11 @@ contract MinHeap {
             return toReturn;
     }
 
-
-    function getHeap() public view returns(uint256[] memory) {
-        return heap;
-    }
-
-    function getMin() public view returns(uint256) {
+    function getMin(uint256[] storage heap) internal view returns(uint256) {
         return heap[1];
     }
 
-    function isEmpty() public view returns(bool) {
+    function isEmpty(uint256[] storage heap) internal view returns(bool) {
         return heap.length == 1;
     }
 
