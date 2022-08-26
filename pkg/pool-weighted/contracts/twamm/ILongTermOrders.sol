@@ -49,7 +49,14 @@ abstract contract ILongTermOrders {
         address sender,
         uint256 orderId,
         uint256[] memory balances
-    ) external virtual returns (uint256 proceeds, Order memory order);
+    )
+        external
+        virtual
+        returns (
+            uint256 proceeds,
+            Order memory order,
+            bool isPartialWithdrawal
+        );
 
     //@notice executes all virtual orders until current block is reached.
     function executeVirtualOrdersUntilCurrentBlock(uint256[] memory balances)
