@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
-import { fp } from '@balancer-labs/v2-helpers/src/numbers';
+import { fp, decimal } from '@balancer-labs/v2-helpers/src/numbers';
 
 import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
@@ -8,6 +8,7 @@ import { deploy } from '@balancer-labs/v2-helpers/src/contract';
 import TokenList from '@balancer-labs/v2-helpers/src/models/tokens/TokenList';
 import WeightedPool from '@balancer-labs/v2-helpers/src/models/pools/weighted/WeightedPool';
 import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/weighted/types';
+import * as expectEvent from '@balancer-labs/v2-helpers/src/test/expectEvent';
 
 import { itBehavesAsWeightedPool } from './BaseWeightedPool.behavior';
 
@@ -83,17 +84,7 @@ describe('TwammWeightedPool', function () {
           it('can execute one-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
 
-            longTermOrdersContract.once(
-              "LongTermOrderPlaced",
-              (orderId, buyTokenIndex, sellTokenIndex, saleRate, orderOwner, expirationBlock, event) => {
-              expect(orderId).to.be.equal(0);
-              expect(sellTokenIndex).to.be.equal(0);
-              expect(buyTokenIndex).to.be.equal(1);
-              expect(saleRate).to.be.gt(0);
-              expect(orderOwner).to.be.equal(other.address);
-            })
-            
-            let longTermOrder = await pool.placeLongTermOrder({
+            const placeResult = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
               tokenInIndex: 0,
@@ -101,7 +92,12 @@ describe('TwammWeightedPool', function () {
               numberOfBlockIntervals: 10,
             });
 
-            // console.log(longTermOrder.receipt);
+            expectEvent.inIndirectReceipt(placeResult.receipt, pool.instance.interface, 'LongTermOrderPlaced', {
+              orderId: 0,
+              sellTokenIndex: 0,
+              buyTokenIndex: 1,
+              owner: other.address,
+            });
 
             // Move forward 80 blocks with one swap after every 20 blocks.
             for (let j = 0; j < 5; j++) {
@@ -119,7 +115,7 @@ describe('TwammWeightedPool', function () {
 
           it('can cancel one-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
-            let longTermOrder = await pool.placeLongTermOrder({
+            const longTermOrder = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
               tokenInIndex: 0,
@@ -128,31 +124,41 @@ describe('TwammWeightedPool', function () {
             });
 
             // Move forward 40 blocks with one swap after every 10 blocks.
-            for (let j = 0; j < 5; j++) {
+            // Total blocks moved forward 40 + 5(swap transactions) = 45.
+            for (let j = 0; j < 4; j++) {
               await moveForwardNBlocks(10);
               const result = await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
             }
 
             // Move forward to mid of the long term order duration. I.e., t+50 blocks.
-            await moveForwardNBlocks(10);
+            await moveForwardNBlocks(5);
 
             const cancelResult = await pool.cancelLongTermOrder({ orderId: 0, from: other });
-            expect(cancelResult.amountsOut[0]).to.be.gte(fp(0.35));
-            expect(cancelResult.amountsOut[1]).to.be.lte(fp(2.5));
+            expectEvent.inIndirectReceipt(cancelResult.receipt, pool.instance.interface, 'LongTermOrderCancelled', {
+              orderId: 0,
+              sellTokenIndex: 0,
+              buyTokenIndex: 1,
+              owner: other.address,
+              proceeds: cancelResult.amountsOut[1],
+              unsoldAmount: cancelResult.amountsOut[0],
+            });
+
+            expect(cancelResult.amountsOut[0]).to.be.eq(fp(0.5));
+            expect(cancelResult.amountsOut[1]).to.be.lte(fp(2));
           });
 
           it('can execute two-way Long Term Order', async () => {
             await tokens.approve({ from: other, to: await pool.getVault() });
-            let longTermOrder1 = await pool.placeLongTermOrder({
+            const longTermOrder1 = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
               tokenInIndex: 0,
               tokenOutIndex: 1,
               numberOfBlockIntervals: 10,
             });
-            let longTermOrder2 = await pool.placeLongTermOrder({
+            const longTermOrder2 = await pool.placeLongTermOrder({
               from: other,
-              amountIn: fp(10.0),
+              amountIn: fp(0.2),
               tokenInIndex: 1,
               tokenOutIndex: 0,
               numberOfBlockIntervals: 10,
@@ -168,12 +174,61 @@ describe('TwammWeightedPool', function () {
             await moveForwardNBlocks(20);
 
             const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
+
+            expectEvent.inIndirectReceipt(withdrawResult.receipt, pool.instance.interface, 'LongTermOrderWithdrawn', {
+              orderId: 0,
+              sellTokenIndex: 0,
+              buyTokenIndex: 1,
+              owner: other.address,
+              proceeds: withdrawResult.amountsOut[1],
+            });
+
             const withdrawResult1 = await pool.withdrawLongTermOrder({ orderId: 1, from: other });
+
             expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
             expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.95));
 
-            expect(withdrawResult1.amountsOut[0]).to.be.gte(fp(2.45));
+            expect(withdrawResult1.amountsOut[0]).to.be.gte(fp(0.05));
             expect(withdrawResult1.amountsOut[1]).to.be.equal(fp(0));
+          });
+
+          it('can complete one-way Long Term Order and withdraw pool owner can withdraw fees', async () => {
+            await tokens.approve({ from: other, to: await pool.getVault() });
+
+            await pool.setLongTermSwapFeePercentage(owner, {
+              newLongTermSwapFeePercentage: fp(0.01),
+              newLongTermSwapFeeUserCutPercentage: fp(0.005),
+            });
+
+            await pool.placeLongTermOrder({
+              from: other,
+              amountIn: fp(1.0),
+              tokenInIndex: 0,
+              tokenOutIndex: 1,
+              numberOfBlockIntervals: 10,
+            });
+
+            // Move forward 80 blocks with one swap after every 20 blocks.
+            for (let j = 0; j < 5; j++) {
+              await moveForwardNBlocks(20);
+              await pool.swapGivenIn({ in: 0, out: 1, amount: fp(0.1) });
+            }
+
+            // Move forward to end of expiry block of the long term order.
+            await moveForwardNBlocks(20);
+
+            const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
+
+            await pool.withdrawLongTermOrderCollectedManagementFees(owner, other);
+
+            pool.instance.once('LongTermOrderManagementFeesCollected', (tokens, collectedFees, event) => {
+              // TODO fix this to proper calculated fees
+              const someFees = [1, 2];
+              expect(collectedFees).to.be.eq(someFees);
+            });
+
+            expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
+            expect(withdrawResult.amountsOut[1]).to.be.equal(fp(0));
           });
         });
       });

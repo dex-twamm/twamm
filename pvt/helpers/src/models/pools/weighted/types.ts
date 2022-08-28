@@ -46,7 +46,7 @@ export type WeightedPoolDeployment = {
   poolType: WeightedPoolType;
   oracleEnabled: boolean;
   swapEnabledOnStart: boolean;
-  longTermOrdersContract?: string,
+  longTermOrdersContract?: string;
   mustAllowlistLPs: boolean;
   managementSwapFeePercentage: BigNumberish;
   owner?: string;
@@ -121,6 +121,11 @@ export type JoinPlaceLongTermOrderTwammPool = {
   protocolFeePercentage?: BigNumberish;
 };
 
+export type SetLongTermSwapFeePercentageRequest = {
+  newLongTermSwapFeePercentage: BigNumberish;
+  newLongTermSwapFeeUserCutPercentage: BigNumberish;
+};
+
 export type ExitGivenOutWeightedPool = {
   amountsOut: NAry<BigNumberish>;
   maximumBptIn?: BigNumberish;
@@ -167,7 +172,6 @@ export type ExitWithdrawLongTermOrderTwammPool = {
   currentBalances?: BigNumberish[];
   protocolFeePercentage?: BigNumberish;
 };
-
 
 export type JoinResult = {
   amountsIn: BigNumber[];

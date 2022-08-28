@@ -14,153 +14,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "orderId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "buyTokenIndex",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "sellTokenIndex",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "saleRate",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "expirationBlock",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "proceeds",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "unsoldAmount",
-        "type": "uint256"
-      }
-    ],
-    "name": "LongTermOrderCancelled",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "orderId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "buyTokenIndex",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "sellTokenIndex",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "saleRate",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "expirationBlock",
-        "type": "uint256"
-      }
-    ],
-    "name": "LongTermOrderPlaced",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "orderId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "buyTokenIndex",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "sellTokenIndex",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "saleRate",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "expirationBlock",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "proceeds",
-        "type": "uint256"
-      }
-    ],
-    "name": "LongTermOrderWithdrawn",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": true,
         "internalType": "address",
         "name": "previousOwner",
@@ -365,7 +218,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "maxltoOrderAmountToAmmBalanceRatio",
+        "name": "maxPerBlockSaleRate",
         "type": "uint256"
       },
       {
@@ -426,9 +279,41 @@
     "name": "performLongTermSwap",
     "outputs": [
       {
-        "internalType": "uint256",
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "id",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expirationBlock",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "saleRate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "sellTokenIndex",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "buyTokenIndex",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ILongTermOrders.Order",
         "name": "",
-        "type": "uint256"
+        "type": "tuple"
       },
       {
         "internalType": "uint256",
@@ -455,11 +340,11 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "amountToAmmBalanceRation",
+        "name": "newMaxPerBlockSaleRate",
         "type": "uint256"
       }
     ],
-    "name": "setMaxltoOrderAmountToAmmBalanceRatio",
+    "name": "setMaxPerBlockSaleRate",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

@@ -27,10 +27,12 @@ library OrderPoolLib {
         //@notice map order ids to the block in which they expire
         mapping(uint256 => uint256) orderExpiry;
         //@notice map order ids to their sales rate
+        // TODO this mapping is unneccessary, we can just use one from the LongTermOrders
         mapping(uint256 => uint256) salesRate;
         //@notice reward factor per order at time of submission
         mapping(uint256 => uint256) rewardFactorAtSubmission;
         //@notice reward factor at a specific block
+        // TODO fix this as this will grow a lot with time.
         mapping(uint256 => uint256) rewardFactorAtBlock;
     }
 
@@ -54,6 +56,13 @@ library OrderPoolLib {
         self.orderExpiry[orderId] = orderExpiry;
         self.salesRate[orderId] = amountPerBlock;
         self.salesRateEndingPerBlock[orderExpiry] = self.salesRateEndingPerBlock[orderExpiry].add(amountPerBlock);
+    }
+
+    function cleanUpOrder(OrderPool storage self, uint256 orderId) internal {
+        delete self.orderExpiry[orderId];
+        delete self.salesRate[orderId];
+        delete self.rewardFactorAtSubmission[orderId];
+        // Todo clean up salesRateEndingPerBlock and rewardFactorAtBlock
     }
 
     //@notice when orders expire after a given block, we need to update the state of the pool
@@ -95,7 +104,7 @@ library OrderPoolLib {
         OrderPool storage self,
         uint256 orderId,
         uint256 lastVirtualOrderBlock
-    ) internal returns (uint256 totalReward) {
+    ) internal returns (uint256 totalReward, bool isPartialWithdrawal) {
         uint256 stakedAmount = self.salesRate[orderId];
         require(stakedAmount > 0, "sales rate amount must be positive");
         uint256 orderExpiry = self.orderExpiry[orderId];
@@ -107,11 +116,13 @@ library OrderPoolLib {
             totalReward = rewardFactorAtExpiry.sub(rewardFactorAtSubmission).mulDown(stakedAmount);
             //remove stake
             self.salesRate[orderId] = 0;
+            isPartialWithdrawal = false;
         }
         //if order has not yet expired, we just adjust the start
         else {
             totalReward = self.rewardFactor.sub(rewardFactorAtSubmission).mulDown(stakedAmount);
             self.rewardFactorAtSubmission[orderId] = self.rewardFactor;
+            isPartialWithdrawal = true;
         }
     }
 }
