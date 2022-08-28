@@ -70,7 +70,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256 saleRate,
         address indexed owner,
         uint256 expirationBlock,
-        uint256 proceeds
+        uint256 proceeds,
+        bool isPartialWithdrawal
     );
     event LongTermOrderCancelled(
         uint256 orderId,
@@ -440,7 +441,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     function _emitEventOrderWithdrawn(
         ILongTermOrders.Order memory order,
         uint256 proceeds,
-        uint256[] memory scalingFactors
+        uint256[] memory scalingFactors,
+        bool isPartialWithdrawal
     ) internal {
         emit LongTermOrderWithdrawn(
             order.id,
@@ -449,7 +451,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             order.saleRate,
             order.owner,
             order.expirationBlock,
-            _downscaleDown(proceeds, scalingFactors[order.buyTokenIndex])
+            _downscaleDown(proceeds, scalingFactors[order.buyTokenIndex]),
+            isPartialWithdrawal
         );
     }
 
@@ -508,18 +511,15 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         )
     {
         uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
-        (uint256 proceeds, ILongTermOrders.Order memory order) = _longTermOrders.withdrawProceedsFromLongTermSwap(
-            sender,
-            orderId,
-            balances
-        );
+        (uint256 proceeds, ILongTermOrders.Order memory order, bool isPartialWithdrawal) = _longTermOrders
+            .withdrawProceedsFromLongTermSwap(sender, orderId, balances);
 
         uint256[] memory protocolFees;
         (protocolFees, proceeds) = _calculateLongTermOrderProtocolFees(order.buyTokenIndex, proceeds);
 
         _processLongTermOrderManagementFee(protocolFees);
 
-        _emitEventOrderWithdrawn(order, proceeds, scalingFactors);
+        _emitEventOrderWithdrawn(order, proceeds, scalingFactors, isPartialWithdrawal);
 
         if (order.sellTokenIndex == 0) {
             return (uint256(0), _getSizeTwoArray(uint256(0), proceeds), _getSizeTwoArray(0, 0));

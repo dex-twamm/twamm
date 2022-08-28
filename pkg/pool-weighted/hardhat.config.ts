@@ -1,6 +1,6 @@
 import '@nomiclabs/hardhat-ethers';
 import '@nomiclabs/hardhat-waffle';
-import "@nomiclabs/hardhat-etherscan";
+import '@nomiclabs/hardhat-etherscan';
 
 import { hardhatBaseConfig } from '@balancer-labs/v2-common';
 import { name } from './package.json';
@@ -20,23 +20,17 @@ export default {
     hardhat: {
       allowUnlimitedContractSize: true,
     },
-    //   rinkeby: {
-    //     url: API_URL,
-    //     accounts: [`0x${PRIVATE_KEY}`],
-    //     gasPrice: 20e9,
-    //     gas: 25e6,
-    //  },
-      goerli: {
-        url: API_URL,
-        accounts: [`0x${PRIVATE_KEY}`],
-        // gasPrice: 20e9,
-        gas: 25e6,
-     }
+    // rinkeby: {
+    //   url: API_URL,
+    //   accounts: [`0x${PRIVATE_KEY}`],
+    //   gasPrice: 20e9,
+    //   gas: 25e6,
+    // },
   },
   etherscan: {
     // Your API key for Etherscan
     // Obtain one at https://etherscan.io/
-    apiKey: ETHERSCAN_KEY
+    apiKey: ETHERSCAN_KEY,
   },
   solidity: {
     compilers: [
