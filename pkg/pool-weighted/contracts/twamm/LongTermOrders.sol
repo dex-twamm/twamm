@@ -409,7 +409,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     }
 
     function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external onlyOwner {
-        longTermOrders.maxPerBlockSaleRatePercent = newmaxPerBlockSaleRatePercent;
+        longTermOrders.maxPerBlockSaleRatePercent = newMaxPerBlockSaleRatePercent;
     }
 
     function setMinltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {
