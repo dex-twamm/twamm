@@ -241,6 +241,12 @@
         "internalType": "uint256",
         "name": "proceeds",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "isPartialWithdrawal",
+        "type": "bool"
       }
     ],
     "name": "LongTermOrderWithdrawn",
