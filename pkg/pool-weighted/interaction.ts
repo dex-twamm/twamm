@@ -6,7 +6,7 @@ import { ethers } from 'hardhat';
 import { lt } from 'lodash';
 import { fp } from '@balancer-labs/v2-helpers/src/numbers';
 
-const POOL_ID = '0x16110dafbcbeecdb29ac69210ebffcb526893fda0002000000000000000000b1';
+const POOL_ID = '0x40e1fb58abbd319db35964ea73e148919ed0ae5100020000000000000000010a';
 const OWNER_ADDRESS = '0xdD88DB355D6beb64813fd3b29B73A246DAed6FC8';
 const MATIC_TOKEN_ADDRESS = '0x499d11E0b6eAC7c0593d8Fb292DCBbF815Fb29Ae';
 const FAUCET_TOKEN_ADDRESS = '0xBA62BCfcAaFc6622853cca2BE6Ac7d845BC0f2Dc';
@@ -113,8 +113,8 @@ async function main() {
 
   const vault = await deployedAt('v2-vault/Vault', VAULT_RINKEBY);
 
-  // const lto = await deployedAt('LongTermOrders', '0x1b83f7b7333ebc56eea4faaa77b6548dbbb3d84c');
-  // const transferTx = await lto.transferOwnership('0x16110DAFbCBEeCdb29ac69210EbffCb526893fda');
+  // const lto = await deployedAt('LongTermOrders', '0x9AD68324a94d1052445aBb6C094dd7abC888E5AA');
+  // const transferTx = await lto.transferOwnership('0x40e1fB58aBbd319dB35964eA73e148919Ed0Ae51');
   // console.log(await transferTx.wait());
 
   // await placeLongTermOrder(vault, 1, 0, fp(0.1), 5);

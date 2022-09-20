@@ -4,6 +4,8 @@ import 'hardhat-local-networks-config-plugin';
 
 import '@balancer-labs/v2-common/setupTests';
 
+require('dotenv').config();
+
 import { task, types } from 'hardhat/config';
 import { TASK_TEST } from 'hardhat/builtin-tasks/task-names';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
