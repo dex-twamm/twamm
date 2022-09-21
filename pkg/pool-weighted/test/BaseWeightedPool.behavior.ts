@@ -153,13 +153,13 @@ export function itBehavesAsWeightedPool(
     });
 
     it('fails if no user data', async () => {
-      await expect(pool.join({ data: '0x' })).to.be.revertedWith('Transaction reverted without a reason');
+      await expect(pool.join({ data: '0x' })).to.be.revertedWith('revert without reason string');
     });
 
     it('fails if wrong user data', async () => {
       const wrongUserData = ethers.utils.defaultAbiCoder.encode(['address'], [lp.address]);
 
-      await expect(pool.join({ data: wrongUserData })).to.be.revertedWith('Transaction reverted without a reason');
+      await expect(pool.join({ data: wrongUserData })).to.be.revertedWith('revert without reason string');
     });
 
     context('initialization', () => {
@@ -375,13 +375,13 @@ export function itBehavesAsWeightedPool(
     });
 
     it('fails if no user data', async () => {
-      await expect(pool.exit({ data: '0x' })).to.be.revertedWith('Transaction reverted without a reason');
+      await expect(pool.exit({ data: '0x' })).to.be.revertedWith('revert without reason string');
     });
 
     it('fails if wrong user data', async () => {
       const wrongUserData = ethers.utils.defaultAbiCoder.encode(['address'], [lp.address]);
 
-      await expect(pool.exit({ data: wrongUserData })).to.be.revertedWith('Transaction reverted without a reason');
+      await expect(pool.exit({ data: wrongUserData })).to.be.revertedWith('revert without reason string');
     });
 
     context('exit exact BPT in for one token out', () => {
