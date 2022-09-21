@@ -11,59 +11,70 @@ library MinHeap {
     function insert(uint256[] storage heap, uint256 _value) internal {
         // Add the value to the end of our array
         heap.push(_value);
-        // Start at the end of the array
-        uint256 currentIndex = heap.length.sub(1);
 
-        // Bubble up the value until it reaches it's correct place (i.e. it is smaller than it's parent)
-        while (currentIndex > 1 && heap[currentIndex.divDown(2)] > heap[currentIndex]) {
-            // If the parent value is lower than our current value, we swap them
-            (heap[currentIndex.divDown(2)], heap[currentIndex]) = (_value, heap[currentIndex.divDown(2)]);
-            // change our current Index to go up to the parent
-            currentIndex = currentIndex.divDown(2);
+        // Start at the end of the array
+        uint256 currentIndex = heap.length - 1;
+        if(currentIndex > 1) {
+            uint256 parentIndex = currentIndex / 2;
+
+            // Bubble up the value until it reaches it's correct place (i.e. it is smaller than it's parent)
+            while (currentIndex > 1 && heap[parentIndex] > _value) {
+                // If the parent value is greater than our current value, move it to current index.
+                heap[currentIndex] = heap[parentIndex];
+                // change our current Index to go up to the parent
+                currentIndex = parentIndex;
+                parentIndex = currentIndex / 2;
+            }
+
+            heap[currentIndex] = _value;
         }
     }
 
     // RemoveMax pops off the root element of the heap (the highest value here) and rebalances the heap
     function removeMin(uint256[] storage heap) internal returns (uint256) {
+        uint256 initialHeapLength = heap.length;
         // Ensure the heap exists
-        require(heap.length > 1);
+        require(initialHeapLength > 1);
         // take the root value of the heap
-        uint256 toReturn = heap[1];
-
-        // Takes the last element of the array and put it at the root
-        heap[1] = heap[heap.length.sub(1)];
-        // Delete the last element from the array
-        heap.pop();
+        uint256 toReturn = heap[1];        
 
         // Start at the top
         uint256 currentIndex = 1;
 
+        // Take the last element of the array to move it to it's correct place.
+        uint256 parentValue = heap[initialHeapLength - 1];
+        uint256 childIndex = currentIndex * 2;
+
         // Bubble down
-        while (currentIndex.mul(2) < heap.length.sub(1)) {
-            // get the current index of the children
-            uint256 j = currentIndex.mul(2);
+        while (childIndex <= initialHeapLength - 2) {
+            // Assume left child is smaller.
+            uint256 lesserChild = heap[childIndex];
 
-            // left child value
-            uint256 leftChild = heap[j];
-            // right child value
-            uint256 rightChild = heap[j.add(1)];
-
-            // Compare the left and right child. if the rightChild is greater, then point j to it's index
-            if (leftChild > rightChild) {
-                j = j.add(1);
+            // Compare the left and right child. if the rightChild is lesser, then point j to it's index
+            if (childIndex != initialHeapLength - 2 && lesserChild > heap[childIndex + 1]) {
+                lesserChild = heap[childIndex+1];
+                childIndex = childIndex + 1;
             }
 
-            // compare the current parent value with the highest child, if the parent is greater, we're done
-            if (heap[currentIndex] < heap[j]) {
+            // compare the current parent value with the highest child, if the parent is lesser, we're done
+            if (parentValue < lesserChild) {
                 break;
             }
 
-            // else swap the value
-            (heap[currentIndex], heap[j]) = (heap[j], heap[currentIndex]);
+            // else move lesser child to current index.
+            heap[currentIndex] = lesserChild;
 
             // and let's keep going down the heap
-            currentIndex = j;
+            currentIndex = childIndex;
+            childIndex = currentIndex * 2;
         }
+
+        // console.log(currentIndex, parentValue, childIndex);
+        heap[currentIndex] = parentValue;
+    
+        // Delete the last element from the array
+        heap.pop();
+
         // finally, return the top of the heap
         return toReturn;
     }
