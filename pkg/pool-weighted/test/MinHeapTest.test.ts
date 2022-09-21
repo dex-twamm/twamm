@@ -13,17 +13,17 @@ describe('MinHeapTest', () => {
     it('should handle isEmpty properly', async () => {
         expect(await heap.isEmpty()).to.equal(true);
 
-        await heap.insert(1);
+        await insert(1);
         expect(await heap.isEmpty()).to.equal(false);
 
-        await heap.removeMin();
+        await remove();
         expect(await heap.isEmpty()).to.equal(true);
     });
 
     it("should create a valid heap by calling insert", async() => {
         let testData = [6, 5, 4, 2, 1, 3, 34];
         for(let i = 0; i < testData.length; i++) {
-          await heap.insert(testData[i]);
+          await insert(testData[i]);
         }
       
         let finalHeap = (await heap.getHeap())
@@ -35,7 +35,7 @@ describe('MinHeapTest', () => {
     it('should removeMin from a valid heap', async () => {
         let testData = [34, 26, 33, 15, 24, 5, 4, 12, 1, 23, 21, 2];
         for(let i = 0; i < testData.length; i++) {
-          await heap.insert(testData[i]);
+          await insert(testData[i]);
         }
 
         let finalHeap = (await heap.getHeap());
@@ -51,7 +51,46 @@ describe('MinHeapTest', () => {
 
         answer = [0, 5, 12, 15, 23, 21, 33, 26, 34, 24];
         await removeMin(heap, 4, answer);
+
+        answer = [0, 12, 21, 15, 23, 24, 33, 26, 34];
+        await removeMin(heap, 5, answer);
+
+        answer = [0, 15, 21, 26, 23, 24, 33, 34];
+        await removeMin(heap, 12, answer);
+
+        answer = [0, 21, 23, 26, 34, 24, 33];
+        await removeMin(heap, 15, answer);
+
+        answer = [0, 23, 24, 26, 34, 33];
+        await removeMin(heap, 21, answer);
+
+        answer = [0, 24, 33, 26, 34];
+        await removeMin(heap, 23, answer);
+
+        answer = [0, 26, 33, 34];
+        await removeMin(heap, 24, answer);
+
+        answer = [0, 33, 34];
+        await removeMin(heap, 26, answer);
+
+        answer = [0, 34];
+        await removeMin(heap, 33, answer);
+
+        answer = [0];
+        await removeMin(heap, 34, answer);
     });
+
+    async function insert(x: number) {
+      let tx = await heap.insert(x);
+      let receipt = await tx.wait();
+      console.log("insert: ", receipt.cumulativeGasUsed.toString(), receipt.effectiveGasPrice.toString());
+    }
+
+    async function remove() {
+      let tx = await heap.removeMin();
+      let receipt = await tx.wait();
+      console.log("remove: ", receipt.cumulativeGasUsed.toString(), receipt.effectiveGasPrice.toString());
+    }
 
     async function removeMin(heap: Contract, root: number, answer: Array<number>) {
         // Get Min
@@ -59,7 +98,7 @@ describe('MinHeapTest', () => {
         expect(min).to.equal(bn(root));
 
         // Remove Min
-        await heap.removeMin();
+        await remove();
       
         // Compare with expected leftover heap
         let finalHeap = (await heap.getHeap());
