@@ -127,7 +127,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _scalingFactor0 = _computeScalingFactor(tokens[0]);
         _scalingFactor1 = _computeScalingFactor(tokens[1]);
 
-        for (uint8 i = 0; i < 2; i++) {
+        for (uint8 i = 0; i < 2; ++i) {
             _require(normalizedWeights[i] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
         }
 
@@ -171,7 +171,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         maxWeightTokenIndex = 0;
         uint256 maxNormalizedWeight = normalizedWeights[0];
 
-        for (uint256 i = 1; i < normalizedWeights.length; i++) {
+        for (uint256 i = 1; i < normalizedWeights.length; ++i) {
             if (normalizedWeights[i] > maxNormalizedWeight) {
                 maxWeightTokenIndex = i;
                 maxNormalizedWeight = normalizedWeights[i];
@@ -230,25 +230,13 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
         if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
-            (ILongTermOrders.Order memory order, uint256 amountAIn, uint256 amountBIn) = _registerLongTermOrder(
-                sender,
-                recipient,
-                updatedBalances,
-                scalingFactors,
-                userData
-            );
-
-            emit LongTermOrderPlaced(
-                order.id,
-                order.buyTokenIndex,
-                order.sellTokenIndex,
-                order.saleRate,
-                order.owner,
-                order.expirationBlock
-            );
-
-            // Return 0 bpt when long term order is placed
-            return (uint256(0), _getSizeTwoArray(amountAIn, amountBIn), _getSizeTwoArray(0, 0));
+                return _registerLongTermOrder(
+                    sender,
+                    recipient,
+                    updatedBalances,
+                    scalingFactors,
+                    userData
+                );
         } else {
             // TODO Should we add this check to constructor only? Fix this in tests.
             if (address(_longTermOrders) != address(0)) {
@@ -383,9 +371,9 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     )
         internal
         returns (
-            ILongTermOrders.Order memory,
             uint256,
-            uint256
+            uint256[] memory,
+            uint256[] memory
         )
     {
         (
@@ -397,15 +385,26 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
         _upscale(amountIn, scalingFactors[sellTokenIndex]);
 
-        return
-            _longTermOrders.performLongTermSwap(
-                recipient,
-                balances,
-                sellTokenIndex,
-                buyTokenIndex,
-                amountIn,
-                numberOfBlockIntervals
-            );
+        (ILongTermOrders.Order memory order, uint256 amountAIn, uint256 amountBIn) = _longTermOrders.performLongTermSwap(
+            recipient,
+            balances,
+            sellTokenIndex,
+            buyTokenIndex,
+            amountIn,
+            numberOfBlockIntervals
+        );
+
+        emit LongTermOrderPlaced(
+            order.id,
+            order.buyTokenIndex,
+            order.sellTokenIndex,
+            order.saleRate,
+            order.owner,
+            order.expirationBlock
+        );
+
+        // Return 0 bpt when long term order is placed
+        return (uint256(0), _getSizeTwoArray(amountAIn, amountBIn), _getSizeTwoArray(0, 0));
     }
 
     function _calculateLongTermOrderProtocolFees(uint256 buyTokenIndex, uint256 purchasedAmount)
@@ -457,7 +456,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function _processLongTermOrderManagementFee(uint256[] memory protocolFees) internal {
-        for (uint256 i = 0; i < protocolFees.length; i++) {
+        for (uint256 i = 0; i < protocolFees.length; ++i) {
             uint256 protocolFee = (FixedPoint.fromUint(1).sub(longTermSwapFeeUserCutPercentage)).mulDown(
                 protocolFees[i]
             );
@@ -533,7 +532,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
         if (address(_longTermOrders) != address(0)) {
             // Remove the long term orders and long term order management fee from the pool balances.
-            for (uint8 i = 0; i < balances.length; i++) {
+            for (uint8 i = 0; i < balances.length; ++i) {
                 updatedBalances[i] = balances[i].sub(_longTermOrders.getTokenBalanceFromLongTermOrder(i)).sub(
                     _longTermOrderCollectedManagementFees[i]
                 );
@@ -582,7 +581,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256 totalTokens = _getTotalTokens();
         collectedFees = new uint256[](totalTokens);
 
-        for (uint256 i = 0; i < totalTokens; i++) {
+        for (uint256 i = 0; i < totalTokens; ++i) {
             collectedFees[i] = _longTermOrderCollectedManagementFees[i];
         }
 

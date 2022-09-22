@@ -23,31 +23,37 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     //@notice structure contains full state related to long term orders
     struct LongTermOrdersStruct {
         //@notice minimum block interval between order expiries
-        uint256 orderBlockInterval;
+        uint32 orderBlockInterval;
+
+        //@notice incrementing counter for order ids
+        uint32 lastOrderId;
+
+        uint64 maxPerBlockSaleRatePercent;
+        uint64 minltoOrderAmountToAmmBalanceRatio;
+
         //@notice last virtual orders were executed immediately before this block
-        uint256 lastVirtualOrderBlock;
+        uint64 lastVirtualOrderBlock;
+
         uint256 balanceA;
         uint256 balanceB;
         //@notice mapping from token address to pool that is selling that token
         //we maintain two order pools, one for each token that is tradable in the AMM
         mapping(uint256 => OrderPoolLib.OrderPool) orderPoolMap;
-        //@notice incrementing counter for order ids
-        uint256 lastOrderId;
+
         //@notice mapping from order ids to Orders
         mapping(uint256 => Order) orderMap;
-        uint256 maxPerBlockSaleRatePercent;
-        uint256 minltoOrderAmountToAmmBalanceRatio;
+
         uint256[] orderExpiryHeap;
     }
 
     LongTermOrdersStruct public longTermOrders;
 
     constructor(uint256 _orderBlockInterval) Ownable() {
-        longTermOrders.lastVirtualOrderBlock = block.number;
-        longTermOrders.orderBlockInterval = _orderBlockInterval;
+        longTermOrders.lastVirtualOrderBlock = uint64(block.number);
+        longTermOrders.orderBlockInterval = uint32(_orderBlockInterval);
 
-        longTermOrders.maxPerBlockSaleRatePercent = 1e16;
-        longTermOrders.minltoOrderAmountToAmmBalanceRatio = 1e14;
+        longTermOrders.maxPerBlockSaleRatePercent = uint64(1e16);
+        longTermOrders.minltoOrderAmountToAmmBalanceRatio = uint64(1e14);
 
         // Setup heap
         longTermOrders.orderExpiryHeap.push(0);
@@ -55,7 +61,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
     function performLongTermSwap(
         address owner,
-        uint256[] memory balances,
+        uint256[] calldata balances,
         uint256 sellTokenIndex,
         uint256 buyTokenIndex,
         uint256 amountIn,
@@ -71,7 +77,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         )
     {
         _require(
-            amountIn > balances[sellTokenIndex].mulUp(longTermOrders.minltoOrderAmountToAmmBalanceRatio),
+            amountIn > balances[sellTokenIndex].mulUp(uint256(longTermOrders.minltoOrderAmountToAmmBalanceRatio)),
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW
         );
 
@@ -94,8 +100,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             uint256
         )
     {
-        uint256 orderId = longTermOrders.lastOrderId;
-        longTermOrders.lastOrderId++;
+        uint256 orderId = uint256(longTermOrders.lastOrderId);
+        ++longTermOrders.lastOrderId;
 
         //determine the selling rate based on number of blocks to expiry and total amount
         uint256 orderExpiry = _getOrderExpiry(numberOfBlockIntervals);
@@ -112,9 +118,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         // transfer sale amount to contract
         _addToLongTermOrdersBalance(from, amount);
 
+        uint256 maxPerBlockSaleRatePercent = uint256(longTermOrders.maxPerBlockSaleRatePercent);
+
         _require(
             longTermOrders.orderPoolMap[from].currentSalesRate <=
-                longTermOrders.maxPerBlockSaleRatePercent.mulUp(
+                maxPerBlockSaleRatePercent.mulUp(
                     from == 0 ? longTermOrders.balanceA : longTermOrders.balanceB
                 ),
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
@@ -130,7 +138,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     function cancelLongTermSwap(
         address sender,
         uint256 orderId,
-        uint256[] memory balances
+        uint256[] calldata balances
     )
         external
         override
@@ -162,7 +170,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     function withdrawProceedsFromLongTermSwap(
         address sender,
         uint256 orderId,
-        uint256[] memory balances
+        uint256[] calldata balances
     )
         external
         override
@@ -194,7 +202,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     }
 
     //@notice executes all virtual orders until current block is reached.
-    function executeVirtualOrdersUntilCurrentBlock(uint256[] memory balances)
+    function executeVirtualOrdersUntilCurrentBlock(uint256[] calldata balances)
         public
         override
         onlyOwner
@@ -203,11 +211,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         ammTokenA = balances[0];
         ammTokenB = balances[1];
 
-        uint256 nextOrderExpiryBlock;
-
+        // Look for next order expiry block number in heap.
         while (!longTermOrders.orderExpiryHeap.isEmpty()) {
-            nextOrderExpiryBlock = longTermOrders.orderExpiryHeap.getMin();
+            uint256 nextOrderExpiryBlock = longTermOrders.orderExpiryHeap.getMin();
 
+            // Directly jump to current block number if no order has expired until it.
             if (nextOrderExpiryBlock >= block.number) {
                 (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
                     ammTokenA,
@@ -216,16 +224,21 @@ contract LongTermOrders is ILongTermOrders, Ownable {
                     nextOrderExpiryBlock == block.number
                 );
 
+                // If next order expiry is current block, pop from heap.
+                // Looping, because there can be multiple orders expiring at same block.
                 if (nextOrderExpiryBlock == block.number) {
-                    while (
+                    // Assumption: nextOrderExpiryBlock is at top of the heap.
+                    // do while saves operations for one condition check.
+                    do {
+                        longTermOrders.orderExpiryHeap.removeMin();
+                    } while (
                         !longTermOrders.orderExpiryHeap.isEmpty() &&
                         nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
-                    ) {
-                        longTermOrders.orderExpiryHeap.removeMin();
-                    }
+                    );
                 }
                 break;
             } else {
+                // Directly jump to nextOrderExpiryBlock.
                 (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
                     ammTokenA,
                     ammTokenB,
@@ -233,17 +246,19 @@ contract LongTermOrders is ILongTermOrders, Ownable {
                     true
                 );
 
-                while (
+                // Assumption: nextOrderExpiryBlock is at top of the heap.
+                // do while saves operations for one condition check.
+                do {    
+                    longTermOrders.orderExpiryHeap.removeMin();
+                } while (
                     !longTermOrders.orderExpiryHeap.isEmpty() &&
                     nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
-                ) {
-                    longTermOrders.orderExpiryHeap.removeMin();
-                }
+                );
             }
         }
 
         if (longTermOrders.orderExpiryHeap.isEmpty()) {
-            longTermOrders.lastVirtualOrderBlock = block.number;
+            longTermOrders.lastVirtualOrderBlock = uint64(block.number);
         }
     }
 
@@ -258,12 +273,12 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         OrderPoolLib.OrderPool storage orderPoolA = longTermOrders.orderPoolMap[0];
         OrderPoolLib.OrderPool storage orderPoolB = longTermOrders.orderPoolMap[1];
 
-        //amount sold from virtual trades
+        // Amounts to be sold from virtual trades.
         uint256 blockNumberIncrement = Math.sub(blockNumber, longTermOrders.lastVirtualOrderBlock).fromUint();
         uint256 tokenASellAmount = orderPoolA.currentSalesRate.mulDown(blockNumberIncrement);
         uint256 tokenBSellAmount = orderPoolB.currentSalesRate.mulDown(blockNumberIncrement);
 
-        //updated balances from sales
+        // Get updated LTO and AMM balances.
         (uint256 tokenAOut, uint256 tokenBOut, uint256 ammEndTokenA, uint256 ammEndTokenB) = _computeVirtualBalances(
             tokenAStart,
             tokenBStart,
@@ -272,8 +287,14 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         );
 
         //update balances reserves
-        _addToLongTermOrdersBalance(0, tokenAOut.toSignedFixedPoint().sub(tokenASellAmount.toSignedFixedPoint()));
-        _addToLongTermOrdersBalance(1, tokenBOut.toSignedFixedPoint().sub(tokenBSellAmount.toSignedFixedPoint()));
+        // _addToLongTermOrdersBalance(0, tokenAOut.toSignedFixedPoint().sub(tokenASellAmount.toSignedFixedPoint()));
+        // _addToLongTermOrdersBalance(1, tokenBOut.toSignedFixedPoint().sub(tokenBSellAmount.toSignedFixedPoint()));
+
+        _addToLongTermOrdersBalance(0, tokenAOut);
+        _removeFromLongTermOrdersBalance(0, tokenASellAmount);
+
+        _addToLongTermOrdersBalance(1, tokenBOut);
+        _removeFromLongTermOrdersBalance(1, tokenBSellAmount);
 
         //distribute proceeds to pools
         orderPoolA.distributePayment(tokenBOut);
@@ -286,7 +307,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         }
 
         //update last virtual trade block
-        longTermOrders.lastVirtualOrderBlock = blockNumber;
+        longTermOrders.lastVirtualOrderBlock = uint64(blockNumber);
 
         return (ammEndTokenA, ammEndTokenB);
     }
@@ -307,6 +328,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             uint256 ammEndTokenB
         )
     {
+        // TODO: gas review.
         //if no tokens are sold to the pool, we don't need to execute any orders
         if (tokenAIn == 0 && tokenBIn == 0) {
             tokenAOut = 0;
@@ -396,21 +418,23 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     }
 
     function _getOrderExpiry(uint256 numberOfBlockIntervals) internal view returns (uint256) {
-        uint256 mod = Math.mod(block.number, longTermOrders.orderBlockInterval);
+        // uint256 orderBlockInterval = uint256(longTermOrders.orderBlockInterval);
+        uint256 orderBlockInterval = longTermOrders.orderBlockInterval;
+        uint256 mod = Math.mod(block.number, orderBlockInterval);
         if (mod > 0) {
             numberOfBlockIntervals = Math.add(numberOfBlockIntervals, 1);
         }
 
         return
-            Math.add(Math.mul(longTermOrders.orderBlockInterval, numberOfBlockIntervals), Math.sub(block.number, mod));
+            Math.add(Math.mul(orderBlockInterval, numberOfBlockIntervals), Math.sub(block.number, mod));
     }
 
     function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external onlyOwner {
-        longTermOrders.maxPerBlockSaleRatePercent = newMaxPerBlockSaleRatePercent;
+        longTermOrders.maxPerBlockSaleRatePercent = uint64(newMaxPerBlockSaleRatePercent);
     }
 
     function setMinltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {
-        longTermOrders.minltoOrderAmountToAmmBalanceRatio = amountToAmmBalanceRation;
+        longTermOrders.minltoOrderAmountToAmmBalanceRatio = uint64(amountToAmmBalanceRation);
     }
 
     function getLongTermOrder(uint256 orderId)
@@ -440,3 +464,39 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         );
     }
 }
+
+// Before optimization
+// 299729 1000001665
+// 299848 1000001309
+// 299848 1000001309
+// 339377 1000001149
+// 299860 1000001309
+// 299860 1000001309
+// 339389 1000001149
+// 299860 1000001309
+// 343522 1000001149
+// 299860 1000001309
+// 343522 1000001149
+// 299848 1000001309
+// 299848 1000001309
+// 339389 1000001149
+// 299848 1000001309
+// 339389 1000001149
+
+// After 1st iteration
+// 271529 1000001626
+// 271648 1000001277
+// 271648 1000001277
+// 328345 1000001121
+// 271660 1000001277
+// 271660 1000001277
+// 328357 1000001121
+// 271660 1000001277
+// 331802 1000001121
+// 271660 1000001277
+// 331802 1000001121
+// 271648 1000001277
+// 271648 1000001277
+// 328357 1000001121
+// 271648 1000001277
+// 328357 1000001121

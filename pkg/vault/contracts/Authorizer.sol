@@ -213,7 +213,7 @@ contract Authorizer is IAuthorizer {
         address[] memory where
     ) external {
         InputHelpers.ensureInputLengthMatch(actions.length, where.length);
-        for (uint256 i = 0; i < actions.length; i++) {
+        for (uint256 i = 0; i < actions.length; ++i) {
             _authenticate(GRANT_PERMISSION, where[i]);
             _grantPermission(actions[i], account, where[i]);
         }
@@ -228,7 +228,7 @@ contract Authorizer is IAuthorizer {
         address[] memory where
     ) external {
         InputHelpers.ensureInputLengthMatch(actions.length, where.length);
-        for (uint256 i = 0; i < actions.length; i++) {
+        for (uint256 i = 0; i < actions.length; ++i) {
             _authenticate(REVOKE_PERMISSION, where[i]);
             _revokePermission(actions[i], account, where[i]);
         }
@@ -239,7 +239,7 @@ contract Authorizer is IAuthorizer {
      */
     function renouncePermissions(bytes32[] memory actions, address[] memory where) external {
         InputHelpers.ensureInputLengthMatch(actions.length, where.length);
-        for (uint256 i = 0; i < actions.length; i++) {
+        for (uint256 i = 0; i < actions.length; ++i) {
             _revokePermission(actions[i], msg.sender, where[i]);
         }
     }
@@ -284,7 +284,7 @@ contract Authorizer is IAuthorizer {
         scheduledActions.push(ScheduledAction(where, data, false, false, protected, executableAt));
 
         bytes32 executeActionId = _executeActionId(id);
-        for (uint256 i = 0; i < executors.length; i++) {
+        for (uint256 i = 0; i < executors.length; ++i) {
             _grantPermission(executeActionId, executors[i], address(this));
         }
     }
