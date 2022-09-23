@@ -52,7 +52,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     mapping(uint256 => uint256) private _longTermOrderCollectedManagementFees;
 
     uint256 public longTermSwapFeePercentage = 0;
-    uint256 public longTermSwapFeeUserCutPercentage = 0;
+    uint256 public longTermSwapFeeProtocolCutPercentage = 0;
 
     event LongTermOrderPlaced(
         uint256 orderId,
@@ -83,7 +83,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256 unsoldAmount
     );
 
-    event LongTermSwapFeePercentageChanged(uint256 longTermSwapFeePercentage, uint256 longTermSwapFeeUserCutPercentage);
+    event LongTermSwapFeePercentageChanged(uint256 longTermSwapFeePercentage, uint256 longTermSwapFeeProtocolCutPercentage);
     event LongTermOrderManagementFeesCollected(IERC20[] tokens, uint256[] amounts);
 
     constructor(
@@ -237,6 +237,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
                     userData
                 );
         } else {
+            // TODO: Add ability to skip virtual order execution for emergencies.
             // TODO Should we add this check to constructor only? Fix this in tests.
             if (address(_longTermOrders) != address(0)) {
                 (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
@@ -287,6 +288,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         } else if (kind == WeightedPoolUserData.ExitKind.MANAGEMENT_FEE_TOKENS_OUT) {
             return _exitManagerFeeTokensOut(sender);
         } else {
+            // TODO: Add ability to skip virtual order execution for emergencies.
             if (address(_longTermOrders) != address(0)) {
                 (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
                     updatedBalances
@@ -406,16 +408,17 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         return (uint256(0), _getSizeTwoArray(amountAIn, amountBIn), _getSizeTwoArray(0, 0));
     }
 
-        function _calculateLongTermOrderProtocolFees(uint256 buyTokenIndex, uint256 purchasedAmount)
+    function _deductLongTermOrderProtocolFees(uint256 buyTokenIndex, uint256 purchasedAmount)
         internal
-        view
-        returns (uint256[] memory, uint256)
+        returns (uint256)
     {
-        uint256[] memory protocolFees = new uint256[](2);
+        uint256 totalFee = purchasedAmount.mulUp(longTermSwapFeePercentage);
 
-        protocolFees[buyTokenIndex] = purchasedAmount.mulUp(longTermSwapFeePercentage);
+        uint256 protocolFee = longTermSwapFeeProtocolCutPercentage.mulUp(totalFee);
+        _longTermOrderCollectedManagementFees[buyTokenIndex] += protocolFee;
 
-        return (protocolFees, purchasedAmount.sub(protocolFees[buyTokenIndex]));
+        // Total fee guaranteed to be smaller than purchasedAmount.
+        return purchasedAmount - totalFee;
     }
 
     function _emitEventOrderCancelled(
@@ -454,16 +457,6 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         );
     }
 
-    function _processLongTermOrderManagementFee(uint256[] memory protocolFees) internal {
-        for (uint256 i = 0; i < protocolFees.length; ++i) {
-            uint256 protocolFee = (FixedPoint.fromUint(1).sub(longTermSwapFeeUserCutPercentage)).mulDown(
-                protocolFees[i]
-            );
-
-            _longTermOrderCollectedManagementFees[i] = _longTermOrderCollectedManagementFees[i].add(protocolFee);
-        }
-    }
-
     function _cancelLongTermOrder(
         address sender,
         bytes memory userData,
@@ -478,18 +471,11 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         )
     {
         uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
+        //TODO: review cancelLongTermSwap for gas optimizations.
         (uint256 purchasedAmount, uint256 unsoldAmount, ILongTermOrders.Order memory order) = _longTermOrders
             .cancelLongTermSwap(sender, orderId, balances);
 
-        _emitEventOrderCancelled(order, purchasedAmount, unsoldAmount, scalingFactors);
-
-        (protocolFees, purchasedAmount, unsoldAmount) = _calculateLongTermOrderProtocolFees(
-            order.sellTokenIndex,
-            order.buyTokenIndex,
-            purchasedAmount
-        );
-
-        _processLongTermOrderManagementFee(protocolFees);
+        purchasedAmount = _deductLongTermOrderProtocolFees(order.buyTokenIndex, purchasedAmount);
 
         if (order.buyTokenIndex == 0) {
             return (uint256(0), _getSizeTwoArray(purchasedAmount, unsoldAmount), _getSizeTwoArray(0, 0));
@@ -515,10 +501,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         (uint256 proceeds, ILongTermOrders.Order memory order, bool isPartialWithdrawal) = _longTermOrders
             .withdrawProceedsFromLongTermSwap(sender, orderId, balances);
 
-        uint256[] memory protocolFees;
-        (protocolFees, proceeds) = _calculateLongTermOrderProtocolFees(order.buyTokenIndex, proceeds);
-
-        _processLongTermOrderManagementFee(protocolFees);
+        proceeds = _deductLongTermOrderProtocolFees(order.buyTokenIndex, proceeds);
 
         _emitEventOrderWithdrawn(order, proceeds, scalingFactors, isPartialWithdrawal);
 
@@ -530,20 +513,16 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function _getUpdatedPoolBalances(uint256[] memory balances) internal view returns (uint256[] memory) {
-        uint256[] memory updatedBalances = new uint256[](balances.length);
-
         if (address(_longTermOrders) != address(0)) {
             // Remove the long term orders and long term order management fee from the pool balances.
-            for (uint8 i = 0; i < balances.length; ++i) {
-                updatedBalances[i] = balances[i].sub(_longTermOrders.getTokenBalanceFromLongTermOrder(i)).sub(
+            for (uint256 i = 0; i < balances.length; ++i) {
+                balances[i] = balances[i].sub(_longTermOrders.getTokenBalanceFromLongTermOrder(i)).sub(
                     _longTermOrderCollectedManagementFees[i]
                 );
             }
-        } else {
-            return balances;
         }
 
-        return updatedBalances;
+        return balances;
     }
 
     function _getSizeTwoArray(uint256 a, uint256 b) internal pure returns (uint256[] memory array) {
@@ -567,12 +546,12 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
     function setLongTermSwapFeePercentage(
         uint256 newLongTermSwapFeePercentage,
-        uint256 newLongTermSwapFeeUserCutPercentage
+        uint256 newLongTermSwapFeeProtocolCutPercentage
     ) external whenNotPaused authenticate nonReentrant {
         longTermSwapFeePercentage = newLongTermSwapFeePercentage;
-        longTermSwapFeeUserCutPercentage = newLongTermSwapFeeUserCutPercentage;
+        longTermSwapFeeProtocolCutPercentage = newLongTermSwapFeeProtocolCutPercentage;
 
-        emit LongTermSwapFeePercentageChanged(newLongTermSwapFeePercentage, newLongTermSwapFeeUserCutPercentage);
+        emit LongTermSwapFeePercentageChanged(newLongTermSwapFeePercentage, newLongTermSwapFeeProtocolCutPercentage);
     }
 
     function getLongTermOrderContractAddress() external view returns (address) {

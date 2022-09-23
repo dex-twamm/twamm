@@ -37,7 +37,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 balanceA;
         uint256 balanceB;
         //@notice mapping from token address to pool that is selling that token
-        //we maintain two order pools, one for each token that is tradable in the AMM
+        // We maintain two order pools, one for each token that is tradable in the AMM
         mapping(uint256 => OrderPoolLib.OrderPool) orderPoolMap;
 
         //@notice mapping from order ids to Orders
@@ -88,8 +88,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     //@notice adds long term swap to order pool
     function _addLongTermSwap(
         address owner,
-        uint256 from,
-        uint256 to,
+        uint256 sellTokenIndex,
+        uint256 buyTokenIndex,
         uint256 amount,
         uint256 numberOfBlockIntervals
     )
@@ -103,35 +103,31 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 orderId = uint256(longTermOrders.lastOrderId);
         ++longTermOrders.lastOrderId;
 
-        //determine the selling rate based on number of blocks to expiry and total amount
+        // Determine the selling rate based on number of blocks to expiry and total amount
         uint256 orderExpiry = _getOrderExpiry(numberOfBlockIntervals);
-        uint256 sellingRate = amount.divDown(Math.sub(orderExpiry, block.number).fromUint());
 
-        //add order to correct pool
-        longTermOrders.orderPoolMap[from].depositOrder(orderId, sellingRate, orderExpiry);
+        // Selling rate = amount / number of blocks
+        // orderExpiry guaranteed to be > block.number.
+        uint256 sellingRate = amount.divDown((orderExpiry - block.number).fromUint());
+
+        // Add order to the correct pool.
+        longTermOrders.orderPoolMap[sellTokenIndex].depositOrder(orderId, sellingRate, orderExpiry);
         longTermOrders.orderExpiryHeap.insert(orderExpiry);
 
-        //add to order map
-        Order memory order = Order(orderId, orderExpiry, sellingRate, owner, from, to);
+        // Add to order map
+        Order memory order = Order(orderId, orderExpiry, sellingRate, owner, sellTokenIndex, buyTokenIndex);
         longTermOrders.orderMap[orderId] = order;
 
-        // transfer sale amount to contract
-        _addToLongTermOrdersBalance(from, amount);
+        // Update accounting for the sale amount.
+        _addToLongTermOrdersBalance(sellTokenIndex, amount);
 
-        uint256 maxPerBlockSaleRatePercent = uint256(longTermOrders.maxPerBlockSaleRatePercent);
+        _checkIfNewSalesRateTooHigh(sellTokenIndex);
 
-        _require(
-            longTermOrders.orderPoolMap[from].currentSalesRate <=
-                maxPerBlockSaleRatePercent.mulUp(
-                    from == 0 ? longTermOrders.balanceA : longTermOrders.balanceB
-                ),
-            Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
-        );
-
-        uint256 amountAIn = from == 0 ? amount : 0;
-        uint256 amountBIn = from == 1 ? amount : 0;
-
-        return (order, amountAIn, amountBIn);
+        if (sellTokenIndex == 0) {
+            return (order, amount, 0);
+        } else {
+            return (order, 0, amount);
+        }
     }
 
     //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
@@ -166,7 +162,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         orderPool.cleanUpOrder(orderId);
     }
 
-    //@notice withdraw proceeds from a long term swap (can be expired or ongoing)
+    // @notice withdraw proceeds from a long term swap (can be expired or ongoing)
     function withdrawProceedsFromLongTermSwap(
         address sender,
         uint256 orderId,
@@ -191,7 +187,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         (proceeds, isPartialWithdrawal) = orderPool.withdrawProceeds(orderId, longTermOrders.lastVirtualOrderBlock);
 
         _require(proceeds > 0, Errors.NO_PROCEEDS_TO_WITHDRAW);
-        //update long term order balances
+        // Update long term order balances
         _removeFromLongTermOrdersBalance(order.buyTokenIndex, proceeds);
 
         // clean up order data
@@ -262,6 +258,18 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         }
     }
 
+    function _checkIfNewSalesRateTooHigh(uint256 sellTokenIndex) internal view {
+        uint256 maxPerBlockSaleRatePercent = uint256(longTermOrders.maxPerBlockSaleRatePercent);
+
+        _require(
+            longTermOrders.orderPoolMap[sellTokenIndex].currentSalesRate <=
+                maxPerBlockSaleRatePercent.mulUp(
+                    sellTokenIndex == 0 ? longTermOrders.balanceA : longTermOrders.balanceB
+                ),
+            Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
+        );
+    }
+
     //@notice executes all virtual orders between current lastVirtualOrderBlock and blockNumber also handles
     //orders that expire at end of final block. This assumes that no orders expire inside the given interval
     function _executeVirtualTradesAndOrderExpiries(
@@ -286,21 +294,18 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             tokenBSellAmount
         );
 
-        //update balances reserves
-        // _addToLongTermOrdersBalance(0, tokenAOut.toSignedFixedPoint().sub(tokenASellAmount.toSignedFixedPoint()));
-        // _addToLongTermOrdersBalance(1, tokenBOut.toSignedFixedPoint().sub(tokenBSellAmount.toSignedFixedPoint()));
-
+        // Update balances reserves for both tokens.
         _addToLongTermOrdersBalance(0, tokenAOut);
         _removeFromLongTermOrdersBalance(0, tokenASellAmount);
 
         _addToLongTermOrdersBalance(1, tokenBOut);
         _removeFromLongTermOrdersBalance(1, tokenBSellAmount);
 
-        //distribute proceeds to pools
+        // Distribute proceeds to order pools.
         orderPoolA.distributePayment(tokenBOut);
         orderPoolB.distributePayment(tokenAOut);
 
-        //handle orders expiring at end of interval
+        // Handle orders expiring at the end of interval.
         if (isExpiryBlock) {
             orderPoolA.updateStateFromBlockExpiry(blockNumber);
             orderPoolB.updateStateFromBlockExpiry(blockNumber);
@@ -328,7 +333,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             uint256 ammEndTokenB
         )
     {
-        // TODO: gas review.
         //if no tokens are sold to the pool, we don't need to execute any orders
         if (tokenAIn == 0 && tokenBIn == 0) {
             tokenAOut = 0;
@@ -389,13 +393,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         c = cNumerator.divDown(cDenominator.toSignedFixedPoint());
     }
 
-    function _addToLongTermOrdersBalance(uint256 tokenIndex, int256 balance) internal {
-        if (tokenIndex == 0) {
-            longTermOrders.balanceA = Math.add(longTermOrders.balanceA.toSignedFixedPoint(), balance).toFixedPoint();
-        } else if (tokenIndex == 1) {
-            longTermOrders.balanceB = Math.add(longTermOrders.balanceB.toSignedFixedPoint(), balance).toFixedPoint();
-        }
-    }
 
     function _addToLongTermOrdersBalance(uint256 tokenIndex, uint256 balance) internal {
         if (tokenIndex == 0) {
@@ -408,17 +405,16 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     function _removeFromLongTermOrdersBalance(uint256 tokenIndex, uint256 balance) internal {
         if (tokenIndex == 0) {
             longTermOrders.balanceA = longTermOrders.balanceA.sub(balance);
-        } else if (tokenIndex == 1) {
+        } else {
             longTermOrders.balanceB = longTermOrders.balanceB.sub(balance);
         }
     }
 
-    function getTokenBalanceFromLongTermOrder(uint8 tokenIndex) external view override returns (uint256 balance) {
+    function getTokenBalanceFromLongTermOrder(uint256 tokenIndex) external view override returns (uint256 balance) {
         return tokenIndex == 0 ? longTermOrders.balanceA : longTermOrders.balanceB;
     }
 
     function _getOrderExpiry(uint256 numberOfBlockIntervals) internal view returns (uint256) {
-        // uint256 orderBlockInterval = uint256(longTermOrders.orderBlockInterval);
         uint256 orderBlockInterval = longTermOrders.orderBlockInterval;
         uint256 mod = Math.mod(block.number, orderBlockInterval);
         if (mod > 0) {
