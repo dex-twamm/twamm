@@ -50,7 +50,10 @@ async function swap(
     MAX_UINT256
   );
 
-  const swapResult = await swapTx.wait();
+  const receipt = await swapTx.wait();
+  
+  // Uncomment for gas measurement.
+  console.log('swap: ', receipt.cumulativeGasUsed.toString());
 }
 
 function expectBalanceToBeApprox(actualBalance: BigNumber, expectedBalance: BigNumber) {

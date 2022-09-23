@@ -147,7 +147,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function _getNormalizedWeights() internal view virtual override returns (uint256[] memory) {
-        uint256 totalTokens = _getTotalTokens();
+        uint256 totalTokens = 2;
         uint256[] memory normalizedWeights = new uint256[](totalTokens);
 
         // prettier-ignore
@@ -192,7 +192,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function _scalingFactors() internal view virtual override returns (uint256[] memory) {
-        uint256 totalTokens = _getTotalTokens();
+        uint256 totalTokens = 2;
         uint256[] memory scalingFactors = new uint256[](totalTokens);
 
         // prettier-ignore
@@ -559,7 +559,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function getCollectedManagementFees() public view returns (uint256[] memory collectedFees) {
-        uint256 totalTokens = _getTotalTokens();
+        uint256 totalTokens = 2;
         collectedFees = new uint256[](totalTokens);
 
         for (uint256 i = 0; i < totalTokens; ++i) {
@@ -610,10 +610,10 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
         bptAmountIn = 0;
 
-        amountsOut = new uint256[](_getTotalTokens());
-        protocolFees = new uint256[](_getTotalTokens());
+        amountsOut = new uint256[](2);
+        protocolFees = new uint256[](2);
 
-        for (uint256 i = 0; i < _getTotalTokens(); ++i) {
+        for (uint256 i = 0; i < 2; ++i) {
             amountsOut[i] = _longTermOrderCollectedManagementFees[i];
             _longTermOrderCollectedManagementFees[i] = 0;
         }

@@ -153,11 +153,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
         (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(orderId, longTermOrders.lastVirtualOrderBlock);
 
-        //update LongTermOrders balances
+        // Remove amounts from LongTermOrders balances.
         _removeFromLongTermOrdersBalance(order.buyTokenIndex, purchasedAmount);
         _removeFromLongTermOrdersBalance(order.sellTokenIndex, unsoldAmount);
 
-        // clean up order data
+        // Clean up order data
         delete longTermOrders.orderMap[orderId];
         orderPool.cleanUpOrder(orderId);
     }
@@ -190,7 +190,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         // Update long term order balances
         _removeFromLongTermOrdersBalance(order.buyTokenIndex, proceeds);
 
-        // clean up order data
+        // Clean up order data
         if (!isPartialWithdrawal) {
             delete longTermOrders.orderMap[orderId];
             orderPool.cleanUpOrder(orderId);
@@ -425,6 +425,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             Math.add(Math.mul(orderBlockInterval, numberOfBlockIntervals), Math.sub(block.number, mod));
     }
 
+    // TODO: Remove these two: Since Twamm pool is the owner and doesn't have code to change this?
+    // Or add logic in TwammPool to transfer back the ownership of ltoContract to its owner?
     function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external onlyOwner {
         longTermOrders.maxPerBlockSaleRatePercent = uint64(newMaxPerBlockSaleRatePercent);
     }
@@ -447,7 +449,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         )
     {
         Order memory order = longTermOrders.orderMap[orderId];
-        OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.buyTokenIndex];
+        OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
 
         return (
             order.id,

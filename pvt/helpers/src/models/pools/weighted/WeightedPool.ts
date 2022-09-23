@@ -409,7 +409,11 @@ export default class WeightedPool {
   }
 
   async placeLongTermOrder(params: JoinPlaceLongTermOrderTwammPool): Promise<JoinResult> {
-    return this.join(this._buildJoinPlaceLongTermOrderParams(params));
+    let result = await this.join(this._buildJoinPlaceLongTermOrderParams(params));
+
+    // Uncomment for gas measurement.
+    console.log('placeOrder: ', result.receipt.cumulativeGasUsed.toString());
+    return result;
   }
 
   async getLongTermOrderContractAddress(): Promise<string> {
@@ -432,7 +436,12 @@ export default class WeightedPool {
     other: SignerWithAddress
   ): Promise<VoidResult> {
     const pool = this.instance.connect(owner);
-    return pool.withdrawLongTermOrderCollectedManagementFees(other.address);
+    let tx = await pool.withdrawLongTermOrderCollectedManagementFees(other.address);
+    let receipt = await tx.wait();
+
+    // Uncomment for gas measurement.
+    console.log('collectManagementFee: ', receipt.cumulativeGasUsed.toString());
+    return tx;
   }
 
   // TODO(nuhbye): Probably don't need query for place long term order, since we'll give back 0 BPT always.
@@ -463,11 +472,15 @@ export default class WeightedPool {
 
   // Cancel/withdraw long term order.
   async cancelLongTermOrder(params: ExitCancelLongTermOrderTwammPool): Promise<ExitResult> {
-    return this.exit(this._buildCancelLongTermOrderParams(params));
+    let result = await this.exit(this._buildCancelLongTermOrderParams(params));
+    console.log('cancelOrder: ', result.receipt.cumulativeGasUsed.toString());
+    return result;
   }
 
   async withdrawLongTermOrder(params: ExitWithdrawLongTermOrderTwammPool): Promise<ExitResult> {
-    return this.exit(this._buildWithdrawLongTermOrderParams(params));
+    let result = await this.exit(this._buildWithdrawLongTermOrderParams(params));
+    console.log('withdrawOrder: ', result.receipt.cumulativeGasUsed.toString());
+    return result;
   }
 
   // TODO(codesherpa/nuhbye): Do we need query for exits?
