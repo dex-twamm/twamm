@@ -119,6 +119,11 @@ chai.use(function (chai, utils) {
           // If the catch didn't throw because another reason was expected, re-throw the error
           if (!error.message.includes('but other exception was thrown')) throw error;
 
+          if (error.message.includes('revert without reason string')) {
+            expect(error.message).to.match(/other exception was thrown:.+without.+reason string/);
+            return;
+          }
+
           // Decode the actual revert reason and look for it in the balancer errors list
           const regExp = /(Expected transaction to be reverted with )(.*)(, but other exception was thrown: .*Error: VM Exception while processing transaction: revert(?:ed)? with reason (?:string )?(?:["']))(.*)(["'])/;
           const matches = error.message.match(regExp);
