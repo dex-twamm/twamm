@@ -126,9 +126,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _scalingFactor0 = _computeScalingFactor(tokens[0]);
         _scalingFactor1 = _computeScalingFactor(tokens[1]);
 
-        for (uint8 i = 0; i < 2; ++i) {
-            _require(normalizedWeights[i] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
-        }
+        _require(normalizedWeights[0] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
+        _require(normalizedWeights[1] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
 
         _longTermOrders = ILongTermOrders(longTermOrdersContractAddress);
     }
@@ -147,8 +146,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function _getNormalizedWeights() internal view virtual override returns (uint256[] memory) {
-        uint256 totalTokens = 2;
-        uint256[] memory normalizedWeights = new uint256[](totalTokens);
+        uint256[] memory normalizedWeights = new uint256[](2);
 
         // prettier-ignore
         {
@@ -167,14 +165,10 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     {
         normalizedWeights = _getNormalizedWeights();
 
-        maxWeightTokenIndex = 0;
-        uint256 maxNormalizedWeight = normalizedWeights[0];
-
-        for (uint256 i = 1; i < normalizedWeights.length; ++i) {
-            if (normalizedWeights[i] > maxNormalizedWeight) {
-                maxWeightTokenIndex = i;
-                maxNormalizedWeight = normalizedWeights[i];
-            }
+        if(normalizedWeights[0] > normalizedWeights[1]){
+            maxWeightTokenIndex = 0;
+        } else {
+            maxWeightTokenIndex = 1;
         }
     }
 
@@ -192,8 +186,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function _scalingFactors() internal view virtual override returns (uint256[] memory) {
-        uint256 totalTokens = 2;
-        uint256[] memory scalingFactors = new uint256[](totalTokens);
+        uint256[] memory scalingFactors = new uint256[](2);
 
         // prettier-ignore
         {
@@ -514,12 +507,16 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
     function _getUpdatedPoolBalances(uint256[] memory balances) internal view returns (uint256[] memory) {
         if (address(_longTermOrders) != address(0)) {
-            // Remove the long term orders and long term order management fee from the pool balances.
-            for (uint256 i = 0; i < balances.length; ++i) {
-                balances[i] = balances[i].sub(_longTermOrders.getTokenBalanceFromLongTermOrder(i)).sub(
-                    _longTermOrderCollectedManagementFees[i]
-                );
-            }
+            // Deduct the long term orders and long term order management fee from the pool balances.
+            balances[0] = (
+                balances[0]
+                .sub(_longTermOrders.getTokenBalanceFromLongTermOrder(0))
+                .sub(_longTermOrderCollectedManagementFees[0]));
+
+            balances[1] = (
+                balances[1]
+                .sub(_longTermOrders.getTokenBalanceFromLongTermOrder(1))
+                .sub(_longTermOrderCollectedManagementFees[1]));
         }
 
         return balances;
@@ -559,10 +556,9 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function getCollectedManagementFees() public view returns (uint256[] memory collectedFees) {
-        uint256 totalTokens = 2;
-        collectedFees = new uint256[](totalTokens);
+        collectedFees = new uint256[](2);
 
-        for (uint256 i = 0; i < totalTokens; ++i) {
+        for (uint256 i = 0; i < 2; ++i) {
             collectedFees[i] = _longTermOrderCollectedManagementFees[i];
         }
 
