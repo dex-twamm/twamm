@@ -105,13 +105,13 @@ library OrderPoolLib {
 
         // Calculate amount of purchased token.
         uint256 rewardFactorAtSubmission = self.rewardFactorAtSubmission[orderId];
-        purchasedAmount = self.rewardFactor.sub(rewardFactorAtSubmission).mulDown(salesRate);
+        purchasedAmount = (self.rewardFactor - rewardFactorAtSubmission).mulDown(salesRate);
 
         // Update state
         self.currentSalesRate = self.currentSalesRate.sub(salesRate);
         self.salesRate[orderId] = 0;
         self.orderExpiry[orderId] = 0;
-        self.salesRateEndingPerBlock[expiry] = self.salesRateEndingPerBlock[expiry].sub(salesRate);
+        self.salesRateEndingPerBlock[expiry] -= salesRate;
     }
 
     //@notice withdraw proceeds from pool for a given order. This can be done before or after the order has expired.
