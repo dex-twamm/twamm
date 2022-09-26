@@ -425,14 +425,12 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             Math.add(Math.mul(orderBlockInterval, numberOfBlockIntervals), Math.sub(block.number, mod));
     }
 
-    // TODO: Remove these two: Since Twamm pool is the owner and doesn't have code to change this?
-    // Or add logic in TwammPool to transfer back the ownership of ltoContract to its owner?
-    function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external onlyOwner {
+    function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external override onlyOwner {
         longTermOrders.maxPerBlockSaleRatePercent = uint64(newMaxPerBlockSaleRatePercent);
     }
 
-    function setMinltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {
-        longTermOrders.minltoOrderAmountToAmmBalanceRatio = uint64(amountToAmmBalanceRation);
+    function setMinltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRatio) external override onlyOwner {
+        longTermOrders.minltoOrderAmountToAmmBalanceRatio = uint64(amountToAmmBalanceRatio);
     }
 
     function getLongTermOrder(uint256 orderId)
@@ -462,39 +460,3 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         );
     }
 }
-
-// Before optimization
-// 299729 1000001665
-// 299848 1000001309
-// 299848 1000001309
-// 339377 1000001149
-// 299860 1000001309
-// 299860 1000001309
-// 339389 1000001149
-// 299860 1000001309
-// 343522 1000001149
-// 299860 1000001309
-// 343522 1000001149
-// 299848 1000001309
-// 299848 1000001309
-// 339389 1000001149
-// 299848 1000001309
-// 339389 1000001149
-
-// After 1st iteration
-// 271529 1000001626
-// 271648 1000001277
-// 271648 1000001277
-// 328345 1000001121
-// 271660 1000001277
-// 271660 1000001277
-// 328357 1000001121
-// 271660 1000001277
-// 331802 1000001121
-// 271660 1000001277
-// 331802 1000001121
-// 271648 1000001277
-// 271648 1000001277
-// 328357 1000001121
-// 271648 1000001277
-// 328357 1000001121
