@@ -44,15 +44,15 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     ILongTermOrders public _longTermOrders;
 
     // Twamm math depends on both the tokens being equal weight. 
-    uint256 internal constant _normalizedWeight0 = 0.5e18;
-    uint256 internal constant _normalizedWeight1 = 0.5e18;
+    uint256 internal _normalizedWeight0 = 0.5e18;
+    uint256 internal _normalizedWeight1 = 0.5e18;
 
     mapping(uint256 => uint256) private _longTermOrderCollectedManagementFees;
 
     uint256 public longTermSwapFeePercentage;
     uint256 public longTermSwapFeeProtocolCutPercentage;
 
-    bool private _virtualOrderExecutionPaused;
+    bool private _virtualOrderExecutionPaused = false;
 
     event LongTermOrderPlaced(
         uint256 orderId,
@@ -121,6 +121,18 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
         // TODO: should we be able to change LTO contract?
         _longTermOrders = ILongTermOrders(longTermOrdersContractAddress);
+
+
+        if(longTermOrdersContractAddress != address(0)) {
+            return;
+        }
+
+        // Code for tests
+        _require(normalizedWeights[0] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
+        _require(normalizedWeights[1] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
+        _virtualOrderExecutionPaused = true;
+        _normalizedWeight0 = normalizedWeights[0];
+        _normalizedWeight1 = normalizedWeights[1]; 
     }
 
     function _getMaxTokens() internal pure virtual override returns (uint256) {
@@ -146,8 +158,13 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         override
         returns (uint256[] memory normalizedWeights, uint256 maxWeightTokenIndex)
     {
-        // Just return maxWeightTokenIndex = 0 since both tokens are same weight.
-        return (_getNormalizedWeights(), 0);
+        normalizedWeights = _getSizeTwoArray(_normalizedWeight0, _normalizedWeight1);
+        if (!_virtualOrderExecutionPaused || normalizedWeights[0] >= normalizedWeights[1]) {
+            maxWeightTokenIndex = 0;
+        } else {
+            maxWeightTokenIndex = 1;
+        }
+        
     }
 
     function _getTotalTokens() internal view virtual override returns (uint256) {
@@ -301,7 +318,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         SwapRequest memory request,
         uint256 balanceTokenIn,
         uint256 balanceTokenOut
-    ) internal returns (uint256[] memory) {
+    ) internal returns (uint256[] memory updatedBalances) {
         uint256[] memory balances = new uint256[](2);
 
         if (_token0 == request.tokenIn) {
@@ -310,14 +327,12 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             balances = _getSizeTwoArray(balanceTokenOut, balanceTokenIn);
         }
 
-        uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
+        updatedBalances = _getUpdatedPoolBalances(balances);
         if (!_virtualOrderExecutionPaused) {
             (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
                 updatedBalances
             );
         }
-
-        return updatedBalances;
     }
 
     /**
