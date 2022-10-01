@@ -113,8 +113,8 @@ async function main() {
 
   const vault = await deployedAt('v2-vault/Vault', VAULT_RINKEBY);
 
-  // const lto = await deployedAt('LongTermOrders', '0x9AD68324a94d1052445aBb6C094dd7abC888E5AA');
-  // const transferTx = await lto.transferOwnership('0x40e1fB58aBbd319dB35964eA73e148919Ed0Ae51');
+  // const lto = await deployedAt('LongTermOrders', '0xC392dF9Ee383d6Bce110757FdE7762f0372f6A5D');
+  // const transferTx = await lto.transferOwnership('0x20C0b25acE39df183b9CCBbD1D575764544AEB19');
   // console.log(await transferTx.wait());
 
   // await placeLongTermOrder(vault, 1, 0, fp(0.1), 5);
@@ -123,7 +123,7 @@ async function main() {
 
   // await swap(vault, MATIC_TOKEN_ADDRESS, FAUCET_TOKEN_ADDRESS, fp(0.001));
 
-  await withdrawLongTermOrder(vault, 0);
+  // await withdrawLongTermOrder(vault, 0);
 
   // await cancelLongTermOrder(vault, 3);
 }

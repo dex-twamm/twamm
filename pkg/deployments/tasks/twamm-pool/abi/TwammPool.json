@@ -264,7 +264,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "longTermSwapFeeUserCutPercentage",
+        "name": "longTermSwapFeeProtocolCutPercentage",
         "type": "uint256"
       }
     ],
@@ -695,7 +695,7 @@
   },
   {
     "inputs": [],
-    "name": "longTermSwapFeeUserCutPercentage",
+    "name": "longTermSwapFeeProtocolCutPercentage",
     "outputs": [
       {
         "internalType": "uint256",
@@ -1120,11 +1120,37 @@
       },
       {
         "internalType": "uint256",
-        "name": "newLongTermSwapFeeUserCutPercentage",
+        "name": "newLongTermSwapFeeProtocolCutPercentage",
         "type": "uint256"
       }
     ],
     "name": "setLongTermSwapFeePercentage",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "newMaxPerBlockSaleRatePercent",
+        "type": "uint256"
+      }
+    ],
+    "name": "setMaxPerBlockSaleRatePercent",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "amountToAmmBalanceRatio",
+        "type": "uint256"
+      }
+    ],
+    "name": "setMinltoOrderAmountToAmmBalanceRatio",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1151,6 +1177,19 @@
       }
     ],
     "name": "setSwapFeePercentage",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "virtualOrderExecutionPaused",
+        "type": "bool"
+      }
+    ],
+    "name": "setVirtualOrderExecutionPaused",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
