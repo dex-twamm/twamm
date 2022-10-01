@@ -4,12 +4,8 @@ pragma solidity ^0.7.0;
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 
-// import "prb-math/contracts/PRBMathUD60x18.sol";
-
 //@notice An Order Pool is an abstraction for a pool of long term orders that sells a token at a constant rate to the
-//embedded AMM. The order pool handles the logic for distributing the proceeds from these sales to the owners of the
-//long term orders through a modified version of the staking algorithm from https://uploads-ssl.webflow.com/
-//5ad71ffeb79acc67c8bcdaba/5ad8d1193a40977462982470_scalable-reward-distribution-paper.pdf
+//embedded AMM.
 
 library OrderPoolLib {
     using FixedPoint for uint256;
@@ -20,18 +16,16 @@ library OrderPoolLib {
     struct OrderPool {
         //@notice current rate that tokens are being sold (per block)
         uint256 currentSalesRate;
-        //@notice sum of (salesProceeds_k / salesRate_k) over every period k. Stored as a fixed precision floating point number
+        //@notice sum of (salesProceeds_k / salesRate_k) over every period k.
+        //Stored as a fixed precision floating point number
         uint256 rewardFactor;
         //@notice this maps block numbers to the cumulative sales rate of orders that expire on that block
         mapping(uint256 => uint256) salesRateEndingPerBlock;
         //@notice reward factor per order at time of submission
         mapping(uint256 => uint256) rewardFactorAtSubmission;
         //@notice reward factor at a specific block
-        // TODO fix this as this will grow a lot with time.
         mapping(uint256 => uint256) rewardFactorAtBlock;
-
-        // uint128 currentlyActiveOrders;
-        // uint128 cleanedUpUntilBlock;
+        mapping(uint256 => uint256) ordersExpiringAtBlock;
     }
 
     //@notice distribute payment amount to pool (in the case of TWAMM, proceeds from trades against amm)
@@ -47,32 +41,27 @@ library OrderPoolLib {
         OrderPool storage self,
         uint256 orderId,
         uint256 amountPerBlock,
-        uint256 orderExpiry
+        uint256 orderExpiryBlock
     ) internal {
         self.currentSalesRate = self.currentSalesRate.add(amountPerBlock);
         self.rewardFactorAtSubmission[orderId] = self.rewardFactor;
-        self.salesRateEndingPerBlock[orderExpiry] = self.salesRateEndingPerBlock[orderExpiry].add(amountPerBlock);
-
-        // if(self.cleanedUpUntilBlock == 0) {
-        //     self.cleanedUpUntilBlock = uint128(block.number);
-        // }
-        // ++self.currentlyActiveOrders;
+        self.salesRateEndingPerBlock[orderExpiryBlock] = self.salesRateEndingPerBlock[orderExpiryBlock].add(
+            amountPerBlock
+        );
+        self.ordersExpiringAtBlock[orderExpiryBlock] = Math.add(self.ordersExpiringAtBlock[orderExpiryBlock], 1);
     }
 
     function cleanUpOrder(
         OrderPool storage self,
-        uint256 orderId /*, bool noOtherActiveOrders*/
+        uint256 orderId,
+        uint256 orderExpiryBlock
     ) internal {
         delete self.rewardFactorAtSubmission[orderId];
-        // --self.currentlyActiveOrders;
-        // Todo clean up salesRateEndingPerBlock and rewardFactorAtBlock
-        // TODO: set rewardFactor to zero when there are no active orders?
 
-        // if(self.currentlyActiveOrders == 0) {
-        //     self.rewardFactor = 0;
-
-        //     // salesRateEndingPerBlock[]
-        // }
+        if (self.ordersExpiringAtBlock[orderExpiryBlock] == 0) {
+            delete self.rewardFactorAtBlock[orderExpiryBlock];
+            delete self.ordersExpiringAtBlock[orderExpiryBlock];
+        }
     }
 
     //@notice when orders expire after a given block, we need to update the state of the pool
@@ -91,12 +80,12 @@ library OrderPoolLib {
         uint256 orderId,
         uint256 lastVirtualOrderBlock,
         uint256 orderSaleRate,
-        uint256 orderExpiry
+        uint256 orderExpiryBlock
     ) internal returns (uint256 unsoldAmount, uint256 purchasedAmount) {
-        require(orderExpiry > lastVirtualOrderBlock, "order already finished");
+        require(orderExpiryBlock > lastVirtualOrderBlock, "order already finished");
 
         // Calculate amount that wasn't sold, and needs to be returned
-        uint256 blocksRemaining = Math.sub(orderExpiry, lastVirtualOrderBlock);
+        uint256 blocksRemaining = Math.sub(orderExpiryBlock, lastVirtualOrderBlock);
         unsoldAmount = blocksRemaining.fromUint().mulDown(orderSaleRate);
 
         // Calculate amount of purchased token.
@@ -105,7 +94,8 @@ library OrderPoolLib {
 
         // Update state
         self.currentSalesRate = self.currentSalesRate.sub(orderSaleRate);
-        self.salesRateEndingPerBlock[orderExpiry] -= orderSaleRate;
+        self.salesRateEndingPerBlock[orderExpiryBlock] -= orderSaleRate;
+        self.ordersExpiringAtBlock[orderExpiryBlock] = Math.sub(self.ordersExpiringAtBlock[orderExpiryBlock], 1);
     }
 
     //@notice withdraw proceeds from pool for a given order. This can be done before or after the order has expired.
@@ -116,18 +106,19 @@ library OrderPoolLib {
         uint256 orderId,
         uint256 lastVirtualOrderBlock,
         uint256 orderSaleRate,
-        uint256 orderExpiry
+        uint256 orderExpiryBlock
     ) internal returns (uint256 totalReward, bool isPartialWithdrawal) {
         require(orderSaleRate > 0, "sales rate amount must be positive");
 
         uint256 rewardFactorAtSubmission = self.rewardFactorAtSubmission[orderId];
 
-        // TODO: shouldn't this be >= orderExpiry?
+        // TODO: shouldn't this be >= orderExpiryBlock?
         // If order has expired, we need to calculate the reward factor at expiry
-        if (lastVirtualOrderBlock >= orderExpiry) {
-            uint256 rewardFactorAtExpiry = self.rewardFactorAtBlock[orderExpiry];
+        if (lastVirtualOrderBlock >= orderExpiryBlock) {
+            uint256 rewardFactorAtExpiry = self.rewardFactorAtBlock[orderExpiryBlock];
             totalReward = rewardFactorAtExpiry.sub(rewardFactorAtSubmission).mulDown(orderSaleRate);
             isPartialWithdrawal = false;
+            self.ordersExpiringAtBlock[orderExpiryBlock] = Math.sub(self.ordersExpiringAtBlock[orderExpiryBlock], 1);
         }
         // If order has not yet expired (i.e. partial withdrawal), we just adjust the start.
         else {

@@ -145,11 +145,13 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
+        uint256 orderExpirationBlock = longTermOrders.orderMap[orderId].expirationBlock;
+
         (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(
             orderId,
             longTermOrders.lastVirtualOrderBlock,
             longTermOrders.orderMap[orderId].saleRate,
-            longTermOrders.orderMap[orderId].expirationBlock
+            orderExpirationBlock
         );
 
         // Remove amounts from LongTermOrders balances.
@@ -158,7 +160,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
         // Clean up order data
         delete longTermOrders.orderMap[orderId];
-        orderPool.cleanUpOrder(orderId);
+        orderPool.cleanUpOrder(orderId, orderExpirationBlock);
     }
 
     // @notice withdraw proceeds from a long term swap (can be expired or ongoing)
@@ -182,12 +184,13 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
+        uint256 orderExpirationBlock = longTermOrders.orderMap[orderId].expirationBlock;
 
         (proceeds, isPartialWithdrawal) = orderPool.withdrawProceeds(
             orderId,
             longTermOrders.lastVirtualOrderBlock,
             longTermOrders.orderMap[orderId].saleRate,
-            longTermOrders.orderMap[orderId].expirationBlock
+            orderExpirationBlock
         );
 
         _require(proceeds > 0, Errors.NO_PROCEEDS_TO_WITHDRAW);
@@ -197,7 +200,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         // Clean up order data
         if (!isPartialWithdrawal) {
             delete longTermOrders.orderMap[orderId];
-            orderPool.cleanUpOrder(orderId);
+            orderPool.cleanUpOrder(orderId, orderExpirationBlock);
         }
     }
 

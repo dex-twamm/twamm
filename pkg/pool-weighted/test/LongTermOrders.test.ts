@@ -87,7 +87,6 @@ describe('LongTermOrders', function () {
 
     expect(tokenBalances[1]).to.be.lt(balanceB.add(1000));
     expect(tokenBalances[1]).to.be.gt(balanceB.sub(1000));
-
   }
 
   function getOrderExpiryBlock(numberOfBlockIntervals: number, blockNumber: number): number {
