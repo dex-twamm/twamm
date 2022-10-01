@@ -11,6 +11,7 @@ import { deploy } from '@balancer-labs/v2-helpers/src/contract';
 import TokenList from '@balancer-labs/v2-helpers/src/models/tokens/TokenList';
 import WeightedPool from '@balancer-labs/v2-helpers/src/models/pools/weighted/WeightedPool';
 import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/weighted/types';
+import { lastBlockNumber } from '@balancer-labs/v2-helpers/src/time';
 import * as expectEvent from '@balancer-labs/v2-helpers/src/test/expectEvent';
 
 import { itBehavesAsWeightedPool } from './BaseWeightedPool.behavior';
@@ -53,13 +54,27 @@ async function swap(
   const receipt = await swapTx.wait();
   
   // Uncomment for gas measurement.
-  console.log('swap: ', receipt.cumulativeGasUsed.toString());
+  // console.log('swap: ', receipt.cumulativeGasUsed.toString());
+}
+
+async function doShortSwapsUntil(blockNumber: number, pool: WeightedPool, owner:SignerWithAddress, other: SignerWithAddress) {
+  let i = 0;
+  // Move forward beyond expiry block with one swap after every 20 blocks.
+  while((await lastBlockNumber()) < blockNumber) {
+    await moveForwardNBlocks(4);
+    if (i%2) {
+      await swap(pool, 0, 1, fp(0.01), owner, other);
+    } else {
+      await swap(pool, 1, 0, fp(0.04), owner, other);
+    }
+    i++;
+  }
 }
 
 function expectBalanceToBeApprox(actualBalance: BigNumber, expectedBalance: BigNumber) {
-  // Expect both balances to be within 1e-15 of expected values.
-  expect(actualBalance).to.be.lt(expectedBalance.add(1000));
-  expect(actualBalance).to.be.gt(expectedBalance.sub(1000));
+  // Expect both balances to be within 1e-3 of expected values.
+  expect(actualBalance).to.be.lt(expectedBalance.add(1e15));
+  expect(actualBalance).to.be.gt(expectedBalance.sub(1e15));
 }
 
 // TODO(codesherpa): Add real tests. Current tests are duplicate of WeightedPool tests
@@ -133,25 +148,22 @@ describe('TwammWeightedPool', function () {
               numberOfBlockIntervals: 10,
             });
 
+            const startingBlock = await lastBlockNumber();
+            const expectedExpiryBlock = (startingBlock % 10) ? (startingBlock + 100) + (10 - (startingBlock % 10)) : (startingBlock + 100);
+
             expectEvent.inIndirectReceipt(placeResult.receipt, pool.instance.interface, 'LongTermOrderPlaced', {
               orderId: 0,
               sellTokenIndex: 0,
               buyTokenIndex: 1,
               owner: other.address,
+              expirationBlock: expectedExpiryBlock
             });
 
-            // Move forward 100 blocks with one swap after every 20 blocks.
-            for (let j = 0; j < 6; j++) {
-              await moveForwardNBlocks(20);
-              await swap(pool, 0, 1, fp(0.1), owner, other);
-            }
-
-            // Move forward beyond expiry block of the long term order.
-            await moveForwardNBlocks(20);
+            await doShortSwapsUntil(expectedExpiryBlock, pool, owner, other);
 
             const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
             expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
-            expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.94));
+            expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.96));
           });
 
           it('can cancel one-way Long Term Order', async () => {
@@ -164,24 +176,24 @@ describe('TwammWeightedPool', function () {
               numberOfBlockIntervals: 10,
             });
 
+            const startingBlock = await lastBlockNumber();
+            const expectedExpiryBlock = (startingBlock % 10) ? (startingBlock + 100) + (10 - (startingBlock % 10)) : (startingBlock + 100);
+
             expectEvent.inIndirectReceipt(longTermOrder.receipt, pool.instance.interface, 'LongTermOrderPlaced', {
               orderId: 0,
               sellTokenIndex: 0,
               buyTokenIndex: 1,
               owner: other.address,
+              expirationBlock: expectedExpiryBlock
             });
 
-            // Move forward 40 blocks with one swap after every 10 blocks.
-            // Total blocks moved forward 40 + 5(swap transactions) = 45.
-            for (let j = 0; j < 4; j++) {
-              await moveForwardNBlocks(10);
-              await swap(pool, 0, 1, fp(0.01), owner, other);
-            }
+            const midpointBlock = startingBlock + ((expectedExpiryBlock - startingBlock)/2);
 
-            // Order placed at block 22, expiry block 130.
-            // Move forward to mid of the long term order duration. I.e., t+54 blocks.
-            await moveForwardNBlocks(9);
 
+            // Move to mid point block - 1.
+            await doShortSwapsUntil(midpointBlock - 4, pool, owner, other);
+            await moveForwardNBlocks(midpointBlock - (await lastBlockNumber())-1);
+            
             const cancelResult = await pool.cancelLongTermOrder({ orderId: 0, from: other });
             expectEvent.inIndirectReceipt(cancelResult.receipt, pool.instance.interface, 'LongTermOrderCancelled', {
               orderId: 0,
@@ -214,14 +226,10 @@ describe('TwammWeightedPool', function () {
               numberOfBlockIntervals: 10,
             });
 
-            // Move forward 80 blocks with one swap after every 20 blocks.
-            for (let j = 0; j < 5; j++) {
-              await moveForwardNBlocks(20);
-              await swap(pool, 0, 1, fp(0.1), owner, other);
-            }
+            const startingBlock2 = await lastBlockNumber();
+            const expectedExpiryBlock2 = (startingBlock2 % 10) ? (startingBlock2 + 100) + (10 - (startingBlock2 % 10)) : (startingBlock2 + 100);
 
-            // Move forward to end of expiry block of the long term order.
-            await moveForwardNBlocks(20);
+            await doShortSwapsUntil(expectedExpiryBlock2, pool, owner, other);
 
             const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
 
@@ -236,7 +244,7 @@ describe('TwammWeightedPool', function () {
             const withdrawResult1 = await pool.withdrawLongTermOrder({ orderId: 1, from: other });
 
             expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
-            expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.94));
+            expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.96));
 
             expect(withdrawResult1.amountsOut[0]).to.be.gte(fp(0.05));
             expect(withdrawResult1.amountsOut[1]).to.be.equal(fp(0));
@@ -258,27 +266,22 @@ describe('TwammWeightedPool', function () {
               numberOfBlockIntervals: 10,
             });
 
-            // Move forward 80 blocks with one swap after every 20 blocks.
-            for (let j = 0; j < 5; j++) {
-              await moveForwardNBlocks(20);
-              await swap(pool, 0, 1, fp(0.1), owner, other);
-            }
+            const startingBlock = await lastBlockNumber();
+            const expectedExpiryBlock = (startingBlock % 10) ? (startingBlock + 100) + (10 - (startingBlock % 10)) : (startingBlock + 100);
 
-            // Move forward to end of expiry block of the long term order.
-            await moveForwardNBlocks(20);
+            await doShortSwapsUntil(expectedExpiryBlock, pool, owner, other);
 
             const withdrawResult = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
+            expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
+            // 3.96 - 1% fee = 3.92
+            expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.92));
 
             await pool.withdrawLongTermOrderCollectedManagementFees(owner, owner);
 
             pool.instance.once('LongTermOrderManagementFeesCollected', (tokens, collectedFees, event) => {
-              // TODO fix this to proper calculated fees
-              const someFees = [1, 2];
-              // expect(collectedFees).to.be.eq(someFees);
+              expect(collectedFees[0]).to.be.eq(fp(0));
+              expectBalanceToBeApprox(collectedFees[1], fp(0.0198));
             });
-
-            expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
-            expect(withdrawResult.amountsOut[1]).to.be.gte(fp(3.90));
           });
         });
       });
