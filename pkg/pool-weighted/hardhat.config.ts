@@ -20,18 +20,18 @@ export default {
     hardhat: {
       allowUnlimitedContractSize: true,
     },
-    rinkeby: {
-      url: RINKEBY_API_URL,
-      accounts: [`0x${PRIVATE_KEY}`],
-      gasPrice: 20e9,
-      gas: 25e6,
-    },
-    goerli: {
-      url: GOERLI_API_URL,
-      accounts: [`0x${PRIVATE_KEY}`],
-      gasPrice: 20e9,
-      gas: 25e6,
-    },
+    // rinkeby: {
+    //   url: RINKEBY_API_URL,
+    //   accounts: [`0x${PRIVATE_KEY}`],
+    //   gasPrice: 20e9,
+    //   gas: 25e6,
+    // },
+    // goerli: {
+    //   url: GOERLI_API_URL,
+    //   accounts: [`0x${PRIVATE_KEY}`],
+    //   gasPrice: 20e9,
+    //   gas: 25e6,
+    // },
   },
   etherscan: {
     // Your API key for Etherscan

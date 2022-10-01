@@ -24,25 +24,19 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     struct LongTermOrdersStruct {
         //@notice minimum block interval between order expiries
         uint32 orderBlockInterval;
-
         //@notice incrementing counter for order ids
         uint32 lastOrderId;
-
         uint64 maxPerBlockSaleRatePercent;
         uint64 minltoOrderAmountToAmmBalanceRatio;
-
         //@notice last virtual orders were executed immediately before this block
         uint64 lastVirtualOrderBlock;
-
         uint256 balanceA;
         uint256 balanceB;
         //@notice mapping from token address to pool that is selling that token
         // We maintain two order pools, one for each token that is tradable in the AMM
         mapping(uint256 => OrderPoolLib.OrderPool) orderPoolMap;
-
         //@notice mapping from order ids to Orders
         mapping(uint256 => Order) orderMap;
-
         uint256[] orderExpiryHeap;
     }
 
@@ -151,7 +145,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
-        (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(orderId, longTermOrders.lastVirtualOrderBlock);
+        (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(
+            orderId,
+            longTermOrders.lastVirtualOrderBlock,
+            longTermOrders.orderMap[orderId].saleRate
+        );
 
         // Remove amounts from LongTermOrders balances.
         _removeFromLongTermOrdersBalance(order.buyTokenIndex, purchasedAmount);
@@ -184,7 +182,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
 
-        (proceeds, isPartialWithdrawal) = orderPool.withdrawProceeds(orderId, longTermOrders.lastVirtualOrderBlock);
+        (proceeds, isPartialWithdrawal) = orderPool.withdrawProceeds(
+            orderId,
+            longTermOrders.lastVirtualOrderBlock,
+            longTermOrders.orderMap[orderId].saleRate
+        );
 
         _require(proceeds > 0, Errors.NO_PROCEEDS_TO_WITHDRAW);
         // Update long term order balances
@@ -229,7 +231,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
                         longTermOrders.orderExpiryHeap.removeMin();
                     } while (
                         !longTermOrders.orderExpiryHeap.isEmpty() &&
-                        nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
+                            nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
                     );
                 }
                 break;
@@ -244,11 +246,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
                 // Assumption: nextOrderExpiryBlock is at top of the heap.
                 // do while saves operations for one condition check.
-                do {    
+                do {
                     longTermOrders.orderExpiryHeap.removeMin();
                 } while (
                     !longTermOrders.orderExpiryHeap.isEmpty() &&
-                    nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
+                        nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
                 );
             }
         }
@@ -393,7 +395,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         c = cNumerator.divDown(cDenominator.toSignedFixedPoint());
     }
 
-
     function _addToLongTermOrdersBalance(uint256 tokenIndex, uint256 balance) internal {
         if (tokenIndex == 0) {
             longTermOrders.balanceA = Math.add(longTermOrders.balanceA, balance);
@@ -421,8 +422,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             numberOfBlockIntervals = Math.add(numberOfBlockIntervals, 1);
         }
 
-        return
-            Math.add(Math.mul(orderBlockInterval, numberOfBlockIntervals), Math.sub(block.number, mod));
+        return Math.add(Math.mul(orderBlockInterval, numberOfBlockIntervals), Math.sub(block.number, mod));
     }
 
     function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external override onlyOwner {
