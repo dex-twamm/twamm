@@ -148,7 +148,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(
             orderId,
             longTermOrders.lastVirtualOrderBlock,
-            longTermOrders.orderMap[orderId].saleRate
+            longTermOrders.orderMap[orderId].saleRate,
+            longTermOrders.orderMap[orderId].expirationBlock
         );
 
         // Remove amounts from LongTermOrders balances.
@@ -185,7 +186,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         (proceeds, isPartialWithdrawal) = orderPool.withdrawProceeds(
             orderId,
             longTermOrders.lastVirtualOrderBlock,
-            longTermOrders.orderMap[orderId].saleRate
+            longTermOrders.orderMap[orderId].saleRate,
+            longTermOrders.orderMap[orderId].expirationBlock
         );
 
         _require(proceeds > 0, Errors.NO_PROCEEDS_TO_WITHDRAW);
