@@ -43,7 +43,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
     ILongTermOrders public _longTermOrders;
 
-    // Twamm math depends on both the tokens being equal weight. 
+    // Twamm math depends on both the tokens being equal weight.
     uint256 internal _normalizedWeight0 = 0.5e18;
     uint256 internal _normalizedWeight1 = 0.5e18;
 
@@ -83,7 +83,10 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256 unsoldAmount
     );
 
-    event LongTermSwapFeePercentageChanged(uint256 longTermSwapFeePercentage, uint256 longTermSwapFeeProtocolCutPercentage);
+    event LongTermSwapFeePercentageChanged(
+        uint256 longTermSwapFeePercentage,
+        uint256 longTermSwapFeeProtocolCutPercentage
+    );
     event LongTermOrderManagementFeesCollected(IERC20[] tokens, uint256[] amounts);
 
     constructor(
@@ -122,8 +125,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         // TODO: should we be able to change LTO contract?
         _longTermOrders = ILongTermOrders(longTermOrdersContractAddress);
 
-
-        if(longTermOrdersContractAddress != address(0)) {
+        if (longTermOrdersContractAddress != address(0)) {
             return;
         }
 
@@ -132,7 +134,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _require(normalizedWeights[1] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
         _virtualOrderExecutionPaused = true;
         _normalizedWeight0 = normalizedWeights[0];
-        _normalizedWeight1 = normalizedWeights[1]; 
+        _normalizedWeight1 = normalizedWeights[1];
     }
 
     function _getMaxTokens() internal pure virtual override returns (uint256) {
@@ -164,7 +166,6 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         } else {
             maxWeightTokenIndex = 1;
         }
-        
     }
 
     function _getTotalTokens() internal view virtual override returns (uint256) {
@@ -209,13 +210,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
         if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
-                return _registerLongTermOrder(
-                    sender,
-                    recipient,
-                    updatedBalances,
-                    scalingFactors,
-                    userData
-                );
+            return _registerLongTermOrder(sender, recipient, updatedBalances, scalingFactors, userData);
         } else {
             if (!_virtualOrderExecutionPaused) {
                 (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
@@ -361,14 +356,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
         _upscale(amountIn, scalingFactors[sellTokenIndex]);
 
-        (ILongTermOrders.Order memory order, uint256 amountAIn, uint256 amountBIn) = _longTermOrders.performLongTermSwap(
-            recipient,
-            balances,
-            sellTokenIndex,
-            buyTokenIndex,
-            amountIn,
-            numberOfBlockIntervals
-        );
+        (ILongTermOrders.Order memory order, uint256 amountAIn, uint256 amountBIn) = _longTermOrders
+            .performLongTermSwap(recipient, balances, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
 
         emit LongTermOrderPlaced(
             order.id,
@@ -490,14 +479,16 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         if (!_virtualOrderExecutionPaused) {
             // Deduct the long term orders and long term order management fee from the pool balances.
             balances[0] = (
-                balances[0]
-                .sub(_longTermOrders.getTokenBalanceFromLongTermOrder(0))
-                .sub(_longTermOrderCollectedManagementFees[0]));
+                balances[0].sub(_longTermOrders.getTokenBalanceFromLongTermOrder(0)).sub(
+                    _longTermOrderCollectedManagementFees[0]
+                )
+            );
 
             balances[1] = (
-                balances[1]
-                .sub(_longTermOrders.getTokenBalanceFromLongTermOrder(1))
-                .sub(_longTermOrderCollectedManagementFees[1]));
+                balances[1].sub(_longTermOrders.getTokenBalanceFromLongTermOrder(1)).sub(
+                    _longTermOrderCollectedManagementFees[1]
+                )
+            );
         }
 
         // TODO: This is not actually the right thing to do when virtual order executions are paused.
