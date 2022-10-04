@@ -21,6 +21,7 @@ import "./twamm/ILongTermOrders.sol";
 import "./WeightedPoolUserData.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ReentrancyGuard.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/helpers/ERC20Helpers.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/Ownable.sol";
 
 import "hardhat/console.sol";
@@ -41,7 +42,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     uint256 internal immutable _scalingFactor0;
     uint256 internal immutable _scalingFactor1;
 
-    ILongTermOrders public _longTermOrders;
+    ILongTermOrders private _longTermOrders;
 
     // Twamm math depends on both the tokens being equal weight.
     uint256 internal _normalizedWeight0 = 0.5e18;
@@ -440,6 +441,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             .cancelLongTermSwap(sender, orderId, balances);
 
         purchasedAmount = _deductLongTermOrderProtocolFees(order.buyTokenIndex, purchasedAmount);
+
+        _emitEventOrderCancelled(order, purchasedAmount, unsoldAmount, scalingFactors);
 
         if (order.buyTokenIndex == 0) {
             return (uint256(0), _getSizeTwoArray(purchasedAmount, unsoldAmount), _getSizeTwoArray(0, 0));

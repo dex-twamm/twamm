@@ -218,7 +218,7 @@ describe('TwammWeightedPool', function () {
               tokenOutIndex: 1,
               numberOfBlockIntervals: 10,
             });
-            let longTermOrder2 = await pool.placeLongTermOrder({
+            const longTermOrder2 = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(0.2),
               tokenInIndex: 1,

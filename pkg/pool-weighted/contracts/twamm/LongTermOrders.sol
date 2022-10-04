@@ -288,7 +288,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     function _executeVirtualTradesAndOrderExpiries(
         uint256 tokenAStart,
         uint256 tokenBStart,
-        uint256 blockNumber
+        uint256 blockNumber,
         bool isExpiryBlock
     ) private returns (uint256, uint256) {
         OrderPoolLib.OrderPool storage orderPoolA = longTermOrders.orderPoolMap[0];
