@@ -355,6 +355,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             uint256 numberOfBlockIntervals
         ) = WeightedPoolUserData.placeLongTermOrder(userData);
 
+        // TODO: shouldn't this be amountIn = _upscale(amountIn, scalingFactors[sellTokenIndex]);
         _upscale(amountIn, scalingFactors[sellTokenIndex]);
 
         (ILongTermOrders.Order memory order, uint256 amountAIn, uint256 amountBIn) = _longTermOrders
@@ -529,8 +530,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _longTermOrders.setMaxPerBlockSaleRatePercent(newMaxPerBlockSaleRatePercent);
     }
 
-    function setMinltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRatio) external authenticate {
-        _longTermOrders.setMinltoOrderAmountToAmmBalanceRatio(amountToAmmBalanceRatio);
+    function setMinLtoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRatio) external authenticate {
+        _longTermOrders.setMinLtoOrderAmountToAmmBalanceRatio(amountToAmmBalanceRatio);
     }
 
     function getLongTermOrderContractAddress() external view returns (address) {
@@ -609,7 +610,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             (actionId == getActionId(TwammWeightedPool.withdrawLongTermOrderCollectedManagementFees.selector)) ||
             (actionId == getActionId(TwammWeightedPool.setLongTermSwapFeePercentage.selector)) ||
             (actionId == getActionId(TwammWeightedPool.setMaxPerBlockSaleRatePercent.selector)) ||
-            (actionId == getActionId(TwammWeightedPool.setMinltoOrderAmountToAmmBalanceRatio.selector)) ||
+            (actionId == getActionId(TwammWeightedPool.setMinLtoOrderAmountToAmmBalanceRatio.selector)) ||
             (actionId == getActionId(TwammWeightedPool.setVirtualOrderExecutionPaused.selector)) ||
             super._isOwnerOnlyAction(actionId);
     }

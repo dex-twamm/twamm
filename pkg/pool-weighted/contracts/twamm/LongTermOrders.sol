@@ -75,6 +75,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW
         );
 
+        // TODO: require numberOfBlockIntervals > 0.
+
         executeVirtualOrdersUntilCurrentBlock(balances);
         return _addLongTermSwap(owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
     }
@@ -211,25 +213,51 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         onlyOwner
         returns (uint256 ammTokenA, uint256 ammTokenB)
     {
+        if (longTermOrders.lastVirtualOrderBlock == uint64(block.number)) {
+            return (balances[0], balances[1]);
+        }
+
         ammTokenA = balances[0];
         ammTokenB = balances[1];
 
-        // Look for next order expiry block number in heap.
-        while (!longTermOrders.orderExpiryHeap.isEmpty()) {
-            uint256 nextOrderExpiryBlock = longTermOrders.orderExpiryHeap.getMin();
+        if (longTermOrders.orderExpiryHeap.isEmpty()) {
+            longTermOrders.lastVirtualOrderBlock = uint64(block.number);
+        } else {
+            do {
+                // Look for next order expiry block number in heap.
+                uint256 nextOrderExpiryBlock = longTermOrders.orderExpiryHeap.getMin();
 
-            // Directly jump to current block number if no order has expired until it.
-            if (nextOrderExpiryBlock >= block.number) {
-                (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
-                    ammTokenA,
-                    ammTokenB,
-                    block.number,
-                    nextOrderExpiryBlock == block.number
-                );
+                // Directly jump to current block number if no order has expired until it.
+                if (nextOrderExpiryBlock >= block.number) {
+                    (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
+                        ammTokenA,
+                        ammTokenB,
+                        block.number,
+                        nextOrderExpiryBlock == block.number
+                    );
 
-                // If next order expiry is current block, pop from heap.
-                // Looping, because there can be multiple orders expiring at same block.
-                if (nextOrderExpiryBlock == block.number) {
+                    // If next order expiry is current block, pop from heap.
+                    // Looping, because there can be multiple orders expiring at same block.
+                    if (nextOrderExpiryBlock == block.number) {
+                        // Assumption: nextOrderExpiryBlock is at top of the heap.
+                        // do while saves operations for one condition check.
+                        do {
+                            longTermOrders.orderExpiryHeap.removeMin();
+                        } while (
+                            !longTermOrders.orderExpiryHeap.isEmpty() &&
+                                nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
+                        );
+                    }
+                    break;
+                } else {
+                    // Directly jump to nextOrderExpiryBlock.
+                    (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
+                        ammTokenA,
+                        ammTokenB,
+                        nextOrderExpiryBlock,
+                        true
+                    );
+
                     // Assumption: nextOrderExpiryBlock is at top of the heap.
                     // do while saves operations for one condition check.
                     do {
@@ -239,29 +267,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
                             nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
                     );
                 }
-                break;
-            } else {
-                // Directly jump to nextOrderExpiryBlock.
-                (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
-                    ammTokenA,
-                    ammTokenB,
-                    nextOrderExpiryBlock,
-                    true
-                );
-
-                // Assumption: nextOrderExpiryBlock is at top of the heap.
-                // do while saves operations for one condition check.
-                do {
-                    longTermOrders.orderExpiryHeap.removeMin();
-                } while (
-                    !longTermOrders.orderExpiryHeap.isEmpty() &&
-                        nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
-                );
-            }
-        }
-
-        if (longTermOrders.orderExpiryHeap.isEmpty()) {
-            longTermOrders.lastVirtualOrderBlock = uint64(block.number);
+            } while (!longTermOrders.orderExpiryHeap.isEmpty());
         }
     }
 
@@ -434,7 +440,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         longTermOrders.maxPerBlockSaleRatePercent = uint64(newMaxPerBlockSaleRatePercent);
     }
 
-    function setMinltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRatio) external override onlyOwner {
+    function setMinLtoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRatio) external override onlyOwner {
         longTermOrders.minltoOrderAmountToAmmBalanceRatio = uint64(amountToAmmBalanceRatio);
     }
 
