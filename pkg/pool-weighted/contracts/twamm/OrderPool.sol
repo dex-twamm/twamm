@@ -4,13 +4,13 @@ pragma solidity ^0.7.0;
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 
-//@notice An Order Pool is an abstraction for a pool of long term orders that sells a token at a constant rate to the
-//embedded AMM.
+// @notice An Order Pool is an abstraction for a pool of long term orders that sells a token at a constant rate to the
+// embedded AMM.
 
 library OrderPoolLib {
     using FixedPoint for uint256;
 
-    //@notice you can think of this as a staking pool where all long term orders are staked.
+    // @notice you can think of this as a staking pool where all long term orders are staked.
     // The pool is paid when virtual long term orders are executed, and each order is paid proportionally
     // by the order's sale rate per block
     struct OrderPool {
@@ -66,8 +66,8 @@ library OrderPoolLib {
 
     //@notice when orders expire after a given block, we need to update the state of the pool
     function updateStateFromBlockExpiry(OrderPool storage self, uint256 blockNumber) internal {
-        uint256 ordersExpiring = self.salesRateEndingPerBlock[blockNumber];
-        self.currentSalesRate = self.currentSalesRate.sub(ordersExpiring);
+        uint256 expiringSalesRate = self.salesRateEndingPerBlock[blockNumber];
+        self.currentSalesRate = self.currentSalesRate.sub(expiringSalesRate);
         self.rewardFactorAtBlock[blockNumber] = self.rewardFactor;
 
         // Free up salesRateEndingPerBlock as it won't be needed once currentSalesRate is updated on reaching the block
@@ -112,7 +112,6 @@ library OrderPoolLib {
 
         uint256 rewardFactorAtSubmission = self.rewardFactorAtSubmission[orderId];
 
-        // TODO: shouldn't this be >= orderExpiryBlock?
         // If order has expired, we need to calculate the reward factor at expiry
         if (lastVirtualOrderBlock >= orderExpiryBlock) {
             uint256 rewardFactorAtExpiry = self.rewardFactorAtBlock[orderExpiryBlock];
