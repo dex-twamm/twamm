@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+//SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
@@ -16,7 +16,7 @@ abstract contract ILongTermOrders {
 
     function performLongTermSwap(
         address owner,
-        uint256[] memory balances,
+        uint256[] calldata balances,
         uint256 sellTokenIndex,
         uint256 buyTokenIndex,
         uint256 amountIn,
@@ -34,7 +34,7 @@ abstract contract ILongTermOrders {
     function cancelLongTermSwap(
         address sender,
         uint256 orderId,
-        uint256[] memory balances
+        uint256[] calldata balances
     )
         external
         virtual
@@ -48,7 +48,7 @@ abstract contract ILongTermOrders {
     function withdrawProceedsFromLongTermSwap(
         address sender,
         uint256 orderId,
-        uint256[] memory balances
+        uint256[] calldata balances
     )
         external
         virtual
@@ -59,10 +59,14 @@ abstract contract ILongTermOrders {
         );
 
     //@notice executes all virtual orders until current block is reached.
-    function executeVirtualOrdersUntilCurrentBlock(uint256[] memory balances)
+    function executeVirtualOrdersUntilCurrentBlock(uint256[] calldata balances)
         external
         virtual
         returns (uint256 ammTokenA, uint256 ammTokenB);
 
-    function getTokenBalanceFromLongTermOrder(uint8 tokenIndex) external view virtual returns (uint256 balance);
+    function getTokenBalanceFromLongTermOrder(uint256 tokenIndex) external view virtual returns (uint256 balance);
+
+    function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external virtual;
+
+    function setMinLtoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRatio) external virtual;
 }

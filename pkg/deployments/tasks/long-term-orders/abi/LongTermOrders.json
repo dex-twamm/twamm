@@ -163,6 +163,11 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -171,9 +176,9 @@
   {
     "inputs": [
       {
-        "internalType": "uint8",
+        "internalType": "uint256",
         "name": "tokenIndex",
-        "type": "uint8"
+        "type": "uint256"
       }
     ],
     "name": "getTokenBalanceFromLongTermOrder",
@@ -192,14 +197,29 @@
     "name": "longTermOrders",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint32",
         "name": "orderBlockInterval",
-        "type": "uint256"
+        "type": "uint32"
       },
       {
-        "internalType": "uint256",
+        "internalType": "uint32",
+        "name": "lastOrderId",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "maxPerBlockSaleRatePercent",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "minltoOrderAmountToAmmBalanceRatio",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
         "name": "lastVirtualOrderBlock",
-        "type": "uint256"
+        "type": "uint64"
       },
       {
         "internalType": "uint256",
@@ -209,21 +229,6 @@
       {
         "internalType": "uint256",
         "name": "balanceB",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "lastOrderId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxPerBlockSaleRate",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "minltoOrderAmountToAmmBalanceRatio",
         "type": "uint256"
       }
     ],
@@ -340,11 +345,11 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "newMaxPerBlockSaleRate",
+        "name": "newMaxPerBlockSaleRatePercent",
         "type": "uint256"
       }
     ],
-    "name": "setMaxPerBlockSaleRate",
+    "name": "setMaxPerBlockSaleRatePercent",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -353,7 +358,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "amountToAmmBalanceRation",
+        "name": "amountToAmmBalanceRatio",
         "type": "uint256"
       }
     ],
@@ -436,6 +441,11 @@
         "internalType": "struct ILongTermOrders.Order",
         "name": "order",
         "type": "tuple"
+      },
+      {
+        "internalType": "bool",
+        "name": "isPartialWithdrawal",
+        "type": "bool"
       }
     ],
     "stateMutability": "nonpayable",

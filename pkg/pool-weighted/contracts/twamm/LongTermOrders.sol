@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+//SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
@@ -23,31 +23,31 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     //@notice structure contains full state related to long term orders
     struct LongTermOrdersStruct {
         //@notice minimum block interval between order expiries
-        uint256 orderBlockInterval;
+        uint32 orderBlockInterval;
+        //@notice incrementing counter for order ids
+        uint32 lastOrderId;
+        uint64 maxPerBlockSaleRatePercent;
+        uint64 minltoOrderAmountToAmmBalanceRatio;
         //@notice last virtual orders were executed immediately before this block
-        uint256 lastVirtualOrderBlock;
+        uint64 lastVirtualOrderBlock;
         uint256 balanceA;
         uint256 balanceB;
         //@notice mapping from token address to pool that is selling that token
-        //we maintain two order pools, one for each token that is tradable in the AMM
+        // We maintain two order pools, one for each token that is tradable in the AMM
         mapping(uint256 => OrderPoolLib.OrderPool) orderPoolMap;
-        //@notice incrementing counter for order ids
-        uint256 lastOrderId;
         //@notice mapping from order ids to Orders
         mapping(uint256 => Order) orderMap;
-        uint256 maxPerBlockSaleRatePercent;
-        uint256 minltoOrderAmountToAmmBalanceRatio;
         uint256[] orderExpiryHeap;
     }
 
     LongTermOrdersStruct public longTermOrders;
 
     constructor(uint256 _orderBlockInterval) Ownable() {
-        longTermOrders.lastVirtualOrderBlock = block.number;
-        longTermOrders.orderBlockInterval = _orderBlockInterval;
+        longTermOrders.lastVirtualOrderBlock = uint64(block.number);
+        longTermOrders.orderBlockInterval = uint32(_orderBlockInterval);
 
-        longTermOrders.maxPerBlockSaleRatePercent = 1e16;
-        longTermOrders.minltoOrderAmountToAmmBalanceRatio = 1e14;
+        longTermOrders.maxPerBlockSaleRatePercent = uint64(1e16);
+        longTermOrders.minltoOrderAmountToAmmBalanceRatio = uint64(1e14);
 
         // Setup heap
         longTermOrders.orderExpiryHeap.push(0);
@@ -55,7 +55,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
     function performLongTermSwap(
         address owner,
-        uint256[] memory balances,
+        uint256[] calldata balances,
         uint256 sellTokenIndex,
         uint256 buyTokenIndex,
         uint256 amountIn,
@@ -71,9 +71,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         )
     {
         _require(
-            amountIn > balances[sellTokenIndex].mulUp(longTermOrders.minltoOrderAmountToAmmBalanceRatio),
+            amountIn > balances[sellTokenIndex].mulUp(uint256(longTermOrders.minltoOrderAmountToAmmBalanceRatio)),
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW
         );
+
+        // TODO: require numberOfBlockIntervals > 0.
 
         executeVirtualOrdersUntilCurrentBlock(balances);
         return _addLongTermSwap(owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
@@ -82,8 +84,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     //@notice adds long term swap to order pool
     function _addLongTermSwap(
         address owner,
-        uint256 from,
-        uint256 to,
+        uint256 sellTokenIndex,
+        uint256 buyTokenIndex,
         uint256 amount,
         uint256 numberOfBlockIntervals
     )
@@ -94,43 +96,41 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             uint256
         )
     {
-        uint256 orderId = longTermOrders.lastOrderId;
-        longTermOrders.lastOrderId++;
+        uint256 orderId = uint256(longTermOrders.lastOrderId);
+        ++longTermOrders.lastOrderId;
 
-        //determine the selling rate based on number of blocks to expiry and total amount
+        // Determine the selling rate based on number of blocks to expiry and total amount
         uint256 orderExpiry = _getOrderExpiry(numberOfBlockIntervals);
-        uint256 sellingRate = amount.divDown(Math.sub(orderExpiry, block.number).fromUint());
 
-        //add order to correct pool
-        longTermOrders.orderPoolMap[from].depositOrder(orderId, sellingRate, orderExpiry);
+        // Selling rate = amount / number of blocks
+        // orderExpiry guaranteed to be > block.number.
+        uint256 sellingRate = amount.divDown((orderExpiry - block.number).fromUint());
+
+        // Add order to the correct pool.
+        longTermOrders.orderPoolMap[sellTokenIndex].depositOrder(orderId, sellingRate, orderExpiry);
         longTermOrders.orderExpiryHeap.insert(orderExpiry);
 
-        //add to order map
-        Order memory order = Order(orderId, orderExpiry, sellingRate, owner, from, to);
+        // Add to order map
+        Order memory order = Order(orderId, orderExpiry, sellingRate, owner, sellTokenIndex, buyTokenIndex);
         longTermOrders.orderMap[orderId] = order;
 
-        // transfer sale amount to contract
-        _addToLongTermOrdersBalance(from, amount);
+        // Update accounting for the sale amount.
+        _addToLongTermOrdersBalance(sellTokenIndex, amount);
 
-        _require(
-            longTermOrders.orderPoolMap[from].currentSalesRate <=
-                longTermOrders.maxPerBlockSaleRatePercent.mulUp(
-                    from == 0 ? longTermOrders.balanceA : longTermOrders.balanceB
-                ),
-            Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
-        );
+        _checkIfNewSalesRateTooHigh(sellTokenIndex);
 
-        uint256 amountAIn = from == 0 ? amount : 0;
-        uint256 amountBIn = from == 1 ? amount : 0;
-
-        return (order, amountAIn, amountBIn);
+        if (sellTokenIndex == 0) {
+            return (order, amount, 0);
+        } else {
+            return (order, 0, amount);
+        }
     }
 
     //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
     function cancelLongTermSwap(
         address sender,
         uint256 orderId,
-        uint256[] memory balances
+        uint256[] calldata balances
     )
         external
         override
@@ -147,22 +147,29 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
-        (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(orderId, longTermOrders.lastVirtualOrderBlock);
+        uint256 orderExpirationBlock = longTermOrders.orderMap[orderId].expirationBlock;
 
-        //update LongTermOrders balances
+        (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(
+            orderId,
+            longTermOrders.lastVirtualOrderBlock,
+            longTermOrders.orderMap[orderId].saleRate,
+            orderExpirationBlock
+        );
+
+        // Remove amounts from LongTermOrders balances.
         _removeFromLongTermOrdersBalance(order.buyTokenIndex, purchasedAmount);
         _removeFromLongTermOrdersBalance(order.sellTokenIndex, unsoldAmount);
 
-        // clean up order data
+        // Clean up order data
         delete longTermOrders.orderMap[orderId];
-        orderPool.cleanUpOrder(orderId);
+        orderPool.cleanUpOrder(orderId, orderExpirationBlock);
     }
 
-    //@notice withdraw proceeds from a long term swap (can be expired or ongoing)
+    // @notice withdraw proceeds from a long term swap (can be expired or ongoing)
     function withdrawProceedsFromLongTermSwap(
         address sender,
         uint256 orderId,
-        uint256[] memory balances
+        uint256[] calldata balances
     )
         external
         override
@@ -179,72 +186,101 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
+        uint256 orderExpirationBlock = longTermOrders.orderMap[orderId].expirationBlock;
 
-        (proceeds, isPartialWithdrawal) = orderPool.withdrawProceeds(orderId, longTermOrders.lastVirtualOrderBlock);
+        (proceeds, isPartialWithdrawal) = orderPool.withdrawProceeds(
+            orderId,
+            longTermOrders.lastVirtualOrderBlock,
+            longTermOrders.orderMap[orderId].saleRate,
+            orderExpirationBlock
+        );
 
         _require(proceeds > 0, Errors.NO_PROCEEDS_TO_WITHDRAW);
-        //update long term order balances
+        // Update long term order balances
         _removeFromLongTermOrdersBalance(order.buyTokenIndex, proceeds);
 
-        // clean up order data
+        // Clean up order data
         if (!isPartialWithdrawal) {
             delete longTermOrders.orderMap[orderId];
-            orderPool.cleanUpOrder(orderId);
+            orderPool.cleanUpOrder(orderId, orderExpirationBlock);
         }
     }
 
     //@notice executes all virtual orders until current block is reached.
-    function executeVirtualOrdersUntilCurrentBlock(uint256[] memory balances)
+    function executeVirtualOrdersUntilCurrentBlock(uint256[] calldata balances)
         public
         override
         onlyOwner
         returns (uint256 ammTokenA, uint256 ammTokenB)
     {
+        if (longTermOrders.lastVirtualOrderBlock == uint64(block.number)) {
+            return (balances[0], balances[1]);
+        }
+
         ammTokenA = balances[0];
         ammTokenB = balances[1];
 
-        uint256 nextOrderExpiryBlock;
-
-        while (!longTermOrders.orderExpiryHeap.isEmpty()) {
-            nextOrderExpiryBlock = longTermOrders.orderExpiryHeap.getMin();
-
-            if (nextOrderExpiryBlock >= block.number) {
-                (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
-                    ammTokenA,
-                    ammTokenB,
-                    block.number,
-                    nextOrderExpiryBlock == block.number
-                );
-
-                if (nextOrderExpiryBlock == block.number) {
-                    while (
-                        !longTermOrders.orderExpiryHeap.isEmpty() &&
-                        nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
-                    ) {
-                        longTermOrders.orderExpiryHeap.removeMin();
-                    }
-                }
-                break;
-            } else {
-                (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
-                    ammTokenA,
-                    ammTokenB,
-                    nextOrderExpiryBlock,
-                    true
-                );
-
-                while (
-                    !longTermOrders.orderExpiryHeap.isEmpty() &&
-                    nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
-                ) {
-                    longTermOrders.orderExpiryHeap.removeMin();
-                }
-            }
-        }
-
         if (longTermOrders.orderExpiryHeap.isEmpty()) {
-            longTermOrders.lastVirtualOrderBlock = block.number;
+            longTermOrders.lastVirtualOrderBlock = uint64(block.number);
+        } else {
+            do {
+                // Look for next order expiry block number in heap.
+                uint256 nextOrderExpiryBlock = longTermOrders.orderExpiryHeap.getMin();
+
+                // Directly jump to current block number if no order has expired until it.
+                if (nextOrderExpiryBlock >= block.number) {
+                    (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
+                        ammTokenA,
+                        ammTokenB,
+                        block.number,
+                        nextOrderExpiryBlock == block.number
+                    );
+
+                    // If next order expiry is current block, pop from heap.
+                    // Looping, because there can be multiple orders expiring at same block.
+                    if (nextOrderExpiryBlock == block.number) {
+                        // Assumption: nextOrderExpiryBlock is at top of the heap.
+                        // do while saves operations for one condition check.
+                        do {
+                            longTermOrders.orderExpiryHeap.removeMin();
+                        } while (
+                            !longTermOrders.orderExpiryHeap.isEmpty() &&
+                                nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
+                        );
+                    }
+                    break;
+                } else {
+                    // Directly jump to nextOrderExpiryBlock.
+                    (ammTokenA, ammTokenB) = _executeVirtualTradesAndOrderExpiries(
+                        ammTokenA,
+                        ammTokenB,
+                        nextOrderExpiryBlock,
+                        true
+                    );
+
+                    // Assumption: nextOrderExpiryBlock is at top of the heap.
+                    // do while saves operations for one condition check.
+                    do {
+                        longTermOrders.orderExpiryHeap.removeMin();
+                    } while (
+                        !longTermOrders.orderExpiryHeap.isEmpty() &&
+                            nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
+                    );
+                }
+            } while (!longTermOrders.orderExpiryHeap.isEmpty());
         }
+    }
+
+    function _checkIfNewSalesRateTooHigh(uint256 sellTokenIndex) internal view {
+        uint256 maxPerBlockSaleRatePercent = uint256(longTermOrders.maxPerBlockSaleRatePercent);
+
+        _require(
+            longTermOrders.orderPoolMap[sellTokenIndex].currentSalesRate <=
+                maxPerBlockSaleRatePercent.mulUp(
+                    sellTokenIndex == 0 ? longTermOrders.balanceA : longTermOrders.balanceB
+                ),
+            Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
+        );
     }
 
     //@notice executes all virtual orders between current lastVirtualOrderBlock and blockNumber also handles
@@ -258,12 +294,12 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         OrderPoolLib.OrderPool storage orderPoolA = longTermOrders.orderPoolMap[0];
         OrderPoolLib.OrderPool storage orderPoolB = longTermOrders.orderPoolMap[1];
 
-        //amount sold from virtual trades
+        // Amounts to be sold from virtual trades.
         uint256 blockNumberIncrement = Math.sub(blockNumber, longTermOrders.lastVirtualOrderBlock).fromUint();
         uint256 tokenASellAmount = orderPoolA.currentSalesRate.mulDown(blockNumberIncrement);
         uint256 tokenBSellAmount = orderPoolB.currentSalesRate.mulDown(blockNumberIncrement);
 
-        //updated balances from sales
+        // Get updated LTO and AMM balances.
         (uint256 tokenAOut, uint256 tokenBOut, uint256 ammEndTokenA, uint256 ammEndTokenB) = _computeVirtualBalances(
             tokenAStart,
             tokenBStart,
@@ -271,22 +307,25 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             tokenBSellAmount
         );
 
-        //update balances reserves
-        _addToLongTermOrdersBalance(0, tokenAOut.toSignedFixedPoint().sub(tokenASellAmount.toSignedFixedPoint()));
-        _addToLongTermOrdersBalance(1, tokenBOut.toSignedFixedPoint().sub(tokenBSellAmount.toSignedFixedPoint()));
+        // Update balances reserves for both tokens.
+        _addToLongTermOrdersBalance(0, tokenAOut);
+        _removeFromLongTermOrdersBalance(0, tokenASellAmount);
 
-        //distribute proceeds to pools
+        _addToLongTermOrdersBalance(1, tokenBOut);
+        _removeFromLongTermOrdersBalance(1, tokenBSellAmount);
+
+        // Distribute proceeds to order pools.
         orderPoolA.distributePayment(tokenBOut);
         orderPoolB.distributePayment(tokenAOut);
 
-        //handle orders expiring at end of interval
+        // Handle orders expiring at the end of interval.
         if (isExpiryBlock) {
             orderPoolA.updateStateFromBlockExpiry(blockNumber);
             orderPoolB.updateStateFromBlockExpiry(blockNumber);
         }
 
         //update last virtual trade block
-        longTermOrders.lastVirtualOrderBlock = blockNumber;
+        longTermOrders.lastVirtualOrderBlock = uint64(blockNumber);
 
         return (ammEndTokenA, ammEndTokenB);
     }
@@ -367,14 +406,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         c = cNumerator.divDown(cDenominator.toSignedFixedPoint());
     }
 
-    function _addToLongTermOrdersBalance(uint256 tokenIndex, int256 balance) internal {
-        if (tokenIndex == 0) {
-            longTermOrders.balanceA = Math.add(longTermOrders.balanceA.toSignedFixedPoint(), balance).toFixedPoint();
-        } else if (tokenIndex == 1) {
-            longTermOrders.balanceB = Math.add(longTermOrders.balanceB.toSignedFixedPoint(), balance).toFixedPoint();
-        }
-    }
-
     function _addToLongTermOrdersBalance(uint256 tokenIndex, uint256 balance) internal {
         if (tokenIndex == 0) {
             longTermOrders.balanceA = Math.add(longTermOrders.balanceA, balance);
@@ -386,31 +417,31 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     function _removeFromLongTermOrdersBalance(uint256 tokenIndex, uint256 balance) internal {
         if (tokenIndex == 0) {
             longTermOrders.balanceA = longTermOrders.balanceA.sub(balance);
-        } else if (tokenIndex == 1) {
+        } else {
             longTermOrders.balanceB = longTermOrders.balanceB.sub(balance);
         }
     }
 
-    function getTokenBalanceFromLongTermOrder(uint8 tokenIndex) external view override returns (uint256 balance) {
+    function getTokenBalanceFromLongTermOrder(uint256 tokenIndex) external view override returns (uint256 balance) {
         return tokenIndex == 0 ? longTermOrders.balanceA : longTermOrders.balanceB;
     }
 
     function _getOrderExpiry(uint256 numberOfBlockIntervals) internal view returns (uint256) {
-        uint256 mod = Math.mod(block.number, longTermOrders.orderBlockInterval);
+        uint256 orderBlockInterval = longTermOrders.orderBlockInterval;
+        uint256 mod = Math.mod(block.number, orderBlockInterval);
         if (mod > 0) {
             numberOfBlockIntervals = Math.add(numberOfBlockIntervals, 1);
         }
 
-        return
-            Math.add(Math.mul(longTermOrders.orderBlockInterval, numberOfBlockIntervals), Math.sub(block.number, mod));
+        return Math.add(Math.mul(orderBlockInterval, numberOfBlockIntervals), Math.sub(block.number, mod));
     }
 
-    function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external onlyOwner {
-        longTermOrders.maxPerBlockSaleRatePercent = newMaxPerBlockSaleRatePercent;
+    function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external override onlyOwner {
+        longTermOrders.maxPerBlockSaleRatePercent = uint64(newMaxPerBlockSaleRatePercent);
     }
 
-    function setMinltoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRation) external onlyOwner {
-        longTermOrders.minltoOrderAmountToAmmBalanceRatio = amountToAmmBalanceRation;
+    function setMinLtoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRatio) external override onlyOwner {
+        longTermOrders.minltoOrderAmountToAmmBalanceRatio = uint64(amountToAmmBalanceRatio);
     }
 
     function getLongTermOrder(uint256 orderId)
@@ -427,7 +458,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         )
     {
         Order memory order = longTermOrders.orderMap[orderId];
-        OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.buyTokenIndex];
+        OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
 
         return (
             order.id,

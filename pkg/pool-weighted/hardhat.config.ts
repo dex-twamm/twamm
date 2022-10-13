@@ -7,7 +7,7 @@ import { name } from './package.json';
 
 require('dotenv').config();
 
-const { API_URL, ETHERSCAN_KEY, PRIVATE_KEY } = process.env;
+const { GOERLI_API_URL, RINKEBY_API_URL, ETHERSCAN_KEY, PRIVATE_KEY } = process.env;
 
 import { task } from 'hardhat/config';
 import { TASK_COMPILE } from 'hardhat/builtin-tasks/task-names';
@@ -21,7 +21,13 @@ export default {
       allowUnlimitedContractSize: true,
     },
     // rinkeby: {
-    //   url: API_URL,
+    //   url: RINKEBY_API_URL,
+    //   accounts: [`0x${PRIVATE_KEY}`],
+    //   gasPrice: 20e9,
+    //   gas: 25e6,
+    // },
+    // goerli: {
+    //   url: GOERLI_API_URL,
     //   accounts: [`0x${PRIVATE_KEY}`],
     //   gasPrice: 20e9,
     //   gas: 25e6,

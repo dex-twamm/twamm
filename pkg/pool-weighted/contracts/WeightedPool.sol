@@ -131,7 +131,7 @@ contract WeightedPool is BaseWeightedPool {
         uint256 normalizedSum = 0;
         uint256 maxWeightTokenIndex = 0;
         uint256 maxNormalizedWeight = 0;
-        for (uint8 i = 0; i < numTokens; i++) {
+        for (uint8 i = 0; i < numTokens; ++i) {
             uint256 normalizedWeight = normalizedWeights[i];
             _require(normalizedWeight >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
 

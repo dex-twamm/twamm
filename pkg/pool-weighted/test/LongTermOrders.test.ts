@@ -81,15 +81,12 @@ describe('LongTermOrders', function () {
   }
 
   function verifyTokenBalances(tokenBalances: [BigNumber, BigNumber], balanceA: BigNumber, balanceB: BigNumber) {
-    // console.log(
-    //   'Token Balances',
-    //   decimal(tokenBalances[0]),
-    //   decimal(tokenBalances[1]),
-    //   decimal(balanceA),
-    //   decimal(balanceB)
-    // );
-    expect(tokenBalances[0]).to.be.equal(balanceA);
-    expect(tokenBalances[1]).to.be.equal(balanceB);
+    // Expect both balances to be within 1e-15 of expected values.
+    expect(tokenBalances[0]).to.be.lt(balanceA.add(1000));
+    expect(tokenBalances[0]).to.be.gt(balanceA.sub(1000));
+
+    expect(tokenBalances[1]).to.be.lt(balanceB.add(1000));
+    expect(tokenBalances[1]).to.be.gt(balanceB.sub(1000));
   }
 
   function getOrderExpiryBlock(numberOfBlockIntervals: number, blockNumber: number): number {
