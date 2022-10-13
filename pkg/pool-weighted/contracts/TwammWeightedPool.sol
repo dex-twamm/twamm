@@ -519,7 +519,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     function setLongTermSwapFeePercentage(
         uint256 newLongTermSwapFeePercentage,
         uint256 newLongTermSwapFeeProtocolCutPercentage
-    ) external whenNotPaused authenticate nonReentrant {
+    ) external authenticate {
         longTermSwapFeePercentage = newLongTermSwapFeePercentage;
         longTermSwapFeeProtocolCutPercentage = newLongTermSwapFeeProtocolCutPercentage;
 

@@ -409,10 +409,10 @@ export default class WeightedPool {
   }
 
   async placeLongTermOrder(params: JoinPlaceLongTermOrderTwammPool): Promise<JoinResult> {
-    let result = await this.join(this._buildJoinPlaceLongTermOrderParams(params));
+    let result = this.join(this._buildJoinPlaceLongTermOrderParams(params));
 
     // Uncomment for gas measurement.
-    console.log('placeOrder: ', result.receipt.cumulativeGasUsed.toString());
+    // console.log('placeOrder: ', (await result).receipt.cumulativeGasUsed.toString());
     return result;
   }
 

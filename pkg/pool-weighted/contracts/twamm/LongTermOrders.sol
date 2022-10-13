@@ -76,14 +76,16 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         );
 
         // TODO: require numberOfBlockIntervals > 0.
+        _require(numberOfBlockIntervals > 0, Errors.LONG_TERM_ORDER_NUM_INTERVALS_TOO_LOW);
 
         executeVirtualOrdersUntilCurrentBlock(balances);
-        return _addLongTermSwap(owner, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
+        return _addLongTermSwap(owner, balances, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
     }
 
     //@notice adds long term swap to order pool
     function _addLongTermSwap(
         address owner,
+        uint256[] calldata balances,
         uint256 sellTokenIndex,
         uint256 buyTokenIndex,
         uint256 amount,
@@ -117,7 +119,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         // Update accounting for the sale amount.
         _addToLongTermOrdersBalance(sellTokenIndex, amount);
 
-        _checkIfNewSalesRateTooHigh(sellTokenIndex);
+        _checkIfNewSalesRateTooHigh(sellTokenIndex, balances);
 
         if (sellTokenIndex == 0) {
             return (order, amount, 0);
@@ -271,14 +273,12 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         }
     }
 
-    function _checkIfNewSalesRateTooHigh(uint256 sellTokenIndex) internal view {
+    function _checkIfNewSalesRateTooHigh(uint256 sellTokenIndex, uint256[] calldata balances) internal view {
         uint256 maxPerBlockSaleRatePercent = uint256(longTermOrders.maxPerBlockSaleRatePercent);
 
         _require(
             longTermOrders.orderPoolMap[sellTokenIndex].currentSalesRate <=
-                maxPerBlockSaleRatePercent.mulUp(
-                    sellTokenIndex == 0 ? longTermOrders.balanceA : longTermOrders.balanceB
-                ),
+                maxPerBlockSaleRatePercent.mulDown(balances[sellTokenIndex]),
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LARGE
         );
     }

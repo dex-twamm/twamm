@@ -57,6 +57,7 @@
     "ethers": "^5.4.1",
     "hardhat": "^2.8.3",
     "hardhat-contract-sizer": "^2.5.1",
+    "hardhat-test-utils": "^0.1.0",
     "lodash.frompairs": "^4.0.1",
     "lodash.pick": "^4.4.0",
     "lodash.range": "^3.2.0",
