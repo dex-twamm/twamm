@@ -118,7 +118,7 @@ library OrderPoolLib {
             totalReward = rewardFactorAtExpiry.sub(rewardFactorAtSubmission).mulDown(orderSaleRate);
             isPartialWithdrawal = false;
             self.ordersExpiringAtBlock[orderExpiryBlock] = Math.sub(self.ordersExpiringAtBlock[orderExpiryBlock], 1);
-        }else {
+        } else {
             // If order has not yet expired (i.e. partial withdrawal), we just adjust the start.
             totalReward = self.rewardFactor.sub(rewardFactorAtSubmission).mulDown(orderSaleRate);
             self.rewardFactorAtSubmission[orderId] = self.rewardFactor;
