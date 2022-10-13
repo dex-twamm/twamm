@@ -4,7 +4,9 @@ import 'hardhat-local-networks-config-plugin';
 
 import '@balancer-labs/v2-common/setupTests';
 
-require('dotenv').config();
+import * as dotenv from 'dotenv';
+dotenv.config();
+// require('dotenv').config();
 
 import { task, types } from 'hardhat/config';
 import { TASK_TEST } from 'hardhat/builtin-tasks/task-names';
@@ -59,11 +61,11 @@ export default {
   networks: {
     rinkeby: {
       url: `https://rinkeby.infura.io/v3/${process.env.INFURA_KEY}`,
-        accounts: [`0x${process.env.PRIVATE_KEY}`],
-      },
+      accounts: [`0x${process.env.PRIVATE_KEY}`],
+    },
     goerli: {
       url: `https://goerli.infura.io/v3/${process.env.INFURA_KEY}`,
-        accounts: [`0x${process.env.PRIVATE_KEY}`],
-      },
+      accounts: [`0x${process.env.PRIVATE_KEY}`],
     },
+  },
 };

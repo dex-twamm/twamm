@@ -119,13 +119,17 @@ chai.use(function (chai, utils) {
           // If the catch didn't throw because another reason was expected, re-throw the error
           if (!error.message.includes('but other exception was thrown')) throw error;
 
-          if (error.message.includes('revert without reason string')) {
-            expect(error.message).to.match(/other exception was thrown:.+without.+reason string/);
+          if (error.message.includes('revert without reason string') && error.message.includes("Transaction reverted and Hardhat couldn't infer the reason")) {
             return;
           }
 
           // Decode the actual revert reason and look for it in the balancer errors list
-          const regExp = /(Expected transaction to be reverted with )(.*)(, but other exception was thrown: .*Error: VM Exception while processing transaction: revert(?:ed)? with reason (?:string )?(?:["']))(.*)(["'])/;
+          let regExp = /(Expected transaction to be reverted with )(.*)(, but other exception was thrown: .*Error: VM Exception while processing transaction: revert(?:ed)? with reason (?:string )?(?:["']))(.*)(["'])/;
+
+          if (error.message.includes('CALL_EXCEPTION')) {
+            regExp = /(Expected transaction to be reverted with )(.*)(, but other exception was thrown: .*Error: .*VM Exception while processing transaction: revert(?:ed)? with reason (?:string )?(?:["']))(\S*)(["'])/;
+          }
+
           const matches = error.message.match(regExp);
           if (!matches || matches.length !== 6) throw error;
 
