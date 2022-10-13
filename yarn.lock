@@ -551,6 +551,7 @@ __metadata:
     ethers: ^5.4.1
     hardhat: ^2.8.3
     hardhat-contract-sizer: ^2.5.1
+    hardhat-test-utils: 0.1.0
     lodash.frompairs: ^4.0.1
     lodash.pick: ^4.4.0
     lodash.range: ^3.2.0
@@ -7432,6 +7433,17 @@ fsevents@~2.1.1:
   peerDependencies:
     hardhat: ^2.0.8
   checksum: d8ec47a2f2bde5535fa4451c7a9079b200362220893d8aa83b1e115f66df983dc844e10d03deeb1d57a45f0a34b20ebe4ba0361b2d82d190c5352eb8e346569e
+  languageName: node
+  linkType: hard
+
+"hardhat-test-utils@npm:0.1.0":
+  version: 0.1.0
+  resolution: "hardhat-test-utils@npm:0.1.0"
+  peerDependencies:
+    "@nomiclabs/hardhat-ethers": ^2.0.5
+    ethers: ^5.0.0
+    hardhat: ^2.0.0
+  checksum: 2805c84c01415af62b39c4a6fa4923c78bc9f0c59b32940ea2629b762414affaf7ae41e3a0f75f1f3b8da6da2e911050cc37223b1ee903e7a5fe54c3fa88a735
   languageName: node
   linkType: hard
 
