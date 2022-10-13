@@ -1,4 +1,4 @@
-import { ethers, testUtils} from 'hardhat';
+import { ethers, testUtils } from 'hardhat';
 import { expect } from 'chai';
 import { bn, fp, fromFp, toFp } from '@balancer-labs/v2-helpers/src/numbers';
 import { BigNumber } from 'ethers';
@@ -29,11 +29,16 @@ async function moveForwardNBlocks(n: number) {
 }
 
 async function swap(
-  pool: WeightedPool, tokenInIndex: number, tokenOutIndex: number, amountIn: BigNumber,
-  sender: SignerWithAddress, recipient: SignerWithAddress) {
+  pool: WeightedPool,
+  tokenInIndex: number,
+  tokenOutIndex: number,
+  amountIn: BigNumber,
+  sender: SignerWithAddress,
+  recipient: SignerWithAddress
+) {
   const kind = 0; // GivenIn
 
-  let tokens = (await pool.getTokens()).tokens;
+  const tokens = (await pool.getTokens()).tokens;
 
   const swapTx = await pool.vault.instance.connect(sender).swap(
     {
@@ -55,7 +60,7 @@ async function swap(
   );
 
   const receipt = await swapTx.wait();
-  
+
   // Uncomment for gas measurement.
   // console.log('swap: ', receipt.cumulativeGasUsed.toString());
 
@@ -63,26 +68,31 @@ async function swap(
 }
 
 async function estimateSpotPrice(pool: WeightedPool, longTermOrdersContract: Contract) {
-  let fpBalances = await pool.getBalances();
-  let adjustedBalances = [];
+  const fpBalances = await pool.getBalances();
+  const adjustedBalances = [];
 
-  let longTermOrdersStruct = await longTermOrdersContract.longTermOrders();
+  const longTermOrdersStruct = await longTermOrdersContract.longTermOrders();
   // console.log(longTermOrdersStruct);
   adjustedBalances[0] = fpBalances[0].sub(longTermOrdersStruct.balanceA);
   adjustedBalances[1] = fpBalances[1].sub(longTermOrdersStruct.balanceB);
 
-  let fpWeights = pool.weights;
+  const fpWeights = pool.weights;
   const numerator = fromFp(adjustedBalances[0]).div(fromFp(fpWeights[0]));
   const denominator = fromFp(adjustedBalances[1]).div(fromFp(fpWeights[1]));
   return bn(toFp(numerator.div(denominator)).toFixed(0));
 }
 
-async function doShortSwapsUntil(blockNumber: number, pool: WeightedPool, owner:SignerWithAddress, other: SignerWithAddress) {
+async function doShortSwapsUntil(
+  blockNumber: number,
+  pool: WeightedPool,
+  owner: SignerWithAddress,
+  other: SignerWithAddress
+) {
   let i = 0;
   // Move forward beyond expiry block with one swap after every 20 blocks.
-  while((await lastBlockNumber()) < blockNumber) {
+  while ((await lastBlockNumber()) < blockNumber) {
     await moveForwardNBlocks(4);
-    if (i%2) {
+    if (i % 2) {
       await swap(pool, 0, 1, fp(0.01), owner, other);
     } else {
       await swap(pool, 1, 0, fp(0.04), owner, other);
@@ -98,7 +108,7 @@ function expectBalanceToBeApprox(actualBalance: BigNumber, expectedBalance: BigN
 }
 
 function delay(ms: number) {
-  return new Promise( resolve => setTimeout(resolve, ms) );
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 describe('TwammWeightedPool', function () {
@@ -138,7 +148,7 @@ describe('TwammWeightedPool', function () {
           poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
           swapEnabledOnStart: true,
           longTermOrdersContract: longTermOrdersContract.address,
-          fromFactory: true
+          fromFactory: true,
         };
         pool = await WeightedPool.create(params);
         await longTermOrdersContract.transferOwnership(pool.address);
@@ -172,14 +182,15 @@ describe('TwammWeightedPool', function () {
             });
 
             const startingBlock = await lastBlockNumber();
-            const expectedExpiryBlock = (startingBlock % 10) ? (startingBlock + 100) + (10 - (startingBlock % 10)) : (startingBlock + 100);
+            const expectedExpiryBlock =
+              startingBlock % 10 ? startingBlock + 100 + (10 - (startingBlock % 10)) : startingBlock + 100;
 
             expectEvent.inIndirectReceipt(placeResult.receipt, pool.instance.interface, 'LongTermOrderPlaced', {
               orderId: 0,
               sellTokenIndex: 0,
               buyTokenIndex: 1,
               owner: other.address,
-              expirationBlock: expectedExpiryBlock
+              expirationBlock: expectedExpiryBlock,
             });
 
             await doShortSwapsUntil(expectedExpiryBlock, pool, owner, other);
@@ -200,23 +211,23 @@ describe('TwammWeightedPool', function () {
             });
 
             const startingBlock = await lastBlockNumber();
-            const expectedExpiryBlock = (startingBlock % 10) ? (startingBlock + 100) + (10 - (startingBlock % 10)) : (startingBlock + 100);
+            const expectedExpiryBlock =
+              startingBlock % 10 ? startingBlock + 100 + (10 - (startingBlock % 10)) : startingBlock + 100;
 
             expectEvent.inIndirectReceipt(longTermOrder.receipt, pool.instance.interface, 'LongTermOrderPlaced', {
               orderId: 0,
               sellTokenIndex: 0,
               buyTokenIndex: 1,
               owner: other.address,
-              expirationBlock: expectedExpiryBlock
+              expirationBlock: expectedExpiryBlock,
             });
 
-            const midpointBlock = startingBlock + ((expectedExpiryBlock - startingBlock)/2);
-
+            const midpointBlock = startingBlock + (expectedExpiryBlock - startingBlock) / 2;
 
             // Move to mid point block - 1.
             await doShortSwapsUntil(midpointBlock - 4, pool, owner, other);
-            await moveForwardNBlocks(midpointBlock - (await lastBlockNumber())-1);
-            
+            await moveForwardNBlocks(midpointBlock - (await lastBlockNumber()) - 1);
+
             const cancelResult = await pool.cancelLongTermOrder({ orderId: 0, from: other });
             expectEvent.inIndirectReceipt(cancelResult.receipt, pool.instance.interface, 'LongTermOrderCancelled', {
               orderId: 0,
@@ -250,7 +261,8 @@ describe('TwammWeightedPool', function () {
             });
 
             const startingBlock2 = await lastBlockNumber();
-            const expectedExpiryBlock2 = (startingBlock2 % 10) ? (startingBlock2 + 100) + (10 - (startingBlock2 % 10)) : (startingBlock2 + 100);
+            const expectedExpiryBlock2 =
+              startingBlock2 % 10 ? startingBlock2 + 100 + (10 - (startingBlock2 % 10)) : startingBlock2 + 100;
 
             await doShortSwapsUntil(expectedExpiryBlock2, pool, owner, other);
 
@@ -290,7 +302,8 @@ describe('TwammWeightedPool', function () {
             });
 
             const startingBlock = await lastBlockNumber();
-            const expectedExpiryBlock = (startingBlock % 10) ? (startingBlock + 100) + (10 - (startingBlock % 10)) : (startingBlock + 100);
+            const expectedExpiryBlock =
+              startingBlock % 10 ? startingBlock + 100 + (10 - (startingBlock % 10)) : startingBlock + 100;
 
             await doShortSwapsUntil(expectedExpiryBlock, pool, owner, other);
 
@@ -322,7 +335,7 @@ describe('TwammWeightedPool', function () {
     let owner: SignerWithAddress, alice: SignerWithAddress, betty: SignerWithAddress, carl: SignerWithAddress;
 
     before('setup signers', async () => {
-      await ethers.provider.send("hardhat_reset", []);
+      await ethers.provider.send('hardhat_reset', []);
       [owner, alice, betty, carl] = await ethers.getSigners();
     });
 
@@ -356,7 +369,7 @@ describe('TwammWeightedPool', function () {
           poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
           swapEnabledOnStart: true,
           longTermOrdersContract: longTermOrdersContract.address,
-          fromFactory: true
+          fromFactory: true,
         };
         pool = await WeightedPool.create(params);
         await longTermOrdersContract.transferOwnership(pool.address);
@@ -381,7 +394,7 @@ describe('TwammWeightedPool', function () {
 
             // BLOCK 100 //////////////////////////////////////////////////////////////////////
             // Alice puts in an order to buy 1,000 DAI worth of ETH over the next 100 blocks
-            let tx1 = pool.placeLongTermOrder({
+            const tx1 = pool.placeLongTermOrder({
               from: alice,
               amountIn: fp(1000.0),
               tokenInIndex: 0,
@@ -401,13 +414,13 @@ describe('TwammWeightedPool', function () {
 
             await delay(1 * 200);
             await block.advanceTo(124);
-            
+
             expectEvent.inIndirectReceipt((await tx1).receipt, pool.instance.interface, 'LongTermOrderPlaced', {
               orderId: 0,
               sellTokenIndex: 0,
               buyTokenIndex: 1,
               owner: alice.address,
-              expirationBlock: 200
+              expirationBlock: 200,
             });
 
             // BLOCK 125 //////////////////////////////////////////////////////////////////////
@@ -425,12 +438,10 @@ describe('TwammWeightedPool', function () {
             await block.advanceTo(125);
 
             // Spot price = fp(2000)
-            expectBalanceToBeApprox(
-              await estimateSpotPrice(pool, longTermOrdersContract),
-              fp(2000));
+            expectBalanceToBeApprox(await estimateSpotPrice(pool, longTermOrdersContract), fp(2000));
 
             let lto0 = await longTermOrdersContract.getLongTermOrder(0);
-            let lto1 = await longTermOrdersContract.getLongTermOrder(1);
+            const lto1 = await longTermOrdersContract.getLongTermOrder(1);
 
             expectBalanceToBeApprox(lto0[6], fp(0.124));
             expectBalanceToBeApprox(lto1[6], fp(0.497));
@@ -438,17 +449,15 @@ describe('TwammWeightedPool', function () {
             await block.advanceTo(149);
 
             // BLOCK 150 //////////////////////////////////////////////////////////////////////
-               swap(pool, 1, 0, fp(0.124846575527421670), owner, owner);
-               let withdrawTx1 = pool.withdrawLongTermOrder({ orderId: 1, from: betty });
+            swap(pool, 1, 0, fp(0.12484657552742167), owner, owner);
+            const withdrawTx1 = pool.withdrawLongTermOrder({ orderId: 1, from: betty });
             ///////////////////////////////////////////////////////////////////////////////////
 
-            await delay(1 * 200);         
+            await delay(1 * 200);
             await block.advanceTo(150);
 
             // Spot price = fp(2000)
-            expectBalanceToBeApprox(
-              await estimateSpotPrice(pool, longTermOrdersContract),
-              fp(2000));
+            expectBalanceToBeApprox(await estimateSpotPrice(pool, longTermOrdersContract), fp(2000));
 
             lto0 = await longTermOrdersContract.getLongTermOrder(0);
             let lto2 = await longTermOrdersContract.getLongTermOrder(2);
@@ -462,16 +471,14 @@ describe('TwammWeightedPool', function () {
 
             // BLOCK 200 //////////////////////////////////////////////////////////////////////
             swap(pool, 0, 1, fp(1492.59995191032122), owner, owner);
-            let withdrawTx0 = pool.withdrawLongTermOrder({ orderId: 0, from: alice });
+            const withdrawTx0 = pool.withdrawLongTermOrder({ orderId: 0, from: alice });
             ///////////////////////////////////////////////////////////////////////////////////
 
-            await delay(1 * 200);   
+            await delay(1 * 200);
             await block.advanceTo(200);
-            
+
             // Spot price = fp(2000)
-            expectBalanceToBeApprox(
-              await estimateSpotPrice(pool, longTermOrdersContract),
-              fp(2000));
+            expectBalanceToBeApprox(await estimateSpotPrice(pool, longTermOrdersContract), fp(2000));
 
             expect((await withdrawTx0).amountsOut[0]).to.be.equal(0);
             expectBalanceToBeApprox((await withdrawTx0).amountsOut[1], fp(0.501));
@@ -482,15 +489,13 @@ describe('TwammWeightedPool', function () {
 
             // BLOCK 225 //////////////////////////////////////////////////////////////////////
             swap(pool, 0, 1, fp(1000.02525), owner, owner);
-            let withdrawTx2 = pool.withdrawLongTermOrder({ orderId: 2, from: carl });
+            const withdrawTx2 = pool.withdrawLongTermOrder({ orderId: 2, from: carl });
             ///////////////////////////////////////////////////////////////////////////////////
 
             await delay(1 * 200);
             await block.advanceTo(225);
 
-            expectBalanceToBeApprox(
-              await estimateSpotPrice(pool, longTermOrdersContract),
-              fp(2000));
+            expectBalanceToBeApprox(await estimateSpotPrice(pool, longTermOrdersContract), fp(2000));
 
             expect((await withdrawTx2).amountsOut[1]).to.be.equal(0);
             expectBalanceToBeApprox((await withdrawTx2).amountsOut[0], fp(3981.408));

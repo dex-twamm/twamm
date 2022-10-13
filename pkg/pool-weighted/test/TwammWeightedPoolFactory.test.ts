@@ -47,9 +47,8 @@ describe('TwammWeightedPoolFactory', function () {
     assetManagers = Array(tokens.length).fill(ZERO_ADDRESS);
     assetManagers[0] = assetManager.address;
 
-    longTermOrdersContract = await deploy(
-      'LongTermOrders', {args: [10]});
-    });
+    longTermOrdersContract = await deploy('LongTermOrders', { args: [10] });
+  });
 
   async function createPool(): Promise<Contract> {
     const receipt = await (

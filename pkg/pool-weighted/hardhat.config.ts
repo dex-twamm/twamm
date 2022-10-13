@@ -6,7 +6,9 @@ import 'hardhat-test-utils';
 import { hardhatBaseConfig } from '@balancer-labs/v2-common';
 import { name } from './package.json';
 
-require('dotenv').config();
+import * as dotenv from 'dotenv';
+dotenv.config();
+// require('dotenv').config();
 
 const { GOERLI_API_URL, RINKEBY_API_URL, ETHERSCAN_KEY, PRIVATE_KEY } = process.env;
 

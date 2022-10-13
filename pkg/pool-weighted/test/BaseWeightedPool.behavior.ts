@@ -83,12 +83,9 @@ export function itBehavesAsWeightedPool(
       it('sets the asset managers', async () => {
         await tokens.asyncEach(async (token) => {
           const info = await pool.getTokenInfo(token);
-          const isExcludedPoolType = (
-            poolType == WeightedPoolType.ORACLE_WEIGHTED_POOL || 
-            poolType == WeightedPoolType.TWAMM_WEIGHTED_POOL);
-          expect(info.assetManager).to.equal(
-            isExcludedPoolType? ZERO_ADDRESS : assetManager.address
-          );
+          const isExcludedPoolType =
+            poolType == WeightedPoolType.ORACLE_WEIGHTED_POOL || poolType == WeightedPoolType.TWAMM_WEIGHTED_POOL;
+          expect(info.assetManager).to.equal(isExcludedPoolType ? ZERO_ADDRESS : assetManager.address);
         });
       });
 

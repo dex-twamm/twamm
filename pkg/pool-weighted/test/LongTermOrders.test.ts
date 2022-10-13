@@ -473,7 +473,7 @@ describe('LongTermOrders', function () {
 
       // const orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
       // const orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
-      const [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
+      const [tokenBalanceA, tokenBalanceB, , , ] = await getLongTermOrdersDetails();
 
       // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('200995963815502579716'));
       // verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
@@ -495,7 +495,7 @@ describe('LongTermOrders', function () {
       );
       const [, salesRateB] = await placeLongTermOrder(anAddress.address, 1, 0, amount, nInterval, ammBalances);
 
-      [ammBalances[0], ammBalances[1], ,] = executeVirtualOrders(
+      [ammBalances[0], ammBalances[1] /* balanceA */ /* balanceB */, , ] = executeVirtualOrders(
         ammBalances[0],
         ammBalances[1],
         salesRateA,
@@ -512,7 +512,7 @@ describe('LongTermOrders', function () {
 
       // const orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
       // const orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
-      const [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
+      const [tokenBalanceA, tokenBalanceB, , , ] = await getLongTermOrdersDetails();
 
       // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('201999959178428795856'));
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('201000040721681221460'));
@@ -545,7 +545,7 @@ describe('LongTermOrders', function () {
         ammBalances
       );
 
-      [ammBalances[0], ammBalances[1], ,] = executeVirtualOrders(
+      [ammBalances[0], ammBalances[1], , ] = executeVirtualOrders(
         ammBalances[0],
         ammBalances[1],
         salesRateA,
@@ -562,7 +562,7 @@ describe('LongTermOrders', function () {
 
       // const orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
       // const orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
-      const [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
+      const [tokenBalanceA, tokenBalanceB, , , ] = await getLongTermOrdersDetails();
 
       // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('202012053981096173406'));
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('200987947148768005531'));
@@ -595,7 +595,7 @@ describe('LongTermOrders', function () {
         ammBalances
       );
 
-      [ammBalances[0], ammBalances[1], ,] = executeVirtualOrders(
+      [ammBalances[0], ammBalances[1], , ] = executeVirtualOrders(
         ammBalances[0],
         ammBalances[1],
         salesRateA,
@@ -612,7 +612,7 @@ describe('LongTermOrders', function () {
 
       // let orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
       // let orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
-      let [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
+      let [tokenBalanceA, tokenBalanceB, , , ] = await getLongTermOrdersDetails();
 
       // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('202012053981096173406'));
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('200987947148768005531'));
@@ -622,7 +622,7 @@ describe('LongTermOrders', function () {
 
       // orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
       // orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
-      [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
+      [tokenBalanceA, tokenBalanceB, , , ] = await getLongTermOrdersDetails();
 
       // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('202012053981096173406'));
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('200987947148768005531'));
@@ -660,7 +660,7 @@ describe('LongTermOrders', function () {
 
       // let orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
       // let orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
-      let [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
+      let [tokenBalanceA, tokenBalanceB, , , ] = await getLongTermOrdersDetails();
 
       // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391089108910891089108'));
       // verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
@@ -670,7 +670,7 @@ describe('LongTermOrders', function () {
 
       // orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
       // orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
-      [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
+      [tokenBalanceA, tokenBalanceB, , , ] = await getLongTermOrdersDetails();
 
       // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391089108910891089108'));
       // verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
@@ -719,7 +719,7 @@ describe('LongTermOrders', function () {
 
       const currentExecBlockNumber = await moveForwardNBlocks(2 * orderBlockInterval);
       await longTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
-      const [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
+      const [tokenBalanceA, tokenBalanceB, , , ] = await getLongTermOrdersDetails();
 
       verifyTokenBalances([tokenBalanceA, tokenBalanceB], bn('50052709378888218345'), bn('249699057295279530463'));
 
@@ -799,7 +799,7 @@ describe('LongTermOrders', function () {
 
       // let orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
       // let orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
-      let [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
+      let [tokenBalanceA, tokenBalanceB, , , ] = await getLongTermOrdersDetails();
 
       // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391150274317278982266'));
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('405038774564188060935'));
@@ -810,7 +810,7 @@ describe('LongTermOrders', function () {
 
       // orderPoolDetailsA = await longTermOrders.getLongTermOrder(0);
       // orderPoolDetailsB = await longTermOrders.getLongTermOrder(1);
-      [tokenBalanceA, tokenBalanceB, , , ,] = await getLongTermOrdersDetails();
+      [tokenBalanceA, tokenBalanceB, , , ] = await getLongTermOrdersDetails();
 
       // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391150274317278982266'));
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('405038774564188060935'));
