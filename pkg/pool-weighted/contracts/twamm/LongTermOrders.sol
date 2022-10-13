@@ -346,28 +346,26 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             uint256 ammEndTokenB
         )
     {
-        //if no tokens are sold to the pool, we don't need to execute any orders
+        // If no tokens are sold to the pool, we don't need to execute any orders
         if (tokenAIn == 0 && tokenBIn == 0) {
             tokenAOut = 0;
             tokenBOut = 0;
             ammEndTokenA = tokenAStart;
             ammEndTokenB = tokenBStart;
-        }
-        //in the case where only one pool is selling, we just perform a normal swap
-        else if (tokenAIn == 0) {
-            //constant product formula
+        } else if (tokenAIn == 0) {
+            // Only one pool is selling, we just perform a normal swap
             tokenBOut = 0;
             ammEndTokenB = tokenBStart.add(tokenBIn);
             tokenAOut = tokenAStart.mulDown(tokenBIn).divDown(ammEndTokenB);
             ammEndTokenA = tokenAStart.sub(tokenAOut);
         } else if (tokenBIn == 0) {
+            // Only one pool is selling, we just perform a normal swap
             tokenAOut = 0;
             ammEndTokenA = tokenAStart.add(tokenAIn);
             tokenBOut = tokenBStart.mulDown(tokenAIn).divDown(ammEndTokenA);
             ammEndTokenB = tokenBStart.sub(tokenBOut);
-        }
-        //when both pools sell, we use the TWAMM formula
-        else {
+        } else {
+            // When both pools sell, we use the TWAMM formula
             ammEndTokenA = _computeAmmEndTokenA(tokenAIn, tokenBIn, tokenAStart, tokenBStart);
             ammEndTokenB = tokenAStart.divDown(ammEndTokenA).mulDown(tokenBStart);
             tokenAOut = tokenAStart.add(tokenAIn).sub(ammEndTokenA);

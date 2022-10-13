@@ -128,7 +128,7 @@ export default {
             pauseWindowDuration,
             bufferPeriodDuration,
             TypesConverter.toAddress(owner),
-            longTermOrdersContract
+            longTermOrdersContract,
           ],
           from,
           // libraries: { QueryProcessor: (await deploy('QueryProcessor')).address },

@@ -14,7 +14,7 @@ library MinHeap {
 
         // Start at the end of the array
         uint256 currentIndex = heap.length - 1;
-        if(currentIndex > 1) {
+        if (currentIndex > 1) {
             uint256 parentIndex = currentIndex / 2;
 
             // Bubble up the value until it reaches it's correct place (i.e. it is smaller than it's parent)
@@ -34,9 +34,9 @@ library MinHeap {
     function removeMin(uint256[] storage heap) internal returns (uint256) {
         uint256 initialHeapLength = heap.length;
         // Ensure the heap exists
-        require(initialHeapLength > 1);
+        require(initialHeapLength > 1, "HEAP_EMPTY");
         // take the root value of the heap
-        uint256 toReturn = heap[1];        
+        uint256 toReturn = heap[1];
 
         // Start at the top
         uint256 currentIndex = 1;
@@ -52,7 +52,7 @@ library MinHeap {
 
             // Compare the left and right child. if the rightChild is lesser, then point j to it's index
             if (childIndex != initialHeapLength - 2 && lesserChild > heap[childIndex + 1]) {
-                lesserChild = heap[childIndex+1];
+                lesserChild = heap[childIndex + 1];
                 childIndex = childIndex + 1;
             }
 
@@ -71,7 +71,7 @@ library MinHeap {
 
         // console.log(currentIndex, parentValue, childIndex);
         heap[currentIndex] = parentValue;
-    
+
         // Delete the last element from the array
         heap.pop();
 

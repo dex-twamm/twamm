@@ -4,7 +4,6 @@ pragma solidity ^0.7.0;
 import "./MinHeap.sol";
 
 contract MinHeapTest {
-
     using MinHeap for uint256[];
 
     uint256[] public heap;
@@ -15,11 +14,11 @@ contract MinHeapTest {
         heap = [0];
     }
 
-    function getHeap() public view returns(uint256[] memory) {
+    function getHeap() public view returns (uint256[] memory) {
         return heap;
     }
 
-    function getMin() public view returns(uint256) {
+    function getMin() public view returns (uint256) {
         return heap.getMin();
     }
 
@@ -27,12 +26,11 @@ contract MinHeapTest {
         heap.insert(_value);
     }
 
-    function isEmpty() public view returns(bool) {
+    function isEmpty() public view returns (bool) {
         return heap.isEmpty();
     }
 
-    function removeMin() public returns(uint256) {
+    function removeMin() public returns (uint256) {
         return heap.removeMin();
     }
-
 }

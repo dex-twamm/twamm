@@ -409,7 +409,7 @@ export default class WeightedPool {
   }
 
   async placeLongTermOrder(params: JoinPlaceLongTermOrderTwammPool): Promise<JoinResult> {
-    let result = this.join(this._buildJoinPlaceLongTermOrderParams(params));
+    const result = this.join(this._buildJoinPlaceLongTermOrderParams(params));
 
     // Uncomment for gas measurement.
     // console.log('placeOrder: ', (await result).receipt.cumulativeGasUsed.toString());
@@ -436,8 +436,8 @@ export default class WeightedPool {
     other: SignerWithAddress
   ): Promise<VoidResult> {
     const pool = this.instance.connect(owner);
-    let tx = await pool.withdrawLongTermOrderCollectedManagementFees(other.address);
-    let receipt = await tx.wait();
+    const tx = await pool.withdrawLongTermOrderCollectedManagementFees(other.address);
+    const receipt = await tx.wait();
 
     // Uncomment for gas measurement.
     console.log('collectManagementFee: ', receipt.cumulativeGasUsed.toString());
@@ -472,13 +472,13 @@ export default class WeightedPool {
 
   // Cancel/withdraw long term order.
   async cancelLongTermOrder(params: ExitCancelLongTermOrderTwammPool): Promise<ExitResult> {
-    let result = await this.exit(this._buildCancelLongTermOrderParams(params));
+    const result = await this.exit(this._buildCancelLongTermOrderParams(params));
     console.log('cancelOrder: ', result.receipt.cumulativeGasUsed.toString());
     return result;
   }
 
   async withdrawLongTermOrder(params: ExitWithdrawLongTermOrderTwammPool): Promise<ExitResult> {
-    let result = await this.exit(this._buildWithdrawLongTermOrderParams(params));
+    const result = await this.exit(this._buildWithdrawLongTermOrderParams(params));
     console.log('withdrawOrder: ', result.receipt.cumulativeGasUsed.toString());
     return result;
   }
