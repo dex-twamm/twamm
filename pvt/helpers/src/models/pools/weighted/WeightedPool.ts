@@ -409,10 +409,10 @@ export default class WeightedPool {
   }
 
   async placeLongTermOrder(params: JoinPlaceLongTermOrderTwammPool): Promise<JoinResult> {
-    const result = this.join(this._buildJoinPlaceLongTermOrderParams(params));
+    const result = await this.join(this._buildJoinPlaceLongTermOrderParams(params));
 
     // Uncomment for gas measurement.
-    // console.log('placeOrder: ', (await result).receipt.cumulativeGasUsed.toString());
+    console.log('placeOrder: ', result.receipt.gasUsed.toString());
     return result;
   }
 
@@ -440,7 +440,7 @@ export default class WeightedPool {
     const receipt = await tx.wait();
 
     // Uncomment for gas measurement.
-    console.log('collectManagementFee: ', receipt.cumulativeGasUsed.toString());
+    console.log('collectManagementFee: ', receipt.gasUsed.toString());
     return tx;
   }
 
@@ -473,13 +473,13 @@ export default class WeightedPool {
   // Cancel/withdraw long term order.
   async cancelLongTermOrder(params: ExitCancelLongTermOrderTwammPool): Promise<ExitResult> {
     const result = await this.exit(this._buildCancelLongTermOrderParams(params));
-    console.log('cancelOrder: ', result.receipt.cumulativeGasUsed.toString());
+    console.log('cancelOrder: ', result.receipt.gasUsed.toString());
     return result;
   }
 
   async withdrawLongTermOrder(params: ExitWithdrawLongTermOrderTwammPool): Promise<ExitResult> {
     const result = await this.exit(this._buildWithdrawLongTermOrderParams(params));
-    console.log('withdrawOrder: ', result.receipt.cumulativeGasUsed.toString());
+    console.log(`withdrawOrder ${params.orderId}: `, result.receipt.gasUsed.toString());
     return result;
   }
 
@@ -530,9 +530,10 @@ export default class WeightedPool {
       protocolFeePercentage: params.protocolFeePercentage ?? 0,
       data: params.data ?? '0x',
       from: params.from,
+      toInternalBalance: params.toInternalBalance ?? false,
     });
 
-    const receipt = await (await tx).wait();
+    const receipt = await tx.wait();
     const { deltas, protocolFees } = expectEvent.inReceipt(receipt, 'PoolBalanceChanged').args;
     return { amountsOut: deltas.map((x: BigNumber) => x.mul(-1)), dueProtocolFeeAmounts: protocolFees, receipt };
   }
@@ -680,6 +681,7 @@ export default class WeightedPool {
       currentBalances: params.currentBalances,
       protocolFeePercentage: params.protocolFeePercentage,
       data: TwammWeightedPoolEncoder.exitWithdrawLongTermOrder(params.orderId),
+      toInternalBalance: params.toInternalBalance ?? false,
     };
   }
 

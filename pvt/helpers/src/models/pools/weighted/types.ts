@@ -71,6 +71,7 @@ export type JoinExitWeightedPool = {
   protocolFeePercentage?: BigNumberish;
   data?: string;
   from?: SignerWithAddress;
+  toInternalBalance?: boolean;
 };
 
 export type InitWeightedPool = {
@@ -171,6 +172,7 @@ export type ExitWithdrawLongTermOrderTwammPool = {
   lastChangeBlock?: BigNumberish;
   currentBalances?: BigNumberish[];
   protocolFeePercentage?: BigNumberish;
+  toInternalBalance?: boolean;
 };
 
 export type JoinResult = {
