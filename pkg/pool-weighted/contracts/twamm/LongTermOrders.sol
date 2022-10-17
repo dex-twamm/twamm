@@ -461,10 +461,12 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         return (
             order.id,
             order.expirationBlock,
+            // TODO Scale down
             order.saleRate,
             order.owner,
             order.sellTokenIndex,
             order.buyTokenIndex,
+            // TODO Scale down
             orderPool.rewardFactor.sub(orderPool.rewardFactorAtSubmission[order.id]).mulDown(order.saleRate)
         );
     }
