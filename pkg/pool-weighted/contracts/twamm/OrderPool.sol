@@ -70,7 +70,8 @@ library OrderPoolLib {
         self.currentSalesRate = self.currentSalesRate.sub(expiringSalesRate);
         self.rewardFactorAtBlock[blockNumber] = self.rewardFactor;
 
-        // Free up salesRateEndingPerBlock as it won't be needed once currentSalesRate is updated on reaching the block
+        // Free up salesRateEndingPerBlock as it won't be needed once currentSalesRate is updated on reaching
+        // the expiry block
         delete self.salesRateEndingPerBlock[blockNumber];
     }
 

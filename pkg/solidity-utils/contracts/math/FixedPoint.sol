@@ -24,6 +24,7 @@ library FixedPoint {
     uint256 internal constant TWO = 2 * ONE;
     uint256 internal constant FOUR = 4 * ONE;
     uint256 internal constant MAX_POW_RELATIVE_ERROR = 10000; // 10^(-14)
+    uint256 internal constant MAX_UINT_256 = type(uint256).max;
 
     // Minimum base for the power function when the exponent is 'free' (larger than ONE).
     uint256 internal constant MIN_POW_BASE_FREE_EXPONENT = 0.7e18;
@@ -172,16 +173,63 @@ library FixedPoint {
         return y;
     }
 
-    // TODO proper implementation for below complex functions.
     function exp(uint256 x) internal pure returns (uint256) {
-        return powDown(2718281828459045235, x);
-    }
-
-    function sqrt(uint256 x) internal pure returns (uint256) {
-        return powDown(x, divDown(1, 2));
+        return uint256(LogExpMath.exp(toSignedFixedPoint(x)));
     }
 
     function inv(uint256 x) internal pure returns (uint256) {
         return divDown(ONE, x);
+    }
+
+    function sqrt(uint256 x) internal pure returns (uint256 result) {
+        _require(x < MAX_UINT_256 / ONE, Errors.SQRT_OVERFLOW);
+
+        if (x == 0) {
+            return 0;
+        }
+
+        // Square root of ONE^2 will be ONE, so multiplying with additional ONE
+        x = x * ONE;
+
+        // Set the initial guess to the least power of two that is greater than or equal to sqrt(x).
+        uint256 xAux = uint256(x);
+        result = 1;
+        if (xAux >= 0x100000000000000000000000000000000) {
+            xAux >>= 128;
+            result <<= 64;
+        }
+        if (xAux >= 0x10000000000000000) {
+            xAux >>= 64;
+            result <<= 32;
+        }
+        if (xAux >= 0x100000000) {
+            xAux >>= 32;
+            result <<= 16;
+        }
+        if (xAux >= 0x10000) {
+            xAux >>= 16;
+            result <<= 8;
+        }
+        if (xAux >= 0x100) {
+            xAux >>= 8;
+            result <<= 4;
+        }
+        if (xAux >= 0x10) {
+            xAux >>= 4;
+            result <<= 2;
+        }
+        if (xAux >= 0x4) {
+            result <<= 1;
+        }
+
+        result = (result + x / result) >> 1;
+        result = (result + x / result) >> 1;
+        result = (result + x / result) >> 1;
+        result = (result + x / result) >> 1;
+        result = (result + x / result) >> 1;
+        result = (result + x / result) >> 1;
+        result = (result + x / result) >> 1; // Seven iterations should be enough
+        uint256 roundedDownResult = x / result;
+        return result >= roundedDownResult ? roundedDownResult : result;
     }
 }
