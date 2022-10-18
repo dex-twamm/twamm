@@ -24,4 +24,12 @@ contract FixedPointMock {
     function powUp(uint256 x, uint256 y) public pure returns (uint256) {
         return FixedPoint.powUp(x, y);
     }
+
+    function sqrt(uint256 x) public pure returns (uint256) {
+        return FixedPoint.sqrt(x);
+    }
+
+    function exp(uint256 x) public pure returns (uint256) {
+        return FixedPoint.exp(x);
+    }
 }

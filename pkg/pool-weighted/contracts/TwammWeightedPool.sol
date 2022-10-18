@@ -211,7 +211,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
         if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
-            return _registerLongTermOrder(sender, recipient, updatedBalances, scalingFactors, userData);
+            return _registerLongTermOrder(recipient, updatedBalances, scalingFactors, userData);
         } else {
             if (!_virtualOrderExecutionPaused) {
                 (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
@@ -335,7 +335,6 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
      * Registers the long term order with the Pool.
      */
     function _registerLongTermOrder(
-        address, /* sender */
         address recipient,
         uint256[] memory balances,
         uint256[] memory scalingFactors,
@@ -355,20 +354,12 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             uint256 numberOfBlockIntervals
         ) = WeightedPoolUserData.placeLongTermOrder(userData);
 
-        // TODO: shouldn't this be amountIn = _upscale(amountIn, scalingFactors[sellTokenIndex]);
-        _upscale(amountIn, scalingFactors[sellTokenIndex]);
+        amountIn = _upscale(amountIn, scalingFactors[sellTokenIndex]);
 
         (ILongTermOrders.Order memory order, uint256 amountAIn, uint256 amountBIn) = _longTermOrders
             .performLongTermSwap(recipient, balances, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
 
-        emit LongTermOrderPlaced(
-            order.id,
-            order.buyTokenIndex,
-            order.sellTokenIndex,
-            order.saleRate,
-            order.owner,
-            order.expirationBlock
-        );
+        _emitEventOrderPlaced(order, scalingFactors);
 
         // Return 0 bpt when long term order is placed
         return (uint256(0), _getSizeTwoArray(amountAIn, amountBIn), _getSizeTwoArray(0, 0));
@@ -387,6 +378,17 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         return purchasedAmount - totalFee;
     }
 
+    function _emitEventOrderPlaced(ILongTermOrders.Order memory order, uint256[] memory scalingFactors) internal {
+        emit LongTermOrderPlaced(
+            order.id,
+            order.buyTokenIndex,
+            order.sellTokenIndex,
+            _downscaleDown(order.saleRate, scalingFactors[order.buyTokenIndex]),
+            order.owner,
+            order.expirationBlock
+        );
+    }
+
     function _emitEventOrderCancelled(
         ILongTermOrders.Order memory order,
         uint256 purchasedAmount,
@@ -397,7 +399,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             order.id,
             order.buyTokenIndex,
             order.sellTokenIndex,
-            order.saleRate,
+            _downscaleDown(order.saleRate, scalingFactors[order.sellTokenIndex]),
             order.owner,
             order.expirationBlock,
             _downscaleDown(purchasedAmount, scalingFactors[order.buyTokenIndex]),
@@ -415,7 +417,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             order.id,
             order.buyTokenIndex,
             order.sellTokenIndex,
-            order.saleRate,
+            _downscaleDown(order.saleRate, scalingFactors[order.sellTokenIndex]),
             order.owner,
             order.expirationBlock,
             _downscaleDown(proceeds, scalingFactors[order.buyTokenIndex]),

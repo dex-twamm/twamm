@@ -95,6 +95,7 @@ library Errors {
     uint256 internal constant ADD_UNDERFLOW = 10;
     uint256 internal constant UNDERFLOW = 11;
     uint256 internal constant OVERFLOW = 12;
+    uint256 internal constant SQRT_OVERFLOW = 13;
 
     // Input
     uint256 internal constant OUT_OF_BOUNDS = 100;
