@@ -62,7 +62,7 @@ async function swap(
   const receipt = await swapTx.wait();
 
   // Uncomment for gas measurement.
-  // console.log('swap: ', receipt.cumulativeGasUsed.toString());
+  // console.log('swap: ', receipt.gasUsed.toString());
 
   return receipt;
 }
@@ -334,13 +334,11 @@ describe('TwammWeightedPool', function () {
   describe('End to End tests', () => {
     let owner: SignerWithAddress, alice: SignerWithAddress, betty: SignerWithAddress, carl: SignerWithAddress;
 
-    before('setup signers', async () => {
-      await ethers.provider.send('hardhat_reset', []);
+    beforeEach('setup signers', async () => {
       [owner, alice, betty, carl] = await ethers.getSigners();
     });
 
     const MAX_TOKENS = 2;
-
     let allTokens: TokenList, tokens: TokenList;
 
     let sender: SignerWithAddress;
@@ -351,33 +349,37 @@ describe('TwammWeightedPool', function () {
 
     let longTermOrdersContract: Contract;
 
-    sharedBeforeEach('deploy tokens', async () => {
-      allTokens = await TokenList.create(MAX_TOKENS + 1, { sorted: true });
-      tokens = allTokens.subset(2);
-      await tokens.mint({ to: [owner, alice, betty, carl], amount: fp(300000.0) });
-    });
-
     context('when initialized with swaps enabled', () => {
       sharedBeforeEach('deploy pool', async () => {
-        // Order block interval = 10
-        longTermOrdersContract = await deploy('LongTermOrders', { args: [5] });
-
-        const params = {
-          tokens,
-          weights,
-          owner: owner.address,
-          poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
-          swapEnabledOnStart: true,
-          longTermOrdersContract: longTermOrdersContract.address,
-          fromFactory: true,
-        };
-        pool = await WeightedPool.create(params);
-        await longTermOrdersContract.transferOwnership(pool.address);
+        allTokens = await TokenList.create(MAX_TOKENS + 1, { sorted: true });
+        tokens = allTokens.subset(2);
+        await tokens.mint({ to: [owner, alice, betty, carl], amount: fp(600000.0) });
+        console.log((await tokens.get(0).balanceOf(owner)).toString());
       });
 
       describe('permissioned actions', () => {
         context('when the sender is the owner', () => {
           sharedBeforeEach('set sender to owner', async () => {
+            await ethers.provider.send('hardhat_reset', []);
+            [owner, alice, betty, carl] = await ethers.getSigners();
+            allTokens = await TokenList.create(MAX_TOKENS + 1, { sorted: true });
+            tokens = allTokens.subset(2);
+            await tokens.mint({ to: [owner, alice, betty, carl], amount: fp(300000.0) });
+
+            // Order block interval = 10
+            longTermOrdersContract = await deploy('LongTermOrders', { args: [5] });
+
+            const params = {
+              tokens,
+              weights,
+              owner: owner.address,
+              poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
+              swapEnabledOnStart: true,
+              longTermOrdersContract: longTermOrdersContract.address,
+              fromFactory: true,
+            };
+            pool = await WeightedPool.create(params);
+            await longTermOrdersContract.transferOwnership(pool.address);
             sender = owner;
 
             tokens = allTokens.subset(2);
@@ -502,6 +504,86 @@ describe('TwammWeightedPool', function () {
 
             await block.setAutomine(true);
           });
+        });
+      });
+    });
+
+    context('gas tracking', () => {
+      describe('permissioned actions', () => {
+        context('when the sender is the owner', () => {
+          sharedBeforeEach('set sender to owner', async () => {
+            allTokens = await TokenList.create(MAX_TOKENS + 1, { sorted: true });
+            tokens = allTokens.subset(2);
+            await tokens.mint({ to: [owner, alice, betty, carl], amount: fp(600000.0) });
+            console.log((await tokens.get(0).balanceOf(owner)).toString());
+
+            // Order block interval = 10
+            longTermOrdersContract = await deploy('LongTermOrders', { args: [5] });
+
+            const params = {
+              tokens,
+              weights,
+              owner: owner.address,
+              poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
+              swapEnabledOnStart: true,
+              longTermOrdersContract: longTermOrdersContract.address,
+              fromFactory: true,
+            };
+            pool = await WeightedPool.create(params);
+            await longTermOrdersContract.transferOwnership(pool.address);
+            sender = owner;
+
+            tokens = allTokens.subset(2);
+            await tokens.approve({ to: pool.vault.address, amount: MAX_UINT256, from: [owner, alice, betty, carl] });
+            console.log(await (await tokens.get(0).balanceOf(owner)).toString());
+            await pool.init({ from: owner, initialBalances });
+          });
+
+          for (let n = 10; n <= 10; n++) {
+            it(`can execute n orders: ${n}`, async () => {
+              await block.setAutomine(false);
+              await block.setIntervalMining(0);
+
+              const txs: any[] = [];
+              // BLOCK 100 //////////////////////////////////////////////////////////////////////
+              // Alice puts in an order to buy 1,000 DAI worth of ETH over the next 100 blocks
+              for (let i = 0; i < n; i++) {
+                txs.push(
+                  pool.placeLongTermOrder({
+                    from: alice,
+                    amountIn: fp(1000.0),
+                    tokenInIndex: 0,
+                    tokenOutIndex: 1,
+                    numberOfBlockIntervals: 16, // 20*5 = 100 blocks
+                  })
+                );
+              }
+              // //////////////////////////////////////////////////////////////////////////////////
+
+              await delay(1 * 200);
+              await block.advance(550);
+
+              for (let i = 0; i < n; i++) {
+                const result = await txs[i];
+              }
+
+              const withdrawTxs: any[] = [];
+              // BLOCK 225 //////////////////////////////////////////////////////////////////////
+              for (let i = 0; i < n; i++) {
+                withdrawTxs.push(pool.withdrawLongTermOrder({ orderId: i, from: alice, toInternalBalance: true }));
+              }
+              ///////////////////////////////////////////////////////////////////////////////////
+
+              await delay(1 * 200);
+              await block.advance(20);
+
+              for (let i = 0; i < n; i++) {
+                const result = await withdrawTxs[i];
+              }
+
+              await block.setAutomine(true);
+            });
+          }
         });
       });
     });
