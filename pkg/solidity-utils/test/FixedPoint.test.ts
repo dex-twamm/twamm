@@ -111,4 +111,9 @@ describe('FixedPoint', () => {
   context('natural exponent of', async () => {
     checkNaturalExponents(valuesExponents);
   });
+
+  it('can throw error for square root of max int', async () => {
+    const MAX_UINT_256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
+    await expect(lib.sqrt(bn(MAX_UINT_256))).to.be.revertedWith('BAL#013');
+  });
 });
