@@ -354,7 +354,6 @@ describe('TwammWeightedPool', function () {
         allTokens = await TokenList.create(MAX_TOKENS + 1, { sorted: true });
         tokens = allTokens.subset(2);
         await tokens.mint({ to: [owner, alice, betty, carl], amount: fp(600000.0) });
-        console.log((await tokens.get(0).balanceOf(owner)).toString());
       });
 
       describe('permissioned actions', () => {
@@ -515,7 +514,6 @@ describe('TwammWeightedPool', function () {
             allTokens = await TokenList.create(MAX_TOKENS + 1, { sorted: true });
             tokens = allTokens.subset(2);
             await tokens.mint({ to: [owner, alice, betty, carl], amount: fp(600000.0) });
-            console.log((await tokens.get(0).balanceOf(owner)).toString());
 
             // Order block interval = 10
             longTermOrdersContract = await deploy('LongTermOrders', { args: [5] });
@@ -535,11 +533,11 @@ describe('TwammWeightedPool', function () {
 
             tokens = allTokens.subset(2);
             await tokens.approve({ to: pool.vault.address, amount: MAX_UINT256, from: [owner, alice, betty, carl] });
-            console.log(await (await tokens.get(0).balanceOf(owner)).toString());
             await pool.init({ from: owner, initialBalances });
           });
 
-          for (let n = 10; n <= 10; n++) {
+          let total = 300;
+          for (let n = total; n <= total; n++) {
             it(`can execute n orders: ${n}`, async () => {
               await block.setAutomine(false);
               await block.setIntervalMining(0);
@@ -554,7 +552,7 @@ describe('TwammWeightedPool', function () {
                     amountIn: fp(1000.0),
                     tokenInIndex: 0,
                     tokenOutIndex: 1,
-                    numberOfBlockIntervals: 16, // 20*5 = 100 blocks
+                    numberOfBlockIntervals: (i % 20) + 1, // 20*5 = 100 blocks
                   })
                 );
               }
@@ -570,7 +568,7 @@ describe('TwammWeightedPool', function () {
               const withdrawTxs: any[] = [];
               // BLOCK 225 //////////////////////////////////////////////////////////////////////
               for (let i = 0; i < n; i++) {
-                withdrawTxs.push(pool.withdrawLongTermOrder({ orderId: i, from: alice, toInternalBalance: true }));
+                withdrawTxs.push(pool.withdrawLongTermOrder({ orderId: i, from: alice}));
               }
               ///////////////////////////////////////////////////////////////////////////////////
 

@@ -69,4 +69,6 @@ abstract contract ILongTermOrders {
     function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external virtual;
 
     function setMinLtoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRatio) external virtual;
+
+    function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals) external virtual;
 }

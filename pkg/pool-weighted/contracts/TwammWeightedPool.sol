@@ -123,14 +123,12 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _scalingFactor0 = _computeScalingFactor(tokens[0]);
         _scalingFactor1 = _computeScalingFactor(tokens[1]);
 
-        // TODO: should we be able to change LTO contract?
-        _longTermOrders = ILongTermOrders(longTermOrdersContractAddress);
-
         if (longTermOrdersContractAddress != address(0)) {
+            _longTermOrders = ILongTermOrders(longTermOrdersContractAddress);
             return;
         }
 
-        // Code for tests
+        // Code for unit tests.
         _require(normalizedWeights[0] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
         _require(normalizedWeights[1] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
         _virtualOrderExecutionPaused = true;
@@ -482,7 +480,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function _getUpdatedPoolBalances(uint256[] memory balances) internal view returns (uint256[] memory) {
-        if (!_virtualOrderExecutionPaused) {
+        if (address(_longTermOrders) != address(0)) {
             // Deduct the long term orders and long term order management fee from the pool balances.
             balances[0] = (
                 balances[0].sub(_longTermOrders.getTokenBalanceFromLongTermOrder(0)).sub(
@@ -497,8 +495,6 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             );
         }
 
-        // TODO: This is not actually the right thing to do when virtual order executions are paused.
-        // Maybe we should store LTO balances wehenver execution is paused and use here.
         return balances;
     }
 
@@ -548,6 +544,10 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         }
 
         _downscaleDownArray(collectedFees, _scalingFactors());
+    }
+
+    function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals) external authenticate {
+       _longTermOrders.setOrderLimits(maxUniqueOrderExpiries, maxNumberOfBlockIntervals);
     }
 
     function setVirtualOrderExecutionPaused(bool virtualOrderExecutionPaused) external authenticate {
@@ -613,6 +613,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             (actionId == getActionId(TwammWeightedPool.setLongTermSwapFeePercentage.selector)) ||
             (actionId == getActionId(TwammWeightedPool.setMaxPerBlockSaleRatePercent.selector)) ||
             (actionId == getActionId(TwammWeightedPool.setMinLtoOrderAmountToAmmBalanceRatio.selector)) ||
+            (actionId == getActionId(TwammWeightedPool.setOrderLimits.selector)) ||
             (actionId == getActionId(TwammWeightedPool.setVirtualOrderExecutionPaused.selector)) ||
             super._isOwnerOnlyAction(actionId);
     }

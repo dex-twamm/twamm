@@ -41,6 +41,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     }
 
     LongTermOrdersStruct public longTermOrders;
+    uint256 private _maxUniqueOrderExpiries = 16;
+    uint256 private _maxNumberOfBlockIntervals = 40;
 
     constructor(uint256 _orderBlockInterval) Ownable() {
         longTermOrders.lastVirtualOrderBlock = uint64(block.number);
@@ -75,15 +77,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW
         );
 
-        // TODO: require numberOfBlockIntervals > 0.
         _require(numberOfBlockIntervals > 0, Errors.LONG_TERM_ORDER_NUM_INTERVALS_TOO_LOW);
 
-        if (longTermOrders.orderExpiryHeap.length > 16) {
-            _require(
-                numberOfBlockIntervals >= 2**(longTermOrders.orderExpiryHeap.length - 16),
-                Errors.LONG_TERM_ORDER_NUM_INTERVALS_TOO_LOW
-            );
-        }
         executeVirtualOrdersUntilCurrentBlock(balances);
         return _addLongTermSwap(owner, balances, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
     }
@@ -113,6 +108,17 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         // Selling rate = amount / number of blocks
         // orderExpiry guaranteed to be > block.number.
         uint256 sellingRate = amount.divDown((orderExpiry - block.number).fromUint());
+
+        // If there are no other orders expiring at this block, we need to protect against attack.
+        if (longTermOrders.orderPoolMap[0].ordersExpiringAtBlock[orderExpiry] == 0 &&
+            longTermOrders.orderPoolMap[1].ordersExpiringAtBlock[orderExpiry] == 0) {
+            if (longTermOrders.orderExpiryHeap.length > _maxUniqueOrderExpiries) {
+                _require(
+                    numberOfBlockIntervals <= _maxNumberOfBlockIntervals,
+                    Errors.LONG_TERM_ORDER_NUM_INTERVALS_TOO_HIGH
+                );
+            }
+        }
 
         if (
             longTermOrders.orderPoolMap[0].ordersExpiringAtBlock[orderExpiry] == 0 &&
@@ -235,7 +241,9 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         ammTokenA = balances[0];
         ammTokenB = balances[1];
 
-        while (!longTermOrders.orderExpiryHeap.isEmpty()) {
+        uint256 num_loops = 0;
+
+        while (longTermOrders.orderExpiryHeap.length != 1 && num_loops < 20) {
             // Look for next order expiry block number in heap.
             uint256 nextOrderExpiryBlock = longTermOrders.orderExpiryHeap.getMin();
 
@@ -256,7 +264,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
                     do {
                         longTermOrders.orderExpiryHeap.removeMin();
                     } while (
-                        !longTermOrders.orderExpiryHeap.isEmpty() &&
+                        longTermOrders.orderExpiryHeap.length != 1 &&
                             nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
                     );
                 }
@@ -275,12 +283,13 @@ contract LongTermOrders is ILongTermOrders, Ownable {
                 do {
                     longTermOrders.orderExpiryHeap.removeMin();
                 } while (
-                    !longTermOrders.orderExpiryHeap.isEmpty() &&
+                    longTermOrders.orderExpiryHeap.length != 1 &&
                         nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
                 );
             }
+            num_loops += 1;
         }
-        if (longTermOrders.orderExpiryHeap.isEmpty()) {
+        if (longTermOrders.orderExpiryHeap.length == 1) {
             longTermOrders.lastVirtualOrderBlock = uint64(block.number);
         }
     }
@@ -452,6 +461,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
     function setMinLtoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRatio) external override onlyOwner {
         longTermOrders.minltoOrderAmountToAmmBalanceRatio = uint64(amountToAmmBalanceRatio);
+    }
+
+    function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals) external override onlyOwner {
+        _maxUniqueOrderExpiries = maxUniqueOrderExpiries;
+        _maxNumberOfBlockIntervals = maxNumberOfBlockIntervals;
     }
 
     function getLongTermOrder(uint256 orderId)
