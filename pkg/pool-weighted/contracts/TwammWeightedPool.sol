@@ -547,7 +547,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals) external authenticate {
-       _longTermOrders.setOrderLimits(maxUniqueOrderExpiries, maxNumberOfBlockIntervals);
+        _longTermOrders.setOrderLimits(maxUniqueOrderExpiries, maxNumberOfBlockIntervals);
     }
 
     function setVirtualOrderExecutionPaused(bool virtualOrderExecutionPaused) external authenticate {
@@ -616,5 +616,33 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             (actionId == getActionId(TwammWeightedPool.setOrderLimits.selector)) ||
             (actionId == getActionId(TwammWeightedPool.setVirtualOrderExecutionPaused.selector)) ||
             super._isOwnerOnlyAction(actionId);
+    }
+
+    function getLongTermOrder(uint256 orderId)
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            address,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        (ILongTermOrders.Order memory order, uint256 boughtAmount) = _longTermOrders.getLongTermOrderAndBoughtAmount(
+            orderId
+        );
+
+        return (
+            order.id,
+            order.expirationBlock,
+            _downscaleDown(order.saleRate, _scalingFactors()[order.sellTokenIndex]),
+            order.owner,
+            order.sellTokenIndex,
+            order.buyTokenIndex,
+            _downscaleDown(boughtAmount, _scalingFactors()[order.buyTokenIndex])
+        );
     }
 }

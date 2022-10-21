@@ -175,6 +175,16 @@ export type ExitWithdrawLongTermOrderTwammPool = {
   toInternalBalance?: boolean;
 };
 
+export type GetLongTermOrderResult = {
+  orderId: BigNumber;
+  expirationBlock: BigNumber;
+  saleRate: BigNumber;
+  owner: SignerWithAddress;
+  sellTokenIndex: BigNumber;
+  buyTokenIndex: BigNumber;
+  boughtAmount: BigNumber;
+};
+
 export type JoinResult = {
   amountsIn: BigNumber[];
   dueProtocolFeeAmounts: BigNumber[];

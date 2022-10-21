@@ -39,6 +39,7 @@ import {
   ExitCancelLongTermOrderTwammPool,
   ExitWithdrawLongTermOrderTwammPool,
   SetLongTermSwapFeePercentageRequest,
+  GetLongTermOrderResult,
 } from './types';
 import {
   calculateInvariant,
@@ -481,6 +482,19 @@ export default class WeightedPool {
     const result = await this.exit(this._buildWithdrawLongTermOrderParams(params));
     console.log(`withdrawOrder ${params.orderId}: `, result.receipt.gasUsed.toString());
     return result;
+  }
+
+  async getLongTermOrder(orderId: number): Promise<GetLongTermOrderResult> {
+    const result = await this.instance.getLongTermOrder(orderId);
+    return {
+      orderId: result[0],
+      expirationBlock: result[1],
+      saleRate: result[2],
+      owner: result[3],
+      sellTokenIndex: result[4],
+      buyTokenIndex: result[5],
+      boughtAmount: result[6],
+    };
   }
 
   // TODO(codesherpa/nuhbye): Do we need query for exits?
