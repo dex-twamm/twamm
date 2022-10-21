@@ -10,7 +10,6 @@ import { deploy } from '@balancer-labs/v2-helpers/src/contract';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
 import { lastBlockNumber } from '@balancer-labs/v2-helpers/src/time';
 import { Address } from 'cluster';
-import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 import { expectEqualWithError } from '@balancer-labs/v2-helpers/src/test/relativeError';
 
 const { block } = testUtils;
@@ -76,12 +75,8 @@ describe('LongTermOrders', function () {
 
   function verifyTokenBalances(tokenBalances: [BigNumber, BigNumber], balanceA: BigNumber, balanceB: BigNumber) {
     // Expect both balances to be within 1e-15 of expected values.
-    // console.log(decimal(tokenBalances[0]), decimal(tokenBalances[1]), decimal(balanceA), decimal(balanceB));
     expectEqualWithError(tokenBalances[0], balanceA, EXPECTED_RELATIVE_ERROR);
     expectEqualWithError(tokenBalances[1], balanceB, EXPECTED_RELATIVE_ERROR);
-
-    // expect(tokenBalances[1]).to.be.lte(balanceB.add(1000));
-    // expect(tokenBalances[1]).to.be.gte(balanceB.sub(1000));
   }
 
   function getOrderExpiryBlock(numberOfBlockIntervals: number, blockNumber: number): number {
