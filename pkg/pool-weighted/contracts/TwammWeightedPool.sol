@@ -34,7 +34,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     using FixedPoint for uint256;
     using WordCodec for bytes32;
 
-    uint256 private constant _MAX_TOKENS = 2;
+    uint256 private immutable _MAX_TOKENS = 2;
 
     IERC20 internal immutable _token0;
     IERC20 internal immutable _token1;
@@ -45,8 +45,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     ILongTermOrders private _longTermOrders;
 
     // Twamm math depends on both the tokens being equal weight.
-    uint256 internal _normalizedWeight0 = 0.5e18;
-    uint256 internal _normalizedWeight1 = 0.5e18;
+    uint256 internal immutable _normalizedWeight0 = 0.5e18;
+    uint256 internal immutable _normalizedWeight1 = 0.5e18;
 
     mapping(uint256 => uint256) private _longTermOrderCollectedManagementFees;
 
