@@ -536,12 +536,14 @@ __metadata:
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@openzeppelin/contracts": 3.1.0-solc-0.7
     "@types/chai": ^4.2.12
+    "@types/collections": ^5
     "@types/lodash": ^4.14.161
     "@types/mocha": ^8.0.3
     "@types/node": ^14.6.0
     "@typescript-eslint/eslint-plugin": ^4.1.1
     "@typescript-eslint/parser": ^4.1.1
     chai: ^4.2.0
+    collections: ^5.1.13
     decimal.js: ^10.2.1
     dotenv: ^16.0.1
     eslint: ^7.9.0
@@ -3386,6 +3388,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/collections@npm:^5":
+  version: 5.1.2
+  resolution: "@types/collections@npm:5.1.2"
+  checksum: 26008baa3a2f44ad4ad0b13808fc32a835cc513e47bb4dd0e75d3232bb414de862d1e148f805238c0163d6575997e2491b252ef5d3865d88c348347586f14800
+  languageName: node
+  linkType: hard
+
 "@types/estree@npm:*":
   version: 0.0.50
   resolution: "@types/estree@npm:0.0.50"
@@ -5782,6 +5791,15 @@ __metadata:
     map-visit: ^1.0.0
     object-visit: ^1.0.0
   checksum: c73cb1316c29f4b175198dba417f759e6b50ca3f312e42f4f451c2a38cc8e3e292e1fec60d9ccbada35fbc22805a1d897d3bc37fd88fbfe8ab509e4ede88c386
+  languageName: node
+  linkType: hard
+
+"collections@npm:^5.1.13":
+  version: 5.1.13
+  resolution: "collections@npm:5.1.13"
+  dependencies:
+    weak-map: ~1.0.x
+  checksum: 38be2e4bbfa7e88d18d720c597851cd6b73499b1b01afad70ea8a989636420759dd9b0b8f696d565162d57673589d37332f5cd532847bfed2f76c16e6fc72372
   languageName: node
   linkType: hard
 
@@ -15062,6 +15080,13 @@ typescript@^4.0.2:
     core-util-is: 1.0.2
     extsprintf: ^1.2.0
   checksum: 38ea80312cb42e5e8b4ac562d108d675b2354a79f8f125d363671f692657461b9181fd26f4fc9acdca433f8afee099cb78058806e1303e6b15b8fb022affba94
+  languageName: node
+  linkType: hard
+
+"weak-map@npm:~1.0.x":
+  version: 1.0.8
+  resolution: "weak-map@npm:1.0.8"
+  checksum: 215bcd1fade4759bfa0b21ce6c07a5edca31c36e6a0d93007d9f9e0ca5a78e50acbbb53b4b8ef7ff5bb58ce6bc2b53e773470a2bdcfd2bb9c40279b2308a0901
   languageName: node
   linkType: hard
 
