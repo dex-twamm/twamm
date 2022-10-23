@@ -110,8 +110,10 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 sellingRate = amount.divDown((orderExpiry - block.number).fromUint());
 
         // If there are no other orders expiring at this block, we need to protect against attack.
-        if (longTermOrders.orderPoolMap[0].ordersExpiringAtBlock[orderExpiry] == 0 &&
-            longTermOrders.orderPoolMap[1].ordersExpiringAtBlock[orderExpiry] == 0) {
+        if (
+            longTermOrders.orderPoolMap[0].ordersExpiringAtBlock[orderExpiry] == 0 &&
+            longTermOrders.orderPoolMap[1].ordersExpiringAtBlock[orderExpiry] == 0
+        ) {
             if (longTermOrders.orderExpiryHeap.length > _maxUniqueOrderExpiries) {
                 _require(
                     numberOfBlockIntervals <= _maxNumberOfBlockIntervals,
@@ -463,37 +465,24 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         longTermOrders.minltoOrderAmountToAmmBalanceRatio = uint64(amountToAmmBalanceRatio);
     }
 
-    function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals) external override onlyOwner {
+    function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals)
+        external
+        override
+        onlyOwner
+    {
         _maxUniqueOrderExpiries = maxUniqueOrderExpiries;
         _maxNumberOfBlockIntervals = maxNumberOfBlockIntervals;
     }
 
-    function getLongTermOrder(uint256 orderId)
+    function getLongTermOrderAndBoughtAmount(uint256 orderId)
         external
         view
-        returns (
-            uint256,
-            uint256,
-            uint256,
-            address,
-            uint256,
-            uint256,
-            uint256
-        )
+        override
+        returns (Order memory order, uint256 boughtAmount)
     {
-        Order memory order = longTermOrders.orderMap[orderId];
+        order = longTermOrders.orderMap[orderId];
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
 
-        return (
-            order.id,
-            order.expirationBlock,
-            // TODO Scale down
-            order.saleRate,
-            order.owner,
-            order.sellTokenIndex,
-            order.buyTokenIndex,
-            // TODO Scale down
-            orderPool.rewardFactor.sub(orderPool.rewardFactorAtSubmission[order.id]).mulDown(order.saleRate)
-        );
+        boughtAmount = orderPool.rewardFactor.sub(orderPool.rewardFactorAtSubmission[order.id]).mulDown(order.saleRate);
     }
 }
