@@ -8,7 +8,7 @@ async function main() {
 
   console.log('Account balance:', (await deployer.getBalance()).toString());
 
-  const ltoContract = await deploy('LongTermOrders', { from: deployer, args: [50] });
+  const ltoContract = await deploy('LongTermOrders', { from: deployer, args: [150] });
   console.log('LTO contract deployed to address:', ltoContract.address);
 
   await delay(30 * 1000); // wait for 30s.

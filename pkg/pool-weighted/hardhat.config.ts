@@ -10,7 +10,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 // require('dotenv').config();
 
-const { GOERLI_API_URL, RINKEBY_API_URL, ETHERSCAN_KEY, PRIVATE_KEY } = process.env;
+const { GOERLI_API_URL, RINKEBY_API_URL, MAINNET_API_URL, ETHERSCAN_KEY, PRIVATE_KEY , MAINNET_PRIVATE_KEY} = process.env;
 
 import { task } from 'hardhat/config';
 import { TASK_COMPILE } from 'hardhat/builtin-tasks/task-names';
@@ -23,18 +23,24 @@ export default {
     hardhat: {
       allowUnlimitedContractSize: true,
     },
-    // rinkeby: {
-    //   url: RINKEBY_API_URL,
-    //   accounts: [`0x${PRIVATE_KEY}`],
-    //   gasPrice: 20e9,
-    //   gas: 25e6,
-    // },
-    // goerli: {
-    //   url: GOERLI_API_URL,
-    //   accounts: [`0x${PRIVATE_KEY}`],
-    //   gasPrice: 20e9,
-    //   gas: 25e6,
-    // },
+    rinkeby: {
+      url: RINKEBY_API_URL,
+      accounts: [`0x${PRIVATE_KEY}`],
+      gasPrice: 20e9,
+      gas: 25e6,
+    },
+    goerli: {
+      url: GOERLI_API_URL,
+      accounts: [`0x${PRIVATE_KEY}`],
+      gasPrice: 20e9,
+      gas: 25e6,
+    },
+    mainnet: {
+      url: MAINNET_API_URL,
+      accounts: [`0x${MAINNET_PRIVATE_KEY}`],
+      gasPrice: 20e9,
+      gas: 25e6,
+    },
   },
   etherscan: {
     // Your API key for Etherscan

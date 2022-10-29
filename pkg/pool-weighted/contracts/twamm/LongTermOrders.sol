@@ -41,8 +41,9 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     }
 
     LongTermOrdersStruct public longTermOrders;
-    uint256 private _maxUniqueOrderExpiries = 16;
-    uint256 private _maxNumberOfBlockIntervals = 40;
+    uint256 private _maxUniqueOrderExpiries = 20;
+    uint256 private _maxNumberOfBlockIntervals = 48;
+    uint256 private _maxVirtualOrderExecutionLoops = 750;
 
     constructor(uint256 _orderBlockInterval) Ownable() {
         longTermOrders.lastVirtualOrderBlock = uint64(block.number);
@@ -120,12 +121,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
                     Errors.LONG_TERM_ORDER_NUM_INTERVALS_TOO_HIGH
                 );
             }
-        }
-
-        if (
-            longTermOrders.orderPoolMap[0].ordersExpiringAtBlock[orderExpiry] == 0 &&
-            longTermOrders.orderPoolMap[1].ordersExpiringAtBlock[orderExpiry] == 0
-        ) {
             // Only insert block number in order expiry heap if it's not already there.
             longTermOrders.orderExpiryHeap.insert(orderExpiry);
         }
@@ -465,13 +460,14 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         longTermOrders.minltoOrderAmountToAmmBalanceRatio = uint64(amountToAmmBalanceRatio);
     }
 
-    function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals)
+    function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals, uint256 maxVirtualOrderExecutionLoops)
         external
         override
         onlyOwner
     {
         _maxUniqueOrderExpiries = maxUniqueOrderExpiries;
         _maxNumberOfBlockIntervals = maxNumberOfBlockIntervals;
+        _maxVirtualOrderExecutionLoops = maxVirtualOrderExecutionLoops;
     }
 
     function getLongTermOrderAndBoughtAmount(uint256 orderId)

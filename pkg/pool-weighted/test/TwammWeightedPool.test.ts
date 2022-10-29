@@ -558,7 +558,7 @@ describe('TwammWeightedPool', function () {
             await pool.init({ from: owner, initialBalances });
           });
 
-          let total = 300;
+          let total = 10;
           for (let n = total; n <= total; n++) {
             it(`can execute n orders: ${n}`, async () => {
               await block.setAutomine(false);

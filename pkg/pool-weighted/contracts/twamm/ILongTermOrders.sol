@@ -70,7 +70,7 @@ abstract contract ILongTermOrders {
 
     function setMinLtoOrderAmountToAmmBalanceRatio(uint256 amountToAmmBalanceRatio) external virtual;
 
-    function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals) external virtual;
+    function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals, uint256 maxVirtualOrderExecutionLoops) external virtual;
 
     function getLongTermOrderAndBoughtAmount(uint256 orderId)
         external
