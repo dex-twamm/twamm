@@ -530,6 +530,55 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "orderId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getLongTermOrder",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "getLongTermOrderContractAddress",
     "outputs": [
@@ -1150,7 +1199,30 @@
         "type": "uint256"
       }
     ],
-    "name": "setMinltoOrderAmountToAmmBalanceRatio",
+    "name": "setMinLtoOrderAmountToAmmBalanceRatio",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "maxUniqueOrderExpiries",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxNumberOfBlockIntervals",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxVirtualOrderExecutionLoops",
+        "type": "uint256"
+      }
+    ],
+    "name": "setOrderLimits",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
