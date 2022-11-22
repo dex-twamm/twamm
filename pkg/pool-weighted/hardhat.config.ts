@@ -6,9 +6,11 @@ import 'hardhat-test-utils';
 import { hardhatBaseConfig } from '@balancer-labs/v2-common';
 import { name } from './package.json';
 
+// Uncomment to get a local block explorer
+// import 'hardhat-ethernal';
+
 import * as dotenv from 'dotenv';
 dotenv.config();
-// require('dotenv').config();
 
 const { GOERLI_API_URL, RINKEBY_API_URL, MAINNET_API_URL, ETHERSCAN_KEY, PRIVATE_KEY , MAINNET_PRIVATE_KEY} = process.env;
 
