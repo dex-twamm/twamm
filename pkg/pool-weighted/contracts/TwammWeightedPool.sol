@@ -381,7 +381,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             order.id,
             order.buyTokenIndex,
             order.sellTokenIndex,
-            _downscaleDown(order.saleRate, scalingFactors[order.buyTokenIndex]),
+            _downscaleDown(order.saleRate, scalingFactors[order.sellTokenIndex]),
             order.owner,
             order.expirationBlock
         );
