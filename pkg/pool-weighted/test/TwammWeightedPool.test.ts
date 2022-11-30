@@ -129,7 +129,7 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const EXPECTED_RELATIVE_ERROR = 1e-15;
+const EXPECTED_RELATIVE_ERROR = 1e-16;
 
 describe('TwammWeightedPool', function () {
   describe('long term order tests', () => {
@@ -335,7 +335,7 @@ describe('TwammWeightedPool', function () {
             const expiryBlock = getOrderExpiryBlock(10, 10, orderPlacedBlock);
             const expectedSalesRate = getOrderSalesRate(expiryBlock, orderPlacedBlock);
 
-            await block.advanceTo(expiryBlock - 50);
+            await moveForwardNBlocks(expiryBlock - 50);
 
             const withdrawTx = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
 
