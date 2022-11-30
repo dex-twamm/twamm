@@ -12,7 +12,23 @@ import { name } from './package.json';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-const { GOERLI_API_URL, RINKEBY_API_URL, MAINNET_API_URL, ETHERSCAN_KEY, PRIVATE_KEY , MAINNET_PRIVATE_KEY} = process.env;
+const {
+  GOERLI_API_URL,
+  RINKEBY_API_URL,
+  MAINNET_API_URL,
+  ETHERSCAN_KEY,
+  PRIVATE_KEY,
+  MAINNET_PRIVATE_KEY,
+} = {
+  // Dummy values for test
+  GOERLI_API_URL: "https://eth-rinkeby.alchemyapi.io/v2/123456789abcdefghijk_lmn-oprstuv",
+  RINKEBY_API_URL: "https://eth-rinkeby.alchemyapi.io/v2/123456789abcdefghijk_lmn-oprstuv",
+  MAINNET_API_URL: "https://eth-rinkeby.alchemyapi.io/v2/123456789abcdefghijk_lmn-oprstuv",
+  ETHERSCAN_KEY: "1234567890abcdef1234567890abcdef12",
+  PRIVATE_KEY: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  MAINNET_PRIVATE_KEY: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  ...process.env,
+};
 
 import { task } from 'hardhat/config';
 import { TASK_COMPILE } from 'hardhat/builtin-tasks/task-names';
