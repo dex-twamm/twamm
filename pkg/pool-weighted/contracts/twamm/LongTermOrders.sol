@@ -240,7 +240,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
         uint256 num_loops = 0;
 
-        while (longTermOrders.orderExpiryHeap.length != 1 && num_loops < 20) {
+        while (longTermOrders.orderExpiryHeap.length != 1 && num_loops < _maxVirtualOrderExecutionLoops) {
             // Look for next order expiry block number in heap.
             uint256 nextOrderExpiryBlock = longTermOrders.orderExpiryHeap.getMin();
 
