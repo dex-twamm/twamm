@@ -34,7 +34,7 @@ export type BigNumberish = string | number | BigNumber;
 
 function fpDec6(x: BigNumberish | Decimal): BigNumber {
   return fp(x).div(1e12);
-};
+}
 
 async function swap(
   pool: WeightedPool,
@@ -140,13 +140,12 @@ describe('TwammWeightedPool', function () {
     let longTermOrdersContract: Contract;
 
     sharedBeforeEach('deploy tokens', async () => {
-      tokens = (
-        await TokenList.create(
-          [
-            { decimals: 18, symbol: 'DAI' },
-            { decimals: 6, symbol: 'USDT' },
-          ], { sorted: true }
-        )
+      tokens = await TokenList.create(
+        [
+          { decimals: 18, symbol: 'DAI' },
+          { decimals: 6, symbol: 'USDT' },
+        ],
+        { sorted: true }
       );
       await tokens.mint({ to: [owner, other], amount: fp(100000.0) });
     });
@@ -240,9 +239,9 @@ describe('TwammWeightedPool', function () {
             await tokens.approve({ from: other, amount: MAX_UINT256, to: await pool.getVault() });
             console.log(await block.latestBlockNumber());
 
-            let currentBlock = await block.latestBlockNumber();
-            let baseBlock = currentBlock - (currentBlock % 100);
-            console.log("cancelBlocks:", currentBlock, baseBlock);
+            const currentBlock = await block.latestBlockNumber();
+            const baseBlock = currentBlock - (currentBlock % 100);
+            console.log('cancelBlocks:', currentBlock, baseBlock);
 
             await block.setAutomine(false);
             await block.setIntervalMining(0);
@@ -594,7 +593,7 @@ describe('TwammWeightedPool', function () {
             await pool.init({ from: owner, initialBalances });
           });
 
-          let total = 10;
+          const total = 10;
           for (let n = total; n <= total; n++) {
             it(`can execute n orders: ${n}`, async () => {
               await block.setAutomine(false);
