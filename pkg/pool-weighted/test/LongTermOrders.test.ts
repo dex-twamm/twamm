@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import { ethers, testUtils } from 'hardhat';
 import { Contract, BigNumber } from 'ethers';
 import { decimal, fp, bn } from '@balancer-labs/v2-helpers/src/numbers';
 
@@ -12,25 +12,17 @@ import { lastBlockNumber } from '@balancer-labs/v2-helpers/src/time';
 import { Address } from 'cluster';
 import { expectEqualWithError } from '@balancer-labs/v2-helpers/src/test/relativeError';
 
-const ONE = BigNumber.from(1);
-const TWO = BigNumber.from(2);
+const { block } = testUtils;
 
 Decimal.set({ precision: 50, rounding: 3 });
 
-function sqrt(value: BigNumber): BigNumber {
-  const x = BigNumber.from(value);
-  let z = x.add(ONE).div(TWO);
-  let y = x;
-  while (z.sub(y).isNegative()) {
-    y = z;
-    z = x.div(z).add(z).div(TWO);
-  }
-
-  return y;
+function compareNumbers(a: number, b: number) {
+  return a - b;
 }
 
 describe('LongTermOrders', function () {
   let longTermOrders: Contract;
+  let mockLongTermOrders: Contract;
   let anAddress: SignerWithAddress, anAddress1: SignerWithAddress, anAddress2: SignerWithAddress;
   let blockNumber: number;
 
@@ -83,6 +75,7 @@ describe('LongTermOrders', function () {
 
   function verifyTokenBalances(tokenBalances: [BigNumber, BigNumber], balanceA: BigNumber, balanceB: BigNumber) {
     // Expect both balances to be within 1e-15 of expected values.
+    // console.log(decimal(tokenBalances[0]), decimal(tokenBalances[1]), decimal(balanceA), decimal(balanceB));
     expectEqualWithError(tokenBalances[0], balanceA, EXPECTED_RELATIVE_ERROR);
     expectEqualWithError(tokenBalances[1], balanceB, EXPECTED_RELATIVE_ERROR);
 
@@ -101,6 +94,7 @@ describe('LongTermOrders', function () {
 
     return await lastBlockNumber();
   }
+
   function getSaleRate(amount: BigNumber, numberOfBlockIntervals: number, blockNumber: number): BigNumber {
     return amount.div(orderBlockInterval * (numberOfBlockIntervals + 1) - (blockNumber % orderBlockInterval));
   }
@@ -143,6 +137,41 @@ describe('LongTermOrders', function () {
     ];
   }
 
+  async function placeLongTermOrderForContract(
+    contract: Contract,
+    address: string,
+    tokenInIndex: number,
+    tokenOutIndex: number,
+    amount: BigNumber,
+    numberOfBlockIntervals: number,
+    balances: [BigNumber, BigNumber]
+  ): Promise<[number, BigNumber]> {
+    await contract.performLongTermSwap(address, balances, tokenInIndex, tokenOutIndex, amount, numberOfBlockIntervals);
+
+    const lastBlock = await lastBlockNumber();
+
+    return [lastBlock, getSaleRate(amount, numberOfBlockIntervals, lastBlock)];
+  }
+
+  async function placeMockLongTermOrder(
+    address: string,
+    tokenInIndex: number,
+    tokenOutIndex: number,
+    amount: BigNumber,
+    numberOfBlockIntervals: number,
+    balances: [BigNumber, BigNumber]
+  ): Promise<[number, BigNumber]> {
+    return placeLongTermOrderForContract(
+      mockLongTermOrders,
+      address,
+      tokenInIndex,
+      tokenOutIndex,
+      amount,
+      numberOfBlockIntervals,
+      balances
+    );
+  }
+
   async function placeLongTermOrder(
     address: string,
     tokenInIndex: number,
@@ -151,18 +180,15 @@ describe('LongTermOrders', function () {
     numberOfBlockIntervals: number,
     balances: [BigNumber, BigNumber]
   ): Promise<[number, BigNumber]> {
-    await longTermOrders.performLongTermSwap(
+    return placeLongTermOrderForContract(
+      longTermOrders,
       address,
-      balances,
       tokenInIndex,
       tokenOutIndex,
       amount,
-      numberOfBlockIntervals
+      numberOfBlockIntervals,
+      balances
     );
-
-    const lastBlock = await lastBlockNumber();
-
-    return [lastBlock, getSaleRate(amount, numberOfBlockIntervals, lastBlock)];
   }
 
   describe('init', () => {
@@ -771,6 +797,81 @@ describe('LongTermOrders', function () {
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('405038774564188060935'));
       // TODO fix this
       verifyTokenBalances([tokenBalanceA, tokenBalanceB], bn('1620968764021656669'), bn('198395113479849092775'));
+    });
+  });
+
+  describe('place long term order, order expiry heap manipulation', () => {
+    before('setup', async function () {
+      mockLongTermOrders = await deploy('MockLongTermOrders', { args: [orderBlockInterval] });
+      [, anAddress] = await ethers.getSigners();
+
+      blockNumber = await lastBlockNumber();
+    });
+
+    it('can place multiple orders and heap is created properly', async () => {
+      const amount = fp(100),
+        orderIntervalA = 10,
+        orderIntervalAB = 10,
+        orderIntervalB = 10,
+        orderIntervalC = 110,
+        orderIntervalD = 40,
+        orderIntervalE = 70,
+        blockDiffAB = 150,
+        blockDiffBC = 30,
+        blockDiffCD = 100,
+        blockDiffDE = 230;
+
+      const ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
+      const orderExpiries = [];
+
+      await block.setAutomine(false);
+
+      await placeMockLongTermOrder(anAddress.address, 0, 1, amount, orderIntervalA, ammBalances);
+      orderExpiries.push(getOrderExpiryBlock(orderIntervalA, await lastBlockNumber()));
+
+      // Adding another order with same expiry
+      await placeMockLongTermOrder(anAddress.address, 1, 0, amount, orderIntervalAB, ammBalances);
+      orderExpiries.push(getOrderExpiryBlock(orderIntervalAB, await lastBlockNumber()));
+
+      await block.setAutomine(true);
+
+      await moveForwardNBlocks(blockDiffAB);
+      await placeMockLongTermOrder(anAddress.address, 1, 0, amount, orderIntervalB, ammBalances);
+      orderExpiries.push(getOrderExpiryBlock(orderIntervalB, await lastBlockNumber()));
+
+      await moveForwardNBlocks(blockDiffBC);
+      await placeMockLongTermOrder(anAddress.address, 1, 0, amount, orderIntervalC, ammBalances);
+      orderExpiries.push(getOrderExpiryBlock(orderIntervalC, await lastBlockNumber()));
+
+      await moveForwardNBlocks(blockDiffCD);
+      await placeMockLongTermOrder(anAddress.address, 0, 1, amount, orderIntervalD, ammBalances);
+      orderExpiries.push(getOrderExpiryBlock(orderIntervalD, await lastBlockNumber()));
+
+      await moveForwardNBlocks(blockDiffDE);
+      await placeMockLongTermOrder(anAddress.address, 1, 0, amount, orderIntervalE, ammBalances);
+      orderExpiries.push(getOrderExpiryBlock(orderIntervalE, await lastBlockNumber()));
+
+      let orderExpiryHeap = await mockLongTermOrders.getOrderExpiryHeap();
+      let orderExpiryHeapValues = orderExpiryHeap.map((x: BigNumber) => decimal(x).toNumber());
+
+      // Check order are added to the heap in right order and no duplicates created
+      const uniqueOrderExpiries = [...new Set(orderExpiries)];
+
+      orderExpiryHeapValues.sort(compareNumbers);
+      uniqueOrderExpiries.sort(compareNumbers);
+
+      expect(orderExpiryHeap[1]).to.be.equal(orderExpiries[0]);
+      // Verify top element is the smallest element only
+      expect(orderExpiryHeapValues.slice(1)).to.eql(uniqueOrderExpiries);
+
+      // Move forward to first order expiry
+      await moveForwardNBlocks(uniqueOrderExpiries[0] - (await lastBlockNumber()));
+
+      await mockLongTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
+      orderExpiryHeap = await mockLongTermOrders.getOrderExpiryHeap();
+      orderExpiryHeapValues = orderExpiryHeap.map((x: BigNumber) => decimal(x).toNumber());
+
+      expect(orderExpiryHeap[1]).to.be.equal(orderExpiries[2]);
     });
   });
 });
