@@ -115,11 +115,14 @@ chai.use(function (chai, utils) {
           const catchResult = await assertion.catch(revert);
           // If the catch function didn't throw, then return it because it did match what we were expecting
           return catchResult;
-        } catch (error) {
+        } catch (error: any) {
           // If the catch didn't throw because another reason was expected, re-throw the error
           if (!error.message.includes('but other exception was thrown')) throw error;
 
-          if (error.message.includes('revert without reason string') && error.message.includes("Transaction reverted and Hardhat couldn't infer the reason")) {
+          if (
+            error.message.includes('revert without reason string') &&
+            error.message.includes("Transaction reverted and Hardhat couldn't infer the reason")
+          ) {
             return;
           }
 
