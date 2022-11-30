@@ -238,9 +238,9 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         ammTokenA = balances[0];
         ammTokenB = balances[1];
 
-        uint256 num_loops = 0;
+        uint256 numLoops = 0;
 
-        while (longTermOrders.orderExpiryHeap.length != 1 && num_loops < _maxVirtualOrderExecutionLoops) {
+        while (longTermOrders.orderExpiryHeap.length != 1 && numLoops < _maxVirtualOrderExecutionLoops) {
             // Look for next order expiry block number in heap.
             uint256 nextOrderExpiryBlock = longTermOrders.orderExpiryHeap.getMin();
 
@@ -284,7 +284,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
                         nextOrderExpiryBlock == longTermOrders.orderExpiryHeap.getMin()
                 );
             }
-            num_loops += 1;
+            numLoops += 1;
         }
         if (longTermOrders.orderExpiryHeap.length == 1) {
             longTermOrders.lastVirtualOrderBlock = uint64(block.number);
@@ -460,11 +460,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         longTermOrders.minltoOrderAmountToAmmBalanceRatio = uint64(amountToAmmBalanceRatio);
     }
 
-    function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals, uint256 maxVirtualOrderExecutionLoops)
-        external
-        override
-        onlyOwner
-    {
+    function setOrderLimits(
+        uint256 maxUniqueOrderExpiries,
+        uint256 maxNumberOfBlockIntervals,
+        uint256 maxVirtualOrderExecutionLoops
+    ) external override onlyOwner {
         _maxUniqueOrderExpiries = maxUniqueOrderExpiries;
         _maxNumberOfBlockIntervals = maxNumberOfBlockIntervals;
         _maxVirtualOrderExecutionLoops = maxVirtualOrderExecutionLoops;

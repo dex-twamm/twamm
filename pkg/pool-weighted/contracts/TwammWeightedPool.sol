@@ -546,8 +546,16 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _downscaleDownArray(collectedFees, _scalingFactors());
     }
 
-    function setOrderLimits(uint256 maxUniqueOrderExpiries, uint256 maxNumberOfBlockIntervals, uint256 maxVirtualOrderExecutionLoops) external authenticate {
-        _longTermOrders.setOrderLimits(maxUniqueOrderExpiries, maxNumberOfBlockIntervals, maxVirtualOrderExecutionLoops);
+    function setOrderLimits(
+        uint256 maxUniqueOrderExpiries,
+        uint256 maxNumberOfBlockIntervals,
+        uint256 maxVirtualOrderExecutionLoops
+    ) external authenticate {
+        _longTermOrders.setOrderLimits(
+            maxUniqueOrderExpiries,
+            maxNumberOfBlockIntervals,
+            maxVirtualOrderExecutionLoops
+        );
     }
 
     function setVirtualOrderExecutionPaused(bool virtualOrderExecutionPaused) external authenticate {
