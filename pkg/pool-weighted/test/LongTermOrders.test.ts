@@ -75,6 +75,7 @@ describe('LongTermOrders', function () {
 
   function verifyTokenBalances(tokenBalances: [BigNumber, BigNumber], balanceA: BigNumber, balanceB: BigNumber) {
     // Expect both balances to be within 1e-15 of expected values.
+    // console.log(decimal(tokenBalances[0]), decimal(tokenBalances[1]), decimal(balanceA), decimal(balanceB));
     expectEqualWithError(tokenBalances[0], balanceA, EXPECTED_RELATIVE_ERROR);
     expectEqualWithError(tokenBalances[1], balanceB, EXPECTED_RELATIVE_ERROR);
   }
