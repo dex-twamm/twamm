@@ -1,9 +1,8 @@
 import { ethers, testUtils } from 'hardhat';
-const hre = import('hardhat');
 import { expect } from 'chai';
-import { bn, fp, fromFp, toFp } from '@balancer-labs/v2-helpers/src/numbers';
+import { bn, fp, fromFp, toFp, decimal } from '@balancer-labs/v2-helpers/src/numbers';
 import { Decimal } from 'decimal.js';
-import { BigNumber } from 'ethers';
+import { BigNumber, Contract } from 'ethers';
 
 import { MAX_UINT256 } from '@balancer-labs/v2-helpers/src/constants';
 
@@ -15,12 +14,11 @@ import WeightedPool from '@balancer-labs/v2-helpers/src/models/pools/weighted/We
 import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/weighted/types';
 import { lastBlockNumber } from '@balancer-labs/v2-helpers/src/time';
 import * as expectEvent from '@balancer-labs/v2-helpers/src/test/expectEvent';
+import { expectEqualWithError } from '@balancer-labs/v2-helpers/src/test/relativeError';
 
 import { itBehavesAsWeightedPool } from './BaseWeightedPool.behavior';
 
-import { range } from 'lodash';
-import { Contract } from 'ethers';
-import { time } from 'console';
+import executeVirtualOrders from './TwammHelper';
 
 const { block } = testUtils;
 
@@ -34,6 +32,18 @@ export type BigNumberish = string | number | BigNumber;
 
 function fpDec6(x: BigNumberish | Decimal): BigNumber {
   return fp(x).div(1e12);
+}
+
+function getOrderExpiryBlock(orderBlockInterval: number, numberOfBlockIntervals: number, blockNumber: number): number {
+  return orderBlockInterval * (numberOfBlockIntervals + 1) + blockNumber - (blockNumber % orderBlockInterval);
+}
+
+function getOrderSalesRate(expiryBlock: number, orderPlacedBlock: number) {
+  return bn(
+    new Decimal(fp(1.0).toString())
+      .div(new Decimal(expiryBlock - orderPlacedBlock))
+      .toDecimalPlaces(0, Decimal.ROUND_DOWN)
+  );
 }
 
 async function swap(
@@ -119,6 +129,8 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const EXPECTED_RELATIVE_ERROR = 1e-16;
+
 describe('TwammWeightedPool', function () {
   describe('long term order tests', () => {
     let owner: SignerWithAddress, other: SignerWithAddress;
@@ -126,11 +138,7 @@ describe('TwammWeightedPool', function () {
     before('setup signers', async () => {
       [, owner, other] = await ethers.getSigners();
     });
-
-    const MAX_TOKENS = 2;
-
     let tokens: TokenList;
-
     let sender: SignerWithAddress;
     let pool: WeightedPool;
     const weights = [fp(0.5), fp(0.5)];
@@ -194,9 +202,7 @@ describe('TwammWeightedPool', function () {
               numberOfBlockIntervals: 10,
             });
 
-            const startingBlock = await lastBlockNumber();
-            const expectedExpiryBlock =
-              startingBlock % 10 ? startingBlock + 100 + (10 - (startingBlock % 10)) : startingBlock + 100;
+            const expectedExpiryBlock = getOrderExpiryBlock(10, 10, await lastBlockNumber());
 
             expectEvent.inIndirectReceipt(placeResult.receipt, pool.instance.interface, 'LongTermOrderPlaced', {
               orderId: 0,
@@ -235,19 +241,201 @@ describe('TwammWeightedPool', function () {
             });
           });
 
+          it('can place long term order and receive order placed event', async () => {
+            await tokens.approve({ from: other, to: await pool.getVault() });
+
+            const buyTokenIndex = 1,
+              sellTokenIndex = 0;
+            const placeResult = await pool.placeLongTermOrder({
+              from: other,
+              amountIn: fp(1.0),
+              tokenInIndex: sellTokenIndex,
+              tokenOutIndex: buyTokenIndex,
+              numberOfBlockIntervals: 10,
+            });
+
+            const orderPlacedBlock = await lastBlockNumber();
+            const expiryBlock = getOrderExpiryBlock(10, 10, orderPlacedBlock);
+
+            expectEvent.inIndirectReceipt(placeResult.receipt, pool.instance.interface, 'LongTermOrderPlaced', {
+              orderId: 0,
+              sellTokenIndex: sellTokenIndex,
+              buyTokenIndex: buyTokenIndex,
+              saleRate: getOrderSalesRate(expiryBlock, orderPlacedBlock),
+              owner: other.address,
+              expirationBlock: expiryBlock,
+            });
+          });
+
+          it('can cancel long term order and receive order cancelled event', async () => {
+            await tokens.approve({ from: other, to: await pool.getVault() });
+
+            const buyTokenIndex = 1,
+              sellTokenIndex = 0,
+              amount = fp(1.0);
+
+            await pool.placeLongTermOrder({
+              from: other,
+              amountIn: amount,
+              tokenInIndex: sellTokenIndex,
+              tokenOutIndex: buyTokenIndex,
+              numberOfBlockIntervals: 10,
+            });
+
+            const orderPlacedBlock = await lastBlockNumber();
+            const expiryBlock = getOrderExpiryBlock(10, 10, orderPlacedBlock);
+            const expectedSalesRate = getOrderSalesRate(expiryBlock, orderPlacedBlock);
+
+            const cancelTx = await pool.cancelLongTermOrder({ orderId: 0, from: other });
+
+            const [, , balanceA, balanceB] = executeVirtualOrders(
+              initialBalances[0],
+              initialBalances[1],
+              expectedSalesRate,
+              fp(0),
+              amount,
+              fp(0),
+              orderPlacedBlock,
+              orderPlacedBlock + 1
+            );
+
+            const events = expectEvent.getEventLog(cancelTx.receipt, pool.instance.interface, 'LongTermOrderCancelled');
+
+            // Check for single order cancelled event
+            expect(events.length).to.be.equal(1);
+            const orderCancelledEvent = events[0];
+
+            expect(orderCancelledEvent.args['orderId']).to.be.equal(0);
+            expect(orderCancelledEvent.args['sellTokenIndex']).to.be.equal(sellTokenIndex);
+            expect(orderCancelledEvent.args['buyTokenIndex']).to.be.equal(buyTokenIndex);
+            expect(orderCancelledEvent.args['saleRate']).to.be.equal(expectedSalesRate);
+            expect(orderCancelledEvent.args['owner']).to.be.equal(other.address);
+            expect(orderCancelledEvent.args['expirationBlock']).to.be.equal(expiryBlock);
+            expect(orderCancelledEvent.args['proceeds']).to.be.lt(balanceB);
+            expect(orderCancelledEvent.args['proceeds']).to.be.gt(balanceB.sub(3));
+            expectEqualWithError(orderCancelledEvent.args['unsoldAmount'], balanceA, EXPECTED_RELATIVE_ERROR);
+          });
+
+          it('can withdraw partial long term order and receive order withdrawn event', async () => {
+            await tokens.approve({ from: other, to: await pool.getVault() });
+
+            const buyTokenIndex = 1,
+              sellTokenIndex = 0,
+              amount = fp(1.0);
+
+            await pool.placeLongTermOrder({
+              from: other,
+              amountIn: amount,
+              tokenInIndex: sellTokenIndex,
+              tokenOutIndex: buyTokenIndex,
+              numberOfBlockIntervals: 10,
+            });
+
+            const orderPlacedBlock = await lastBlockNumber();
+            const expiryBlock = getOrderExpiryBlock(10, 10, orderPlacedBlock);
+            const expectedSalesRate = getOrderSalesRate(expiryBlock, orderPlacedBlock);
+
+            await moveForwardNBlocks(expiryBlock - 50);
+
+            const withdrawTx = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
+
+            const [, , , balanceB] = executeVirtualOrders(
+              initialBalances[0],
+              initialBalances[1],
+              expectedSalesRate,
+              fp(0),
+              amount,
+              fp(0),
+              orderPlacedBlock,
+              await lastBlockNumber()
+            );
+
+            const events = expectEvent.getEventLog(
+              withdrawTx.receipt,
+              pool.instance.interface,
+              'LongTermOrderWithdrawn'
+            );
+
+            // Check for single order cancelled event
+            expect(events.length).to.be.equal(1);
+            const orderCancelledEvent = events[0];
+
+            expect(orderCancelledEvent.args['orderId']).to.be.equal(0);
+            expect(orderCancelledEvent.args['sellTokenIndex']).to.be.equal(sellTokenIndex);
+            expect(orderCancelledEvent.args['buyTokenIndex']).to.be.equal(buyTokenIndex);
+            expect(orderCancelledEvent.args['saleRate']).to.be.equal(expectedSalesRate);
+            expect(orderCancelledEvent.args['owner']).to.be.equal(other.address);
+            expect(orderCancelledEvent.args['expirationBlock']).to.be.equal(expiryBlock);
+            expect(orderCancelledEvent.args['isPartialWithdrawal']).to.be.equal(true);
+            expect(orderCancelledEvent.args['proceeds']).to.be.lte(balanceB);
+            expect(orderCancelledEvent.args['proceeds']).to.be.gte(balanceB.sub(2));
+          });
+
+          it('can withdraw long term order and receive order withdrawn event', async () => {
+            await tokens.approve({ from: other, to: await pool.getVault() });
+
+            const buyTokenIndex = 1,
+              sellTokenIndex = 0,
+              amount = fp(1.0);
+
+            await pool.placeLongTermOrder({
+              from: other,
+              amountIn: amount,
+              tokenInIndex: sellTokenIndex,
+              tokenOutIndex: buyTokenIndex,
+              numberOfBlockIntervals: 10,
+            });
+
+            const orderPlacedBlock = await lastBlockNumber();
+            const expiryBlock = getOrderExpiryBlock(10, 10, orderPlacedBlock);
+            const expectedSalesRate = getOrderSalesRate(expiryBlock, orderPlacedBlock);
+
+            await moveForwardNBlocks(expiryBlock);
+
+            const withdrawTx = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
+
+            const [, , , balanceB] = executeVirtualOrders(
+              initialBalances[0],
+              initialBalances[1],
+              expectedSalesRate,
+              fp(0),
+              amount,
+              fp(0),
+              orderPlacedBlock,
+              expiryBlock
+            );
+
+            const events = expectEvent.getEventLog(
+              withdrawTx.receipt,
+              pool.instance.interface,
+              'LongTermOrderWithdrawn'
+            );
+
+            // Check for single order cancelled event
+            expect(events.length).to.be.equal(1);
+            const orderCancelledEvent = events[0];
+
+            expect(orderCancelledEvent.args['orderId']).to.be.equal(0);
+            expect(orderCancelledEvent.args['sellTokenIndex']).to.be.equal(sellTokenIndex);
+            expect(orderCancelledEvent.args['buyTokenIndex']).to.be.equal(buyTokenIndex);
+            expect(orderCancelledEvent.args['saleRate']).to.be.equal(expectedSalesRate);
+            expect(orderCancelledEvent.args['owner']).to.be.equal(other.address);
+            expect(orderCancelledEvent.args['expirationBlock']).to.be.equal(expiryBlock);
+            expect(orderCancelledEvent.args['isPartialWithdrawal']).to.be.equal(false);
+            expect(orderCancelledEvent.args['proceeds']).to.be.lt(balanceB);
+            expect(orderCancelledEvent.args['proceeds']).to.be.gt(balanceB.sub(2));
+          });
+
           it('can cancel one-way Long Term Order', async () => {
             await tokens.approve({ from: other, amount: MAX_UINT256, to: await pool.getVault() });
-            console.log(await block.latestBlockNumber());
 
             const currentBlock = await block.latestBlockNumber();
             const baseBlock = currentBlock - (currentBlock % 100);
-            console.log('cancelBlocks:', currentBlock, baseBlock);
 
             await block.setAutomine(false);
             await block.setIntervalMining(0);
-            console.log(baseBlock + 99);
+
             await block.advanceTo(baseBlock + 99);
-            console.log(await block.latestBlockNumber());
 
             // BLOCK 100 //////////////////////////////////////////////////////////////////////
             const longTermOrderTx = pool.placeLongTermOrder({
@@ -259,7 +447,6 @@ describe('TwammWeightedPool', function () {
             });
             //////////////////////////////////////////////////////////////////////////////////
 
-            console.log(await block.latestBlockNumber());
             await delay(1 * 200);
             await block.advanceTo(baseBlock + 149);
 
