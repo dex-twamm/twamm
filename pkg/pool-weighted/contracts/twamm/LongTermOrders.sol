@@ -231,7 +231,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         onlyOwner
         returns (uint256 ammTokenA, uint256 ammTokenB)
     {
-        // console.log(longTermOrders.lastVirtualOrderBlock, block.number);
         if (longTermOrders.lastVirtualOrderBlock == uint64(block.number)) {
             return (balances[0], balances[1]);
         }
@@ -318,10 +317,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint256 tokenASellAmount = orderPoolA.currentSalesRate.mulDown(blockNumberIncrement);
         uint256 tokenBSellAmount = orderPoolB.currentSalesRate.mulDown(blockNumberIncrement);
 
-        // console.log("tokenAStart", tokenAStart, "tokenBStart", tokenBStart);
-        // console.log("tokenASellAmount", tokenASellAmount, "tokenBSellAmount", tokenBSellAmount);
-        // console.log("balanceA", longTermOrders.balanceA, "balanceB", longTermOrders.balanceB);
-
         // Get updated LTO and AMM balances.
         (uint256 tokenAOut, uint256 tokenBOut, uint256 ammEndTokenA, uint256 ammEndTokenB) = _computeVirtualBalances(
             tokenAStart,
@@ -329,8 +324,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             tokenASellAmount,
             tokenBSellAmount
         );
-        // console.log("tokenAOut", tokenAOut, "tokenBOut", tokenBOut);
-        // console.log("ammEndTokenA", ammEndTokenA, "ammEndTokenB", ammEndTokenB);
 
         // Update balances reserves for both tokens.
         _addToLongTermOrdersBalance(0, tokenAOut);
@@ -338,8 +331,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
         _addToLongTermOrdersBalance(1, tokenBOut);
         _removeFromLongTermOrdersBalance(1, tokenBSellAmount);
-
-        // console.log("balanceA", longTermOrders.balanceA, "balanceB", longTermOrders.balanceB);
 
         // Distribute proceeds to order pools.
         orderPoolA.distributePayment(tokenBOut);
@@ -409,12 +400,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     ) private pure returns (uint256 ammEndTokenA) {
         uint256 k = aStart.mulUp(bStart);
         int256 c = _computeC(tokenAIn, tokenBIn, aStart, bStart);
-        // console.log("c", uint256(c));
-        // console.log("epow square", FixedPoint.fromUint(4).mulDown(tokenAIn).mulDown(tokenBIn).divDown(k));
         uint256 ePow = FixedPoint.fromUint(4).mulDown(tokenAIn).mulDown(tokenBIn).divDown(k).sqrt();
-        // console.log("epow square root", ePow);
         int256 exponent = (ePow.exp()).toSignedFixedPoint();
-        // console.log("ePow", uint256(exponent));
         int256 fraction = (exponent.add(c)).divDown(exponent.sub(c));
         uint256 scaling = k.divDown(tokenBIn).sqrt().mulDown(tokenAIn.sqrt());
 
