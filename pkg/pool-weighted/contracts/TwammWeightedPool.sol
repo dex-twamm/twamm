@@ -559,6 +559,10 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function setVirtualOrderExecutionPaused(bool virtualOrderExecutionPaused) external authenticate {
+        require(
+            virtualOrderExecutionPaused || _normalizedWeight0 == _normalizedWeight1,
+            "Virtual order execution cannot be unpaused if weights not equal."
+        );
         _virtualOrderExecutionPaused = virtualOrderExecutionPaused;
     }
 
