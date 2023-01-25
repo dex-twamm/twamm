@@ -61,7 +61,7 @@ library SignedFixedPoint {
         }
     }
 
-    function divUp(int256 a, int256 b) internal pure returns (int256) {
+    function divUp(int256 a, int256 b) internal pure returns (int256 result) {
         _require(b != 0, Errors.ZERO_DIVISION);
 
         if (a == 0) {
@@ -76,7 +76,8 @@ library SignedFixedPoint {
             // divUp(x, y) := (x - 1) / y + 1
             // Note that this requires x != 0, which we already tested for.
 
-            return ((aInflated - 1) / b) + 1;
+            result = ((aInflated - 1) / b) + 1;
+            return result > 0 ? (b > 0 ? result : result - 1) : (b > 0 ? result - 1 : result - 2);
         }
     }
 
