@@ -24,3 +24,4 @@ pkg/balancer-js/src/typechain/*
 
 
 .env
+.DS_Store

@@ -42,6 +42,20 @@ export function inReceipt(receipt: ContractReceipt, eventName: string, eventArgs
   return event;
 }
 
+export function getEventLog(receipt: ContractReceipt, emitter: Interface, eventName: string): Array<LogDescription> {
+  const decodedEvents = receipt.logs
+    .map((log) => {
+      try {
+        return emitter.parseLog(log);
+      } catch {
+        return undefined;
+      }
+    })
+    .filter((e): e is LogDescription => e !== undefined);
+
+  return decodedEvents.filter((event) => event.name === eventName);
+}
+
 export function inIndirectReceipt(
   receipt: ContractReceipt,
   emitter: Interface,
