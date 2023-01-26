@@ -7,6 +7,7 @@ import { deploy } from '@balancer-labs/v2-helpers/src/contract';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
 import { lastBlockNumber } from '@balancer-labs/v2-helpers/src/time';
 import { Address } from 'cluster';
+import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 
 const ONE = BigNumber.from(1);
 const TWO = BigNumber.from(2);
