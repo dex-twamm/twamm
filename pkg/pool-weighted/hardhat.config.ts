@@ -33,6 +33,7 @@ export default {
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true,
+      chainId: 1,
     },
     rinkeby: {
       url: RINKEBY_API_URL,
