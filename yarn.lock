@@ -147,7 +147,7 @@ __metadata:
     "@balancer-labs/v2-helpers": "workspace:*"
     "@balancer-labs/v2-solidity-utils": "workspace:*"
     "@balancer-labs/v2-vault": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@types/chai": ^4.2.12
     "@types/lodash": ^4.14.161
@@ -189,7 +189,7 @@ __metadata:
     "@balancer-labs/v2-pool-stable": "workspace:*"
     "@balancer-labs/v2-pool-weighted": "workspace:*"
     "@balancer-labs/v2-vault": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@types/lodash": ^4.14.161
     "@types/node": ^14.6.0
     "@typescript-eslint/eslint-plugin": ^4.1.1
@@ -231,7 +231,7 @@ __metadata:
   dependencies:
     "@balancer-labs/balancer-js": "workspace:*"
     "@balancer-labs/v2-helpers": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-etherscan": latest
     "@solidity-parser/parser": ^0.14.0
     "@types/node": ^14.6.0
@@ -263,7 +263,7 @@ __metadata:
     "@balancer-labs/v2-solidity-utils": "workspace:*"
     "@balancer-labs/v2-standalone-utils": "workspace:*"
     "@balancer-labs/v2-vault": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@types/chai": ^4.2.12
     "@types/lodash": ^4.14.161
@@ -300,7 +300,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@balancer-labs/v2-helpers@workspace:pvt/helpers"
   dependencies:
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@types/lodash": ^4.14.161
     "@types/node": ^14.6.0
     "@typescript-eslint/eslint-plugin": ^4.1.1
@@ -323,7 +323,7 @@ __metadata:
   dependencies:
     "@balancer-labs/v2-common": "workspace:*"
     "@balancer-labs/v2-helpers": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-vyper": ^3.0.0
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@types/chai": ^4.2.12
@@ -366,7 +366,7 @@ __metadata:
     "@balancer-labs/v2-pool-utils": "workspace:*"
     "@balancer-labs/v2-solidity-utils": "workspace:*"
     "@balancer-labs/v2-vault": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@types/chai": ^4.2.12
     "@types/lodash": ^4.14.161
@@ -407,7 +407,7 @@ __metadata:
     "@balancer-labs/v2-pool-utils": "workspace:*"
     "@balancer-labs/v2-solidity-utils": "workspace:*"
     "@balancer-labs/v2-vault": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@types/chai": ^4.2.12
     "@types/lodash": ^4.14.161
@@ -448,7 +448,7 @@ __metadata:
     "@balancer-labs/v2-pool-utils": "workspace:*"
     "@balancer-labs/v2-solidity-utils": "workspace:*"
     "@balancer-labs/v2-vault": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@types/chai": ^4.2.12
     "@types/lodash": ^4.14.161
@@ -489,7 +489,7 @@ __metadata:
     "@balancer-labs/v2-helpers": "workspace:*"
     "@balancer-labs/v2-solidity-utils": "workspace:*"
     "@balancer-labs/v2-vault": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@types/chai": ^4.2.12
     "@types/lodash": ^4.14.161
@@ -531,7 +531,7 @@ __metadata:
     "@balancer-labs/v2-pool-utils": "workspace:*"
     "@balancer-labs/v2-solidity-utils": "workspace:*"
     "@balancer-labs/v2-vault": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.2.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-etherscan": ^3.1.0
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@openzeppelin/contracts": 3.1.0-solc-0.7
@@ -555,6 +555,7 @@ __metadata:
     hardhat-contract-sizer: ^2.5.1
     hardhat-ethernal: ^3.0.1
     hardhat-test-utils: ^0.0.1
+    hardhat-tracer: ^1.2.1
     lodash.frompairs: ^4.0.1
     lodash.pick: ^4.4.0
     lodash.range: ^3.2.0
@@ -579,7 +580,7 @@ __metadata:
     "@balancer-labs/balancer-js": "workspace:*"
     "@balancer-labs/v2-common": "workspace:*"
     "@balancer-labs/v2-helpers": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@types/chai": ^4.2.12
     "@types/lodash": ^4.14.161
@@ -621,7 +622,7 @@ __metadata:
     "@balancer-labs/v2-pool-utils": "workspace:*"
     "@balancer-labs/v2-solidity-utils": "workspace:*"
     "@balancer-labs/v2-vault": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@types/chai": ^4.2.12
     "@types/lodash": ^4.14.176
@@ -657,7 +658,7 @@ __metadata:
     "@balancer-labs/v2-helpers": "workspace:*"
     "@balancer-labs/v2-solidity-utils": "workspace:*"
     "@balancer-labs/v2-standalone-utils": "workspace:*"
-    "@nomiclabs/hardhat-ethers": ^2.0.1
+    "@nomiclabs/hardhat-ethers": 2.2.1
     "@nomiclabs/hardhat-waffle": ^2.0.0
     "@types/chai": ^4.2.12
     "@types/lodash": ^4.14.161
@@ -2846,17 +2847,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nomiclabs/hardhat-ethers@npm:^2.0.1":
-  version: 2.0.2
-  resolution: "@nomiclabs/hardhat-ethers@npm:2.0.2"
-  peerDependencies:
-    ethers: ^5.0.0
-    hardhat: ^2.0.0
-  checksum: ce262e93cbb66c04051cc26f2f2227c49d2d19f4579a104c9335e9a4105c81c45176bb2424504978404374d34324fe2554e996c7792e7268d32ca22ec23274fd
-  languageName: node
-  linkType: hard
-
-"@nomiclabs/hardhat-ethers@npm:^2.2.1":
+"@nomiclabs/hardhat-ethers@npm:2.2.1":
   version: 2.2.1
   resolution: "@nomiclabs/hardhat-ethers@npm:2.2.1"
   peerDependencies:
@@ -7609,7 +7600,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ethers@npm:^5.7.2":
+"ethers@npm:^5.6.1, ethers@npm:^5.7.2":
   version: 5.7.2
   resolution: "ethers@npm:5.7.2"
   dependencies:
@@ -8723,6 +8714,19 @@ __metadata:
     ethers: ^5.0.0
     hardhat: ^2.0.0
   checksum: 5ac377ce4a9a759f8a9bbd7ba90a74b3f4bf7782d72a0606cd038fa498f735d7443185c659ec4af6603d14bdf76951890948b574322bcf3ce27d12d37d802a34
+  languageName: node
+  linkType: hard
+
+"hardhat-tracer@npm:^1.2.1":
+  version: 1.2.1
+  resolution: "hardhat-tracer@npm:1.2.1"
+  dependencies:
+    ethers: ^5.6.1
+  peerDependencies:
+    chalk: 4.x
+    ethers: 5.x
+    hardhat: 2.x
+  checksum: 822aca9ee0489d7689baec7a48fdfc77b3db7ae46efdb5514af8bfef1ee66ce67a98f963e5167c6cea0774790ccfd96bd2b7b2ec627399a69118c9bd61a098fe
   languageName: node
   linkType: hard
 
