@@ -8,7 +8,7 @@ import { MAX_UINT256 } from '@balancer-labs/v2-helpers/src/constants';
 
 import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
-import { deploy } from '@balancer-labs/v2-helpers/src/contract';
+import { deploy, deployedAt } from '@balancer-labs/v2-helpers/src/contract';
 import TokenList from '@balancer-labs/v2-helpers/src/models/tokens/TokenList';
 import WeightedPool from '@balancer-labs/v2-helpers/src/models/pools/weighted/WeightedPool';
 import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/weighted/types';
@@ -160,19 +160,17 @@ describe('TwammWeightedPool', function () {
 
     context('when initialized with swaps enabled', () => {
       sharedBeforeEach('deploy pool', async () => {
-        longTermOrdersContract = await deploy('LongTermOrders', { args: [10] });
-
         const params = {
           tokens,
           weights,
           owner: owner.address,
           poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
           swapEnabledOnStart: true,
-          longTermOrdersContract: longTermOrdersContract.address,
+          orderBlockInterval: 10,
           fromFactory: true,
         };
         pool = await WeightedPool.create(params);
-        await longTermOrdersContract.transferOwnership(pool.address);
+        longTermOrdersContract = await deployedAt('LongTermOrders', await pool.getLongTermOrderContractAddress());
       });
 
       describe('permissioned actions', () => {
@@ -609,20 +607,17 @@ describe('TwammWeightedPool', function () {
             tokens = allTokens.subset(2);
             await tokens.mint({ to: [owner, alice, betty, carl], amount: fp(300000.0) });
 
-            // Order block interval = 10
-            longTermOrdersContract = await deploy('LongTermOrders', { args: [5] });
-
             const params = {
               tokens,
               weights,
               owner: owner.address,
               poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
               swapEnabledOnStart: true,
-              longTermOrdersContract: longTermOrdersContract.address,
+              orderBlockInterval: 5,
               fromFactory: true,
             };
             pool = await WeightedPool.create(params);
-            await longTermOrdersContract.transferOwnership(pool.address);
+            longTermOrdersContract = await deployedAt('LongTermOrders', await pool.getLongTermOrderContractAddress());
             sender = owner;
 
             tokens = allTokens.subset(2);
@@ -759,20 +754,17 @@ describe('TwammWeightedPool', function () {
             tokens = allTokens.subset(2);
             await tokens.mint({ to: [owner, alice, betty, carl], amount: fp(600000.0) });
 
-            // Order block interval = 10
-            longTermOrdersContract = await deploy('LongTermOrders', { args: [5] });
-
             const params = {
               tokens,
               weights,
               owner: owner.address,
               poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
               swapEnabledOnStart: true,
-              longTermOrdersContract: longTermOrdersContract.address,
+              orderBlockInterval: 5,
               fromFactory: true,
             };
             pool = await WeightedPool.create(params);
-            await longTermOrdersContract.transferOwnership(pool.address);
+            longTermOrdersContract = await deployedAt('LongTermOrders', await pool.getLongTermOrderContractAddress());
             sender = owner;
 
             tokens = allTokens.subset(2);

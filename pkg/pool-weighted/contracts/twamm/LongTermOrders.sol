@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/Ownable.sol";
 import "./ILongTermOrders.sol";
 import "./OrderPool.sol";
 import "./MinHeap.sol";

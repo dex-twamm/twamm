@@ -12,6 +12,7 @@ import Vault from '@balancer-labs/v2-helpers/src/models/vault/Vault';
 import TokenList from '@balancer-labs/v2-helpers/src/models/tokens/TokenList';
 import { toNormalizedWeights } from '@balancer-labs/balancer-js';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 
 describe('TwammWeightedPoolFactory', function () {
   let tokens: TokenList;
@@ -47,7 +48,7 @@ describe('TwammWeightedPoolFactory', function () {
     assetManagers = Array(tokens.length).fill(ZERO_ADDRESS);
     assetManagers[0] = assetManager.address;
 
-    longTermOrdersContract = await deploy('LongTermOrders', { args: [10] });
+    // longTermOrdersContract = await deploy('LongTermOrders', { args: [10] });
   });
 
   async function createPool(): Promise<Contract> {
@@ -59,9 +60,12 @@ describe('TwammWeightedPoolFactory', function () {
         WEIGHTS,
         POOL_SWAP_FEE_PERCENTAGE,
         owner.address,
-        longTermOrdersContract.address
+        10
       )
     ).wait();
+
+    const ltoContractCreatedEvent = expectEvent.inReceipt(receipt, 'LongTermOrdersContractCreated');
+    longTermOrdersContract = await deployedAt('LongTermOrders', ltoContractCreatedEvent.args.ltoContract);
 
     const event = expectEvent.inReceipt(receipt, 'PoolCreated');
     return deployedAt('TwammWeightedPool', event.args.pool);
@@ -108,6 +112,15 @@ describe('TwammWeightedPoolFactory', function () {
 
     it('sets the decimals', async () => {
       expect(await pool.decimals()).to.equal(18);
+    });
+
+    it('sets the ltoContract properly', async () => {
+      expect(await pool.getLongTermOrderContractAddress()).to.equal(longTermOrdersContract.address);
+    });
+
+    it('creates the ltoContract properly', async () => {
+      expect((await longTermOrdersContract.longTermOrders()).orderBlockInterval).to.equal(10);
+      expect(await longTermOrdersContract.owner()).to.equal(pool.address);
     });
   });
 

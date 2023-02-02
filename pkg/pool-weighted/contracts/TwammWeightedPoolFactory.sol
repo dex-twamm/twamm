@@ -20,9 +20,14 @@ import "@balancer-labs/v2-vault/contracts/interfaces/IVault.sol";
 import "@balancer-labs/v2-pool-utils/contracts/factories/BasePoolSplitCodeFactory.sol";
 import "@balancer-labs/v2-pool-utils/contracts/factories/FactoryWidePauseWindow.sol";
 
+import "./twamm/LongTermOrders.sol";
 import "./TwammWeightedPool.sol";
 
 contract TwammWeightedPoolFactory is BasePoolSplitCodeFactory, FactoryWidePauseWindow {
+
+    event LongTermOrdersContractCreated(address indexed ltoContract);
+
+
     constructor(IVault vault) BasePoolSplitCodeFactory(vault, type(TwammWeightedPool).creationCode) {
         // solhint-disable-previous-line no-empty-blocks
     }
@@ -37,11 +42,14 @@ contract TwammWeightedPoolFactory is BasePoolSplitCodeFactory, FactoryWidePauseW
         uint256[] memory weights,
         uint256 swapFeePercentage,
         address owner,
-        address longTermOrdersContract
-    ) external returns (address) {
+        uint256 orderBlockInterval
+    ) external returns (address poolAddress) {
         (uint256 pauseWindowDuration, uint256 bufferPeriodDuration) = getPauseConfiguration();
 
-        return
+        LongTermOrders longTermOrdersContract = new LongTermOrders(orderBlockInterval);
+        emit LongTermOrdersContractCreated(address(longTermOrdersContract));
+
+        poolAddress = 
             _create(
                 abi.encode(
                     getVault(),
@@ -53,8 +61,10 @@ contract TwammWeightedPoolFactory is BasePoolSplitCodeFactory, FactoryWidePauseW
                     pauseWindowDuration,
                     bufferPeriodDuration,
                     owner,
-                    longTermOrdersContract
+                    address(longTermOrdersContract)
                 )
             );
+
+        longTermOrdersContract.transferOwnership(poolAddress);
     }
 }

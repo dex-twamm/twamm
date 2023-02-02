@@ -9,7 +9,7 @@ describe('TwammPoolFactory', function () {
   it('references the vault correctly', async () => {
     const input = task.input();
 
-    const factory = await task.deployedInstance('TwammPoolFactory');
+    const factory = await task.deployedInstance('TwammWeightedPoolFactory');
 
     expect(await factory.getVault()).to.be.equal(input.Vault);
   });

@@ -26,6 +26,7 @@ export type RawWeightedPoolDeployment = {
   oracleEnabled?: boolean;
   swapEnabledOnStart?: boolean;
   longTermOrdersContract?: string;
+  orderBlockInterval?: number;
   mustAllowlistLPs?: boolean;
   managementSwapFeePercentage?: BigNumberish;
   owner?: Account;
@@ -47,6 +48,7 @@ export type WeightedPoolDeployment = {
   oracleEnabled: boolean;
   swapEnabledOnStart: boolean;
   longTermOrdersContract?: string;
+  orderBlockInterval?: number;
   mustAllowlistLPs: boolean;
   managementSwapFeePercentage: BigNumberish;
   owner?: string;
