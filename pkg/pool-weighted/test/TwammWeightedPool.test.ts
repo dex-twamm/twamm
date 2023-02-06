@@ -38,9 +38,9 @@ function getOrderExpiryBlock(orderBlockInterval: number, numberOfBlockIntervals:
   return orderBlockInterval * (numberOfBlockIntervals + 1) + blockNumber - (blockNumber % orderBlockInterval);
 }
 
-function getOrderSalesRate(expiryBlock: number, orderPlacedBlock: number) {
+function getOrderSalesRate(amount: BigNumber, expiryBlock: number, orderPlacedBlock: number) {
   return bn(
-    new Decimal(fp(1.0).toString())
+    new Decimal(amount.toString())
       .div(new Decimal(expiryBlock - orderPlacedBlock))
       .toDecimalPlaces(0, Decimal.ROUND_DOWN)
   );
@@ -240,13 +240,15 @@ describe('TwammWeightedPool', function () {
           });
 
           it('can place long term order and receive order placed event', async () => {
+            const amount = fp(1.0);
+
             await tokens.approve({ from: other, to: await pool.getVault() });
 
             const buyTokenIndex = 1,
               sellTokenIndex = 0;
             const placeResult = await pool.placeLongTermOrder({
               from: other,
-              amountIn: fp(1.0),
+              amountIn: amount,
               tokenInIndex: sellTokenIndex,
               tokenOutIndex: buyTokenIndex,
               numberOfBlockIntervals: 10,
@@ -259,7 +261,7 @@ describe('TwammWeightedPool', function () {
               orderId: 0,
               sellTokenIndex: sellTokenIndex,
               buyTokenIndex: buyTokenIndex,
-              saleRate: getOrderSalesRate(expiryBlock, orderPlacedBlock),
+              saleRate: getOrderSalesRate(amount, expiryBlock, orderPlacedBlock),
               owner: other.address,
               expirationBlock: expiryBlock,
             });
@@ -282,7 +284,7 @@ describe('TwammWeightedPool', function () {
 
             const orderPlacedBlock = await lastBlockNumber();
             const expiryBlock = getOrderExpiryBlock(10, 10, orderPlacedBlock);
-            const expectedSalesRate = getOrderSalesRate(expiryBlock, orderPlacedBlock);
+            const expectedSalesRate = getOrderSalesRate(amount, expiryBlock, orderPlacedBlock);
 
             const cancelTx = await pool.cancelLongTermOrder({ orderId: 0, from: other });
 
@@ -331,7 +333,7 @@ describe('TwammWeightedPool', function () {
 
             const orderPlacedBlock = await lastBlockNumber();
             const expiryBlock = getOrderExpiryBlock(10, 10, orderPlacedBlock);
-            const expectedSalesRate = getOrderSalesRate(expiryBlock, orderPlacedBlock);
+            const expectedSalesRate = getOrderSalesRate(amount, expiryBlock, orderPlacedBlock);
 
             await moveForwardNBlocks(expiryBlock - 50);
 
@@ -386,7 +388,7 @@ describe('TwammWeightedPool', function () {
 
             const orderPlacedBlock = await lastBlockNumber();
             const expiryBlock = getOrderExpiryBlock(10, 10, orderPlacedBlock);
-            const expectedSalesRate = getOrderSalesRate(expiryBlock, orderPlacedBlock);
+            const expectedSalesRate = getOrderSalesRate(amount, expiryBlock, orderPlacedBlock);
 
             await moveForwardNBlocks(expiryBlock);
 
@@ -422,6 +424,32 @@ describe('TwammWeightedPool', function () {
             expect(orderCancelledEvent.args['isPartialWithdrawal']).to.be.equal(false);
             expect(orderCancelledEvent.args['proceeds']).to.be.lt(balanceB);
             expect(orderCancelledEvent.args['proceeds']).to.be.gt(balanceB.sub(2));
+          });
+
+          it('can completely execute long term order and do join pool', async () => {
+            await tokens.approve({ from: other, to: await pool.getVault() });
+
+            const buyTokenIndex = 1,
+              sellTokenIndex = 0,
+              amount = fp(200.0);
+
+            await pool.placeLongTermOrder({
+              from: other,
+              amountIn: amount,
+              tokenInIndex: sellTokenIndex,
+              tokenOutIndex: buyTokenIndex,
+              numberOfBlockIntervals: 100,
+            });
+
+            const orderPlacedBlock = await lastBlockNumber();
+            const expiryBlock = getOrderExpiryBlock(10, 100, orderPlacedBlock);
+
+            // await moveForwardNBlocks(expiryBlock);
+
+            const ZEROS = Array(2).fill(bn(0));
+            const amountsIn = ZEROS.map((n, i) => (i === 1 ? fp(0.1) : n));
+
+            await pool.joinGivenIn({ from: other, amountsIn: amountsIn });
           });
 
           it('can cancel one-way Long Term Order', async () => {

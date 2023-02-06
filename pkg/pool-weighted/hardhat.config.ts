@@ -34,6 +34,7 @@ export default {
     hardhat: {
       allowUnlimitedContractSize: true,
       chainId: 1,
+      // accounts: [{ privateKey: `0x${PRIVATE_KEY}`, balance: '165806577008781159' }],
     },
     rinkeby: {
       url: RINKEBY_API_URL,

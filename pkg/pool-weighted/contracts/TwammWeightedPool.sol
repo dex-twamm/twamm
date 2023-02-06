@@ -313,7 +313,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256 balanceTokenIn,
         uint256 balanceTokenOut
     ) internal returns (uint256[] memory updatedBalances) {
-        uint256[] memory balances = new uint256[](2);
+        uint256[] memory balances;
 
         if (_token0 == request.tokenIn) {
             balances = _getSizeTwoArray(balanceTokenIn, balanceTokenOut);
@@ -479,23 +479,22 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         }
     }
 
-    function _getUpdatedPoolBalances(uint256[] memory balances) internal view returns (uint256[] memory) {
+    function _getUpdatedPoolBalances(uint256[] memory balances)
+        internal
+        view
+        returns (uint256[] memory updatedBalances)
+    {
         if (address(_longTermOrders) != address(0)) {
+            (uint256 balanceA, uint256 balanceB) = _longTermOrders.getTokenBalancesFromLongTermOrder();
+
+            updatedBalances = _getSizeTwoArray(balances[0], balances[1]);
+
             // Deduct the long term orders and long term order management fee from the pool balances.
-            balances[0] = (
-                balances[0].sub(_longTermOrders.getTokenBalanceFromLongTermOrder(0)).sub(
-                    _longTermOrderCollectedManagementFees[0]
-                )
-            );
-
-            balances[1] = (
-                balances[1].sub(_longTermOrders.getTokenBalanceFromLongTermOrder(1)).sub(
-                    _longTermOrderCollectedManagementFees[1]
-                )
-            );
+            updatedBalances[0] = updatedBalances[0].sub(balanceA).sub(_longTermOrderCollectedManagementFees[0]);
+            updatedBalances[1] = updatedBalances[1].sub(balanceB).sub(_longTermOrderCollectedManagementFees[1]);
+        } else {
+            return balances;
         }
-
-        return balances;
     }
 
     function _getSizeTwoArray(uint256 a, uint256 b) internal pure returns (uint256[] memory array) {
@@ -504,14 +503,17 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         array[1] = b;
     }
 
-    function _calculateInvariant(uint256[] memory normalizedWeights, uint256[] memory balances)
-        internal
-        view
-        override
-        returns (uint256)
-    {
+    function getInvariant() public view override returns (uint256) {
+        (, uint256[] memory balances, ) = getVault().getPoolTokens(getPoolId());
+
+        // Since the Pool hooks always work with upscaled balances, we manually
+        // upscale here for consistency
+        _upscaleArray(balances, _scalingFactors());
+
+        (uint256[] memory normalizedWeights, ) = _getNormalizedWeightsAndMaxWeightIndex();
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
-        return WeightedMath._calculateInvariant(normalizedWeights, updatedBalances);
+
+        return _calculateInvariant(normalizedWeights, updatedBalances);
     }
 
     function setLongTermSwapFeePercentage(

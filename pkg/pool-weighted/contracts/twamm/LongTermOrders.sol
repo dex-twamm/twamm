@@ -438,8 +438,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         }
     }
 
-    function getTokenBalanceFromLongTermOrder(uint256 tokenIndex) external view override returns (uint256 balance) {
-        return tokenIndex == 0 ? longTermOrders.balanceA : longTermOrders.balanceB;
+    function getTokenBalancesFromLongTermOrder() external view override returns (uint256 balanceA, uint256 balanceB) {
+        return (longTermOrders.balanceA, longTermOrders.balanceB);
     }
 
     function _getOrderExpiry(uint256 numberOfBlockIntervals) internal view returns (uint256) {
