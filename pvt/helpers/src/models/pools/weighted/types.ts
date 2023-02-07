@@ -199,6 +199,13 @@ export type ExitResult = {
   receipt: ContractReceipt;
 };
 
+export type WithdrawLtoResult = {
+  amountsOut: BigNumber[];
+  dueProtocolFeeAmounts: BigNumber[];
+  receipt: ContractReceipt;
+  isPartialWithdrawal: boolean;
+};
+
 export type SwapResult = {
   amount: BigNumber;
   receipt: ContractReceipt;
