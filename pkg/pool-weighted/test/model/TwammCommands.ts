@@ -121,6 +121,33 @@ export class WithdrawLtoCommand implements fc.AsyncCommand<TwammModel, Contracts
     toString = () => `withdrawLto(${this.orderId})`;
 }
 
+export class CancelLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
+    constructor(readonly orderId: number) { }
+    check = (m: Readonly<TwammModel>) => {
+        if (this.orderId >= m.lastOrderId) return false; // TODO: allow invalid Ids as well?
+        if (m.orderMap[this.orderId].withdrawn) return false;
+
+        return true;
+    };
+
+    async run(m: TwammModel, r: Contracts): Promise<void> {
+        try {
+            const mockResult = await m.cancelLto(this.orderId);
+
+            const cancelResult = await r.pool.cancelLongTermOrder({
+                from: r.wallet,
+                orderId: this.orderId
+            });
+            expectEqualWithError(cancelResult.amountsOut[mockResult.order.buyTokenIndex], fp(mockResult.purchasedAmount));
+            expectEqualWithError(cancelResult.amountsOut[mockResult.order.sellTokenIndex], fp(mockResult.unsoldAmout));
+        } catch (error) {
+            console.log(error);
+            throw error;
+        }
+    }
+    toString = () => `cancelLto(${this.orderId})`;
+}
+
 export class MoveFwdNBlocksCommand implements fc.AsyncCommand<TwammModel, Contracts> {
     constructor(readonly value: number) { }
     check = (m: Readonly<TwammModel>) => true;
@@ -135,6 +162,9 @@ export class MoveFwdNBlocksCommand implements fc.AsyncCommand<TwammModel, Contra
     toString = () => `moveNBlocks(${this.value})`;
 }
 
+// TODO: implement LTO management fee withdrawal.
+// TODO: implement multiple wallets.
+
 export const allTwammCommands = [
     fc.float({ min: 1, max: 1000 }).map((v) => new JoinGivenInCommand(v)),
     fc.float({ min: 1, max: 100 }).map((v) => new MultiExitGivenInCommand(v)),
@@ -143,6 +173,7 @@ export const allTwammCommands = [
         fc.nat({ max: 1 }), // tokenIndexIn
         fc.integer({ min: 1, max: 10 },) // numberOfBlockIntervals
     ).map((v) => new PlaceLtoCommand(v[0], v[1], v[2])),
-    fc.nat({ max: 10 }).map((v) => new WithdrawLtoCommand(v)),
+    fc.nat({ max: 5 }).map((v) => new WithdrawLtoCommand(v)),
+    fc.nat({ max: 5 }).map((v) => new CancelLtoCommand(v)),
     fc.integer({ min: 1, max: 200 }).map((v) => new MoveFwdNBlocksCommand(v))
 ];

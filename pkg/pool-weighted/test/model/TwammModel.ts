@@ -1,6 +1,7 @@
 import WeightedPool from '@balancer-labs/v2-helpers/src/models/pools/weighted/WeightedPool';
 import { decimal, fp, fromFp } from '@balancer-labs/v2-helpers/src/numbers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { expect } from 'chai';
 
 import Decimal from 'decimal.js';
 import { BigNumber } from 'ethers';
@@ -31,7 +32,6 @@ export class Order {
 }
 
 export class OrderPool {
-
   constructor(
     public currentSalesRate: Decimal = ZERO,
     public rewardFactor: Decimal = ZERO,
@@ -39,6 +39,25 @@ export class OrderPool {
     public rewardFactorAtSubmission: { [Key: number]: Decimal } = {},
     public rewardFactorAtBlock: { [Key: number]: Decimal } = {},
     public ordersExpiringAtBlock: { [Key: number]: number } = {}) {
+  }
+
+  cancelOrder(orderId: number, lastVirtualOrderBlock: number, orderSaleRate: Decimal, orderExpiryBlock: number) {
+    expect(orderExpiryBlock).gte(lastVirtualOrderBlock);
+    let result = {
+      unsoldAmout: ZERO,
+      purchasedAmount: ZERO
+    } 
+
+    const blocksRemaining = orderExpiryBlock - lastVirtualOrderBlock;
+    result.unsoldAmout = orderSaleRate.mul(blocksRemaining);
+    const rewardFactorAtSubmission = this.rewardFactorAtSubmission[orderId];
+    result.purchasedAmount = this.rewardFactor.sub(rewardFactorAtSubmission).mul(orderSaleRate);
+
+    this.currentSalesRate = this.currentSalesRate.sub(orderSaleRate);
+    this.salesRateEndingPerBlock[orderExpiryBlock] = this.salesRateEndingPerBlock[orderExpiryBlock].sub(orderSaleRate);
+    this.ordersExpiringAtBlock[orderExpiryBlock] -= 1;
+
+    return result;
   }
 
   depositOrder(orderId: number, amountPerBlock: Decimal, orderExpiryBlock: number) {
@@ -242,6 +261,22 @@ export class TwammModel {
     return {
       order: order,
       ...withdrawResult
+    }
+  }
+
+  async cancelLto(orderId: number) {
+    await this.executeVirtualOrders();
+    const order = this.orderMap[orderId];
+    // TODO: fail if order owner is not caller.
+    const orderPool = this.orderPoolMap[order.sellTokenIndex];
+    const cancelResult = orderPool.cancelOrder(orderId, this.lastVirtualOrderBlock, order.saleRate, order.expirationBlock);
+    this.longTermBalances[order.buyTokenIndex] = this.longTermBalances[order.buyTokenIndex].sub(cancelResult.purchasedAmount);
+    this.longTermBalances[order.sellTokenIndex] = this.longTermBalances[order.sellTokenIndex].sub(cancelResult.unsoldAmout);
+
+    this.orderMap[orderId].withdrawn = true;
+    return {
+      order: order,
+      ...cancelResult
     }
   }
 
