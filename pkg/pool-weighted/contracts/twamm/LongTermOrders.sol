@@ -165,12 +165,12 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
-        uint256 orderExpirationBlock = longTermOrders.orderMap[orderId].expirationBlock;
+        uint256 orderExpirationBlock = order.expirationBlock;
 
         (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(
             orderId,
             longTermOrders.lastVirtualOrderBlock,
-            longTermOrders.orderMap[orderId].saleRate,
+            order.saleRate,
             orderExpirationBlock
         );
 
@@ -204,12 +204,12 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
-        uint256 orderExpirationBlock = longTermOrders.orderMap[orderId].expirationBlock;
+        uint256 orderExpirationBlock = order.expirationBlock;
 
         (proceeds, isPartialWithdrawal) = orderPool.withdrawProceeds(
             orderId,
             longTermOrders.lastVirtualOrderBlock,
-            longTermOrders.orderMap[orderId].saleRate,
+            order.saleRate,
             orderExpirationBlock
         );
 

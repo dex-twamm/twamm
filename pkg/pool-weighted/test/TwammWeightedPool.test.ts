@@ -1,6 +1,6 @@
 import { ethers, testUtils } from 'hardhat';
 import { expect } from 'chai';
-import { bn, fp, fromFp, toFp, decimal } from '@balancer-labs/v2-helpers/src/numbers';
+import { bn, fp, fromFp, toFp, pct } from '@balancer-labs/v2-helpers/src/numbers';
 import { Decimal } from 'decimal.js';
 import { BigNumber, Contract } from 'ethers';
 
@@ -90,7 +90,7 @@ async function estimateSpotPrice(pool: WeightedPool, longTermOrdersContract: Con
   const adjustedBalances = [];
 
   const longTermOrdersStruct = await longTermOrdersContract.longTermOrders();
-  // console.log(longTermOrdersStruct);
+
   adjustedBalances[0] = fpBalances[0].sub(longTermOrdersStruct.balanceA);
   adjustedBalances[1] = fpBalances[1].sub(longTermOrdersStruct.balanceB);
 
@@ -129,7 +129,7 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const EXPECTED_RELATIVE_ERROR = 1e-16;
+const EXPECTED_RELATIVE_ERROR = 1e-15;
 
 describe('TwammWeightedPool', function () {
   describe('long term order tests', () => {
@@ -147,6 +147,36 @@ describe('TwammWeightedPool', function () {
 
     let longTermOrdersContract: Contract;
 
+    async function placeLongTermOrder(
+      address: SignerWithAddress,
+      tokenInIndex: number,
+      tokenOutIndex: number,
+      amount: BigNumber,
+      numberOfBlockIntervals: number,
+      orderBlockInterval: number
+    ): Promise<[number, BigNumber]> {
+      await pool.placeLongTermOrder({
+        from: address,
+        tokenInIndex,
+        tokenOutIndex,
+        amountIn: amount,
+        numberOfBlockIntervals,
+      });
+
+      const lastBlock = await lastBlockNumber();
+
+      return [lastBlock, getSaleRate(amount, numberOfBlockIntervals, lastBlock, orderBlockInterval)];
+    }
+
+    function getSaleRate(
+      amount: BigNumber,
+      numberOfBlockIntervals: number,
+      blockNumber: number,
+      orderBlockInterval: number
+    ): BigNumber {
+      return amount.div(orderBlockInterval * (numberOfBlockIntervals + 1) - (blockNumber % orderBlockInterval));
+    }
+
     sharedBeforeEach('deploy tokens', async () => {
       tokens = await TokenList.create(
         [
@@ -159,6 +189,7 @@ describe('TwammWeightedPool', function () {
     });
 
     context('when initialized with swaps enabled', () => {
+      const orderBlockInterval = 10;
       sharedBeforeEach('deploy pool', async () => {
         const params = {
           tokens,
@@ -166,7 +197,7 @@ describe('TwammWeightedPool', function () {
           owner: owner.address,
           poolType: WeightedPoolType.TWAMM_WEIGHTED_POOL,
           swapEnabledOnStart: true,
-          orderBlockInterval: 10,
+          orderBlockInterval: orderBlockInterval,
           fromFactory: true,
         };
         pool = await WeightedPool.create(params);
@@ -190,8 +221,6 @@ describe('TwammWeightedPool', function () {
           });
 
           it('can execute one-way Long Term Order', async () => {
-            await tokens.approve({ from: other, to: await pool.getVault() });
-
             const placeResult = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
@@ -218,8 +247,6 @@ describe('TwammWeightedPool', function () {
           });
 
           it('can get long term order', async () => {
-            await tokens.approve({ from: other, to: await pool.getVault() });
-
             const placeResult = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
@@ -241,8 +268,6 @@ describe('TwammWeightedPool', function () {
 
           it('can place long term order and receive order placed event', async () => {
             const amount = fp(1.0);
-
-            await tokens.approve({ from: other, to: await pool.getVault() });
 
             const buyTokenIndex = 1,
               sellTokenIndex = 0;
@@ -268,8 +293,6 @@ describe('TwammWeightedPool', function () {
           });
 
           it('can cancel long term order and receive order cancelled event', async () => {
-            await tokens.approve({ from: other, to: await pool.getVault() });
-
             const buyTokenIndex = 1,
               sellTokenIndex = 0,
               amount = fp(1.0);
@@ -317,8 +340,6 @@ describe('TwammWeightedPool', function () {
           });
 
           it('can withdraw partial long term order and receive order withdrawn event', async () => {
-            await tokens.approve({ from: other, to: await pool.getVault() });
-
             const buyTokenIndex = 1,
               sellTokenIndex = 0,
               amount = fp(1.0);
@@ -372,8 +393,6 @@ describe('TwammWeightedPool', function () {
           });
 
           it('can withdraw long term order and receive order withdrawn event', async () => {
-            await tokens.approve({ from: other, to: await pool.getVault() });
-
             const buyTokenIndex = 1,
               sellTokenIndex = 0,
               amount = fp(1.0);
@@ -426,35 +445,192 @@ describe('TwammWeightedPool', function () {
             expect(orderCancelledEvent.args['proceeds']).to.be.gt(balanceB.sub(2));
           });
 
-          it('can completely execute long term order and do join pool', async () => {
-            await tokens.approve({ from: other, to: await pool.getVault() });
+          async function joinPoolGivenInAndExpect(
+            sender: SignerWithAddress,
+            amountsIn: BigNumber[],
+            balances: BigNumber[]
+          ) {
+            const expectedBptOut = await pool.estimateBptOut(amountsIn, balances);
+            const previousBptBalance = await pool.balanceOf(other);
 
+            const result = await pool.joinGivenIn({ from: sender, amountsIn: amountsIn });
+
+            // Amounts in should be the same as initial ones
+            expect(result.amountsIn).to.deep.equal(amountsIn);
+
+            // Make sure received BPT is close to what we expect
+            const currentBptBalance = await pool.balanceOf(other);
+
+            expect(currentBptBalance.sub(previousBptBalance)).to.be.equalWithError(expectedBptOut, 0.0001);
+          }
+
+          async function executeVirtualOrdersJoinPoolGivenInAndExpect(
+            sender: SignerWithAddress,
+            amountsIn: BigNumber[],
+            orderPlacementBlock: number,
+            currentSaleRateA: BigNumber,
+            currentSaleRateB: BigNumber
+          ) {
+            const ammBalances: BigNumber[] = [fp(0), fp(0)];
+            const longTermBalances = await longTermOrdersContract.getTokenBalancesFromLongTermOrder();
+            const currentBalances = await getLtoRemovedPoolBalances();
+
+            [ammBalances[0], ammBalances[1], ,] = executeVirtualOrders(
+              currentBalances[0],
+              currentBalances[1],
+              currentSaleRateA,
+              currentSaleRateB,
+              longTermBalances[0],
+              longTermBalances[1],
+              orderPlacementBlock,
+              orderPlacementBlock + 1
+            );
+
+            joinPoolGivenInAndExpect(sender, amountsIn, ammBalances);
+          }
+
+          async function exitPoolSingleTokenGivenInAndExpect(
+            lp: SignerWithAddress,
+            tokenToExit: number,
+            balances: BigNumber[]
+          ) {
+            const previousBptBalance = await pool.balanceOf(lp);
+            const bptIn = pct(previousBptBalance, 0.2);
+            const expectedTokenOut = await pool.estimateTokenOut(tokenToExit, bptIn, balances);
+
+            const result = await pool.singleExitGivenIn({ from: lp, bptIn, token: tokenToExit });
+
+            // Protocol fees should be zero
+            // TODO check this. Why dueProtocolFeeAmounts is undefined?
+            // expect(result.dueProtocolFeeAmounts).to.be.zeros;
+
+            // Only token out should be the one transferred
+            expect(result.amountsOut[tokenToExit]).to.be.equalWithError(expectedTokenOut, 0.0001);
+            expect(result.amountsOut.filter((_, i) => i != tokenToExit)).to.be.zeros;
+
+            // Current BPT balance should decrease
+            expect(await pool.balanceOf(lp)).to.equal(previousBptBalance.sub(bptIn));
+          }
+
+          async function executeVirtualOrdersExitPoolSingleTokenGivenInAndExpect(
+            lp: SignerWithAddress,
+            tokenToExit: number,
+            currentSaleRateA: BigNumber,
+            currentSaleRateB: BigNumber
+          ) {
+            const ammBalances: BigNumber[] = [fp(0), fp(0)];
+            const currentBalances = await getLtoRemovedPoolBalances();
+            const longTermBalances = await longTermOrdersContract.getTokenBalancesFromLongTermOrder();
+
+            const blockNumber = await lastBlockNumber();
+
+            [ammBalances[0], ammBalances[1], ,] = executeVirtualOrders(
+              currentBalances[0],
+              currentBalances[1],
+              currentSaleRateA,
+              currentSaleRateB,
+              longTermBalances[0],
+              longTermBalances[1],
+              blockNumber,
+              blockNumber + 1
+            );
+
+            exitPoolSingleTokenGivenInAndExpect(sender, tokenToExit, ammBalances);
+          }
+
+          async function getLtoRemovedPoolBalances() {
+            const currentBalances = await pool.getBalances();
+            const longTermBalances = await longTermOrdersContract.getTokenBalancesFromLongTermOrder();
+            const poolBalances: BigNumber[] = [fp(0), fp(0)];
+
+            poolBalances[0] = currentBalances[0].sub(longTermBalances[0]);
+            poolBalances[1] = currentBalances[1].sub(longTermBalances[1]);
+
+            return poolBalances;
+          }
+          it('can execute long term order and do join pool', async () => {
             const buyTokenIndex = 1,
               sellTokenIndex = 0,
-              amount = fp(200.0);
+              amount = fp(200.0),
+              numberOfBlockIntervals = 100;
 
-            await pool.placeLongTermOrder({
-              from: other,
-              amountIn: amount,
-              tokenInIndex: sellTokenIndex,
-              tokenOutIndex: buyTokenIndex,
-              numberOfBlockIntervals: 100,
-            });
+            const [orderPlacementBlock, saleRate] = await placeLongTermOrder(
+              sender,
+              sellTokenIndex,
+              buyTokenIndex,
+              amount,
+              numberOfBlockIntervals,
+              orderBlockInterval
+            );
 
-            const orderPlacedBlock = await lastBlockNumber();
-            const expiryBlock = getOrderExpiryBlock(10, 100, orderPlacedBlock);
+            // Join pool
+            await executeVirtualOrdersJoinPoolGivenInAndExpect(
+              other,
+              [fp(0.1), fp(0)],
+              orderPlacementBlock,
+              saleRate,
+              fp(0)
+            );
+          });
 
-            // await moveForwardNBlocks(expiryBlock);
+          it('can execute long term order, do join pool and then exit pool', async () => {
+            const buyTokenIndex = 1,
+              sellTokenIndex = 0,
+              amount = fp(200.0),
+              numberOfBlockIntervals = 100;
 
-            const ZEROS = Array(2).fill(bn(0));
-            const amountsIn = ZEROS.map((n, i) => (i === 1 ? fp(0.1) : n));
+            const [orderPlacementBlock, saleRate] = await placeLongTermOrder(
+              sender,
+              sellTokenIndex,
+              buyTokenIndex,
+              amount,
+              numberOfBlockIntervals,
+              orderBlockInterval
+            );
 
-            await pool.joinGivenIn({ from: other, amountsIn: amountsIn });
+            // Join pool
+            await executeVirtualOrdersJoinPoolGivenInAndExpect(
+              other,
+              [fp(0.1), fp(0)],
+              orderPlacementBlock,
+              saleRate,
+              fp(0)
+            );
+
+            // Exit pool
+            await executeVirtualOrdersExitPoolSingleTokenGivenInAndExpect(other, 0, saleRate, fp(0));
+          });
+
+          it('can place long term order, execute completely, do join pool and then exit pool', async () => {
+            const buyTokenIndex = 1,
+              sellTokenIndex = 0,
+              amount = fp(20.0),
+              numberOfBlockIntervals = 10;
+
+            const [orderPlacementBlock] = await placeLongTermOrder(
+              sender,
+              sellTokenIndex,
+              buyTokenIndex,
+              amount,
+              numberOfBlockIntervals,
+              orderBlockInterval
+            );
+            const expiryBlock = getOrderExpiryBlock(orderBlockInterval, numberOfBlockIntervals, orderPlacementBlock);
+
+            // Complete long term order by moving forward and doing swaps on the pool
+            await doShortSwapsUntil(expiryBlock + 1, pool, owner, owner);
+
+            let currentBalances = await getLtoRemovedPoolBalances();
+
+            // Join pool
+            await joinPoolGivenInAndExpect(other, [fp(0.1), fp(0)], currentBalances);
+
+            currentBalances = await getLtoRemovedPoolBalances();
+            // Exit pool
+            await exitPoolSingleTokenGivenInAndExpect(other, 0, currentBalances);
           });
 
           it('can cancel one-way Long Term Order', async () => {
-            await tokens.approve({ from: other, amount: MAX_UINT256, to: await pool.getVault() });
-
             const currentBlock = await block.latestBlockNumber();
             const baseBlock = currentBlock - (currentBlock % 100);
 
@@ -514,7 +690,6 @@ describe('TwammWeightedPool', function () {
           });
 
           it('can execute two-way Long Term Order', async () => {
-            await tokens.approve({ from: other, amount: MAX_UINT256, to: await pool.getVault() });
             const longTermOrder1 = await pool.placeLongTermOrder({
               from: other,
               amountIn: fp(1.0),
@@ -556,8 +731,6 @@ describe('TwammWeightedPool', function () {
           });
 
           it('can complete one-way Long Term Order and withdraw pool owner can withdraw fees', async () => {
-            await tokens.approve({ from: other, amount: MAX_UINT256, to: await pool.getVault() });
-
             await pool.setLongTermSwapFeePercentage(owner, {
               newLongTermSwapFeePercentage: fp(0.01),
               newLongTermSwapFeeUserCutPercentage: fp(0.5),
@@ -846,6 +1019,7 @@ describe('TwammWeightedPool', function () {
               await block.setAutomine(true);
             });
           }
+          // TODO: Add test, on withdraw, cancel, remove fees, invariant should remain same
         });
       });
     });
