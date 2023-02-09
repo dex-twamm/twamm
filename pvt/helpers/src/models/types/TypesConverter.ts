@@ -36,21 +36,23 @@ export function computeDecimalsFromIndex(i: number): number {
 export default {
   toVaultDeployment(params: RawVaultDeployment): VaultDeployment {
     let { mocked, admin, pauseWindowDuration, bufferPeriodDuration } = params;
+    const { from } = params;
     if (!mocked) mocked = false;
     if (!admin) admin = params.from;
     if (!pauseWindowDuration) pauseWindowDuration = 0;
     if (!bufferPeriodDuration) bufferPeriodDuration = 0;
-    return { mocked, admin, pauseWindowDuration, bufferPeriodDuration };
+    return { mocked, admin, pauseWindowDuration, bufferPeriodDuration, from };
   },
 
   toRawVaultDeployment(params: RawWeightedPoolDeployment | RawStablePoolDeployment): RawVaultDeployment {
     let { admin, pauseWindowDuration, bufferPeriodDuration } = params;
+    const { from } = params;
     if (!admin) admin = params.from;
     if (!pauseWindowDuration) pauseWindowDuration = 0;
     if (!bufferPeriodDuration) bufferPeriodDuration = 0;
 
     const mocked = params.fromFactory !== undefined ? !params.fromFactory : true;
-    return { mocked, admin, pauseWindowDuration, bufferPeriodDuration };
+    return { mocked, admin, pauseWindowDuration, bufferPeriodDuration, from };
   },
 
   toWeightedPoolDeployment(params: RawWeightedPoolDeployment): WeightedPoolDeployment {
@@ -64,6 +66,7 @@ export default {
       oracleEnabled,
       swapEnabledOnStart,
       longTermOrdersContract,
+      orderBlockInterval,
       mustAllowlistLPs,
       managementSwapFeePercentage,
       poolType,
@@ -79,6 +82,7 @@ export default {
     if (!assetManagers) assetManagers = Array(tokens.length).fill(ZERO_ADDRESS);
     if (!poolType) poolType = WeightedPoolType.WEIGHTED_POOL;
     if (!longTermOrdersContract) longTermOrdersContract = ZERO_ADDRESS;
+    if (!orderBlockInterval) orderBlockInterval = 10;
     if (undefined == swapEnabledOnStart) swapEnabledOnStart = true;
     if (undefined == mustAllowlistLPs) mustAllowlistLPs = false;
     if (managementSwapFeePercentage === undefined) managementSwapFeePercentage = fp(0);
@@ -94,6 +98,7 @@ export default {
       oracleEnabled,
       swapEnabledOnStart,
       longTermOrdersContract,
+      orderBlockInterval,
       mustAllowlistLPs,
       managementSwapFeePercentage,
       owner: this.toAddress(params.owner),

@@ -57,6 +57,7 @@
     "eslint-plugin-prettier": "^3.1.4",
     "ethereum-waffle": "^3.0.2",
     "ethers": "^5.7.2",
+    "fast-check": "^3.6.2",
     "hardhat": "^2.8.3",
     "hardhat-contract-sizer": "^2.5.1",
     "hardhat-ethernal": "^3.0.1",

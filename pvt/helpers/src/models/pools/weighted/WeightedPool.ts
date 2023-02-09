@@ -40,6 +40,7 @@ import {
   ExitWithdrawLongTermOrderTwammPool,
   SetLongTermSwapFeePercentageRequest,
   GetLongTermOrderResult,
+  WithdrawLtoResult,
 } from './types';
 import {
   calculateInvariant,
@@ -52,6 +53,7 @@ import {
   calculateMaxOneTokenSwapFeeAmount,
   calculateSpotPrice,
   calculateBPTPrice,
+  calcTokensOutGivenExactBptIn,
 } from './math';
 import { SwapKind, WeightedPoolEncoder } from '@balancer-labs/balancer-js';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
@@ -322,6 +324,17 @@ export default class WeightedPool {
     return calcBptOutGivenExactTokensIn(currentBalances, this.weights, amountsIn, supply, this.swapFeePercentage);
   }
 
+  async estimateTokensOutBptIn(
+    bptIn: BigNumberish,
+    currentBalances?: BigNumberish[],
+    supply?: BigNumberish
+  ): Promise<Array<BigNumberish>> {
+    if (!supply) supply = await this.totalSupply();
+    if (!currentBalances) currentBalances = await this.getBalances();
+
+    return calcTokensOutGivenExactBptIn(currentBalances, bptIn, supply);
+  }
+
   async estimateTokenIn(
     token: number | Token,
     bptOut: BigNumberish,
@@ -478,10 +491,18 @@ export default class WeightedPool {
     return result;
   }
 
-  async withdrawLongTermOrder(params: ExitWithdrawLongTermOrderTwammPool): Promise<ExitResult> {
+  async withdrawLongTermOrder(params: ExitWithdrawLongTermOrderTwammPool): Promise<WithdrawLtoResult> {
     const result = await this.exit(this._buildWithdrawLongTermOrderParams(params));
     console.log(`withdrawOrder ${params.orderId}: `, result.receipt.gasUsed.toString());
-    return result;
+    const { isPartialWithdrawal } = expectEvent.getEventLog(
+      result.receipt,
+      this.instance.interface,
+      'LongTermOrderWithdrawn'
+    )[0].args;
+    return {
+      isPartialWithdrawal: isPartialWithdrawal,
+      ...result,
+    };
   }
 
   async getLongTermOrder(orderId: number): Promise<GetLongTermOrderResult> {

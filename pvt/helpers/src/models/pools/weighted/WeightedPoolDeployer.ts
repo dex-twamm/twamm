@@ -188,7 +188,7 @@ export default {
       swapFeePercentage,
       oracleEnabled,
       swapEnabledOnStart,
-      longTermOrdersContract,
+      orderBlockInterval,
       mustAllowlistLPs,
       managementSwapFeePercentage,
       poolType,
@@ -208,7 +208,7 @@ export default {
           weights,
           swapFeePercentage,
           owner,
-          longTermOrdersContract
+          orderBlockInterval
         );
         const receipt = await tx.wait();
         const event = expectEvent.inReceipt(receipt, 'PoolCreated');

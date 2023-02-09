@@ -551,6 +551,7 @@ __metadata:
     eslint-plugin-prettier: ^3.1.4
     ethereum-waffle: ^3.0.2
     ethers: ^5.7.2
+    fast-check: ^3.6.2
     hardhat: ^2.8.3
     hardhat-contract-sizer: ^2.5.1
     hardhat-ethernal: ^3.0.1
@@ -7857,6 +7858,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fast-check@npm:^3.6.2":
+  version: 3.6.2
+  resolution: "fast-check@npm:3.6.2"
+  dependencies:
+    pure-rand: ^6.0.0
+  checksum: fbd46b61aba772c18f9f55cdf90cb6f9e7ad545a4b6cbc0c3ad9ee0b99c1abc50f9a0f3953d88b3786601cd4f33a5e42e5e21d5e8f10c9109c2be01740908ee8
+  languageName: node
+  linkType: hard
+
 "fast-deep-equal@npm:^3.1.1":
   version: 3.1.3
   resolution: "fast-deep-equal@npm:3.1.3"
@@ -12515,6 +12525,13 @@ __metadata:
   dependencies:
     escape-goat: ^2.0.0
   checksum: b300d979e1bcc388b0aabe723e9bd7f6598f02a10e66b693b9dde6249f68ad95e93804a1511dbbafd172e404b837d60c49ebdd152e3e94909dc282ca4ba285e8
+  languageName: node
+  linkType: hard
+
+"pure-rand@npm:^6.0.0":
+  version: 6.0.0
+  resolution: "pure-rand@npm:6.0.0"
+  checksum: ea5db73d83ce12d9417f7f6046574b3e0c3495f7daf314d0e5c8797647415bbd8eb6f55f1c371d89621d88f9ce1b65c7d1989e945aec82ace0d9c1f805aebf5d
   languageName: node
   linkType: hard
 
