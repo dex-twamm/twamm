@@ -24,9 +24,7 @@ import "./twamm/LongTermOrders.sol";
 import "./TwammWeightedPool.sol";
 
 contract TwammWeightedPoolFactory is BasePoolSplitCodeFactory, FactoryWidePauseWindow {
-
     event LongTermOrdersContractCreated(address indexed ltoContract);
-
 
     constructor(IVault vault) BasePoolSplitCodeFactory(vault, type(TwammWeightedPool).creationCode) {
         // solhint-disable-previous-line no-empty-blocks
@@ -49,21 +47,20 @@ contract TwammWeightedPoolFactory is BasePoolSplitCodeFactory, FactoryWidePauseW
         LongTermOrders longTermOrdersContract = new LongTermOrders(orderBlockInterval);
         emit LongTermOrdersContractCreated(address(longTermOrdersContract));
 
-        poolAddress = 
-            _create(
-                abi.encode(
-                    getVault(),
-                    name,
-                    symbol,
-                    tokens,
-                    weights,
-                    swapFeePercentage,
-                    pauseWindowDuration,
-                    bufferPeriodDuration,
-                    owner,
-                    address(longTermOrdersContract)
-                )
-            );
+        poolAddress = _create(
+            abi.encode(
+                getVault(),
+                name,
+                symbol,
+                tokens,
+                weights,
+                swapFeePercentage,
+                pauseWindowDuration,
+                bufferPeriodDuration,
+                owner,
+                address(longTermOrdersContract)
+            )
+        );
 
         longTermOrdersContract.transferOwnership(poolAddress);
     }

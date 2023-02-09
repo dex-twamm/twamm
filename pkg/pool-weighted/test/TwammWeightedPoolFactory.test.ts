@@ -53,15 +53,7 @@ describe('TwammWeightedPoolFactory', function () {
 
   async function createPool(): Promise<Contract> {
     const receipt = await (
-      await factory.create(
-        NAME,
-        SYMBOL,
-        tokens.addresses,
-        WEIGHTS,
-        POOL_SWAP_FEE_PERCENTAGE,
-        owner.address,
-        10
-      )
+      await factory.create(NAME, SYMBOL, tokens.addresses, WEIGHTS, POOL_SWAP_FEE_PERCENTAGE, owner.address, 10)
     ).wait();
 
     const ltoContractCreatedEvent = expectEvent.inReceipt(receipt, 'LongTermOrdersContractCreated');
