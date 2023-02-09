@@ -15,6 +15,7 @@
 pragma solidity ^0.7.0;
 
 import "@balancer-labs/v2-solidity-utils/contracts/helpers/BalancerErrors.sol";
+import "hardhat/console.sol";
 
 /* solhint-disable private-vars-leading-underscore */
 
@@ -58,26 +59,6 @@ library SignedFixedPoint {
             _require(aInflated / a == ONE, Errors.DIV_INTERNAL); // mul overflow
 
             return aInflated / b;
-        }
-    }
-
-    function divUp(int256 a, int256 b) internal pure returns (int256 result) {
-        _require(b != 0, Errors.ZERO_DIVISION);
-
-        if (a == 0) {
-            return 0;
-        } else {
-            int256 aInflated = a * ONE;
-            _require(aInflated / a == ONE, Errors.DIV_INTERNAL); // mul overflow
-
-            // The traditional divUp formula is:
-            // divUp(x, y) := (x + y - 1) / y
-            // To avoid intermediate overflow in the addition, we distribute the division and get:
-            // divUp(x, y) := (x - 1) / y + 1
-            // Note that this requires x != 0, which we already tested for.
-
-            result = ((aInflated - 1) / b) + 1;
-            return result > 0 ? (b > 0 ? result : result - 1) : (b > 0 ? result - 1 : result - 2);
         }
     }
 
