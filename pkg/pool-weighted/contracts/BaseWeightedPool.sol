@@ -89,7 +89,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
     /**
      * @dev Returns the current value of the invariant.
      */
-    function getInvariant() public view returns (uint256) {
+    function getInvariant() public view virtual returns (uint256) {
         (, uint256[] memory balances, ) = getVault().getPoolTokens(getPoolId());
 
         // Since the Pool hooks always work with upscaled balances, we manually

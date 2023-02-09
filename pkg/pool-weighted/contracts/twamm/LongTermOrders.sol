@@ -165,12 +165,12 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
-        uint256 orderExpirationBlock = longTermOrders.orderMap[orderId].expirationBlock;
+        uint256 orderExpirationBlock = order.expirationBlock;
 
         (unsoldAmount, purchasedAmount) = orderPool.cancelOrder(
             orderId,
             longTermOrders.lastVirtualOrderBlock,
-            longTermOrders.orderMap[orderId].saleRate,
+            order.saleRate,
             orderExpirationBlock
         );
 
@@ -204,12 +204,12 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
         OrderPoolLib.OrderPool storage orderPool = longTermOrders.orderPoolMap[order.sellTokenIndex];
-        uint256 orderExpirationBlock = longTermOrders.orderMap[orderId].expirationBlock;
+        uint256 orderExpirationBlock = order.expirationBlock;
 
         (proceeds, isPartialWithdrawal) = orderPool.withdrawProceeds(
             orderId,
             longTermOrders.lastVirtualOrderBlock,
-            longTermOrders.orderMap[orderId].saleRate,
+            order.saleRate,
             orderExpirationBlock
         );
 
@@ -438,8 +438,8 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         }
     }
 
-    function getTokenBalanceFromLongTermOrder(uint256 tokenIndex) external view override returns (uint256 balance) {
-        return tokenIndex == 0 ? longTermOrders.balanceA : longTermOrders.balanceB;
+    function getTokenBalancesFromLongTermOrder() external view override returns (uint256 balanceA, uint256 balanceB) {
+        return (longTermOrders.balanceA, longTermOrders.balanceB);
     }
 
     function _getOrderExpiry(uint256 numberOfBlockIntervals) internal view returns (uint256) {
