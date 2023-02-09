@@ -35,7 +35,8 @@ export function computeDecimalsFromIndex(i: number): number {
 
 export default {
   toVaultDeployment(params: RawVaultDeployment): VaultDeployment {
-    let { mocked, admin, pauseWindowDuration, bufferPeriodDuration, from } = params;
+    let { mocked, admin, pauseWindowDuration, bufferPeriodDuration } = params;
+    const { from } = params;
     if (!mocked) mocked = false;
     if (!admin) admin = params.from;
     if (!pauseWindowDuration) pauseWindowDuration = 0;
@@ -44,13 +45,14 @@ export default {
   },
 
   toRawVaultDeployment(params: RawWeightedPoolDeployment | RawStablePoolDeployment): RawVaultDeployment {
-    let { admin, pauseWindowDuration, bufferPeriodDuration, from} = params;
+    let { admin, pauseWindowDuration, bufferPeriodDuration } = params;
+    const { from } = params;
     if (!admin) admin = params.from;
     if (!pauseWindowDuration) pauseWindowDuration = 0;
     if (!bufferPeriodDuration) bufferPeriodDuration = 0;
 
     const mocked = params.fromFactory !== undefined ? !params.fromFactory : true;
-    return { mocked, admin, pauseWindowDuration, bufferPeriodDuration, from};
+    return { mocked, admin, pauseWindowDuration, bufferPeriodDuration, from };
   },
 
   toWeightedPoolDeployment(params: RawWeightedPoolDeployment): WeightedPoolDeployment {

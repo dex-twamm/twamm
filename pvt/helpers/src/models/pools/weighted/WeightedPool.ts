@@ -323,7 +323,7 @@ export default class WeightedPool {
     if (!currentBalances) currentBalances = await this.getBalances();
     return calcBptOutGivenExactTokensIn(currentBalances, this.weights, amountsIn, supply, this.swapFeePercentage);
   }
-  
+
   async estimateTokensOutBptIn(
     bptIn: BigNumberish,
     currentBalances?: BigNumberish[],
@@ -494,14 +494,14 @@ export default class WeightedPool {
   async withdrawLongTermOrder(params: ExitWithdrawLongTermOrderTwammPool): Promise<WithdrawLtoResult> {
     const result = await this.exit(this._buildWithdrawLongTermOrderParams(params));
     console.log(`withdrawOrder ${params.orderId}: `, result.receipt.gasUsed.toString());
-    const {isPartialWithdrawal} = expectEvent.getEventLog(
+    const { isPartialWithdrawal } = expectEvent.getEventLog(
       result.receipt,
       this.instance.interface,
       'LongTermOrderWithdrawn'
     )[0].args;
     return {
       isPartialWithdrawal: isPartialWithdrawal,
-      ...result
+      ...result,
     };
   }
 
