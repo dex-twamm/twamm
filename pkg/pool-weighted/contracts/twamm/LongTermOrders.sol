@@ -30,6 +30,10 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint64 minltoOrderAmountToAmmBalanceRatio;
         //@notice last virtual orders were executed immediately before this block
         uint64 lastVirtualOrderBlock;
+
+        uint128 feePercentage;
+        uint128 feeProtocolCutPercentage;
+
         uint256 balanceA;
         uint256 balanceB;
         //@notice mapping from token address to pool that is selling that token
@@ -38,6 +42,9 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         //@notice mapping from order ids to Orders
         mapping(uint256 => Order) orderMap;
         uint256[] orderExpiryHeap;
+
+        mapping(uint256 => uint256) fees;
+        
     }
 
     LongTermOrdersStruct public longTermOrders;
@@ -325,6 +332,14 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             tokenBSellAmount
         );
 
+        if(tokenAOut > 0) {
+            tokenAOut = _deductProtocolFees(0, tokenAOut);
+        }
+
+        if(tokenBOut > 0) {
+            tokenBOut = _deductProtocolFees(1, tokenBOut);
+        }
+
         // Update balances reserves for both tokens.
         _addToLongTermOrdersBalance(0, tokenAOut);
         _removeFromLongTermOrdersBalance(0, tokenASellAmount);
@@ -430,6 +445,19 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         }
     }
 
+    function _deductProtocolFees(uint256 buyTokenIndex, uint256 purchasedAmount)
+        internal
+        returns (uint256)
+    {
+        uint256 totalFee = purchasedAmount.mulUp(uint256(longTermOrders.feePercentage));
+
+        uint256 protocolFee = uint256(longTermOrders.feeProtocolCutPercentage).mulUp(totalFee);
+        longTermOrders.fees[buyTokenIndex] += protocolFee;
+
+        // Total fee guaranteed to be smaller than purchasedAmount.
+        return purchasedAmount - totalFee;
+    }
+
     function _removeFromLongTermOrdersBalance(uint256 tokenIndex, uint256 balance) internal {
         if (tokenIndex == 0) {
             longTermOrders.balanceA = longTermOrders.balanceA.sub(balance);
@@ -438,8 +466,17 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         }
     }
 
-    function getTokenBalancesFromLongTermOrder() external view override returns (uint256 balanceA, uint256 balanceB) {
+    function getLongTermOrdersBalances() external view override returns (uint256 balanceA, uint256 balanceB) {
         return (longTermOrders.balanceA, longTermOrders.balanceB);
+    }
+
+    function getCollectedFees() external view override returns (uint256 feeA, uint256 feeB) {
+        return (longTermOrders.fees[0], longTermOrders.fees[1]);
+    }
+
+    function resetCollectedFees() external override virtual onlyOwner {
+        delete longTermOrders.fees[0];
+        delete longTermOrders.fees[1];
     }
 
     function _getOrderExpiry(uint256 numberOfBlockIntervals) internal view returns (uint256) {
@@ -450,6 +487,14 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         }
 
         return Math.add(Math.mul(orderBlockInterval, numberOfBlockIntervals), Math.sub(block.number, mod));
+    }
+
+    function setLongTermSwapFeePercentage(
+        uint128 newLongTermSwapFeePercentage,
+        uint128 newLongTermSwapFeeProtocolCutPercentage
+    ) external override onlyOwner {
+        longTermOrders.feePercentage = newLongTermSwapFeePercentage;
+        longTermOrders.feeProtocolCutPercentage = newLongTermSwapFeeProtocolCutPercentage;
     }
 
     function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external override onlyOwner {

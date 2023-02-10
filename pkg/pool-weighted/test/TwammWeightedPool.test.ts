@@ -472,7 +472,7 @@ describe('TwammWeightedPool', function () {
             currentSaleRateB: BigNumber
           ) {
             const ammBalances: BigNumber[] = [fp(0), fp(0)];
-            const longTermBalances = await longTermOrdersContract.getTokenBalancesFromLongTermOrder();
+            const longTermBalances = await longTermOrdersContract.getLongTermOrdersBalances();
             const currentBalances = await getLtoRemovedPoolBalances();
 
             [ammBalances[0], ammBalances[1], ,] = executeVirtualOrders(
@@ -520,7 +520,7 @@ describe('TwammWeightedPool', function () {
           ) {
             const ammBalances: BigNumber[] = [fp(0), fp(0)];
             const currentBalances = await getLtoRemovedPoolBalances();
-            const longTermBalances = await longTermOrdersContract.getTokenBalancesFromLongTermOrder();
+            const longTermBalances = await longTermOrdersContract.getLongTermOrdersBalances();
 
             const blockNumber = await lastBlockNumber();
 
@@ -540,7 +540,7 @@ describe('TwammWeightedPool', function () {
 
           async function getLtoRemovedPoolBalances() {
             const currentBalances = await pool.getBalances();
-            const longTermBalances = await longTermOrdersContract.getTokenBalancesFromLongTermOrder();
+            const longTermBalances = await longTermOrdersContract.getLongTermOrdersBalances();
             const poolBalances: BigNumber[] = [fp(0), fp(0)];
 
             poolBalances[0] = currentBalances[0].sub(longTermBalances[0]);
@@ -724,7 +724,7 @@ describe('TwammWeightedPool', function () {
             const withdrawResult1 = await pool.withdrawLongTermOrder({ orderId: 1, from: other });
 
             expect(withdrawResult.amountsOut[0]).to.be.equal(fp(0));
-            expect(withdrawResult.amountsOut[1]).to.be.gte(fpDec6(3.959));
+            expect(withdrawResult.amountsOut[1]).to.be.gte(fpDec6(3.958));
 
             expect(withdrawResult1.amountsOut[0]).to.be.gte(fp(0.05));
             expect(withdrawResult1.amountsOut[1]).to.be.equal(fp(0));
@@ -760,6 +760,13 @@ describe('TwammWeightedPool', function () {
             pool.instance.once('LongTermOrderManagementFeesCollected', (tokens, collectedFees, event) => {
               expect(collectedFees[0]).to.be.eq(fp(0));
               expectBalanceToBeApprox(collectedFees[1], fpDec6(0.0198));
+            });
+
+            await pool.withdrawLongTermOrderCollectedManagementFees(owner, owner);
+
+            pool.instance.once('LongTermOrderManagementFeesCollected', (tokens, collectedFees, event) => {
+              expect(collectedFees[0]).to.be.eq(fp(0));
+              expect(collectedFees[0]).to.be.eq(fp(0));
             });
           });
         });

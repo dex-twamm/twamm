@@ -64,7 +64,16 @@ abstract contract ILongTermOrders {
         virtual
         returns (uint256 ammTokenA, uint256 ammTokenB);
 
-    function getTokenBalancesFromLongTermOrder() external view virtual returns (uint256 balanceA, uint256 balanceB);
+    function getLongTermOrdersBalances() external view virtual returns (uint256 balanceA, uint256 balanceB);
+
+    function getCollectedFees() external view virtual returns (uint256 feeA, uint256 feeB);
+
+    function resetCollectedFees() external virtual;
+
+    function setLongTermSwapFeePercentage(
+        uint128 newLongTermSwapFeePercentage,
+        uint128 newLongTermSwapFeeProtocolCutPercentage
+    ) external virtual;
 
     function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external virtual;
 
