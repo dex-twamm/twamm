@@ -500,10 +500,13 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint128 newLongTermSwapFeeProtocolCutPercentage
     ) external authenticate {
         // Fees should be fraction of 1.
-        require(newLongTermSwapFeePercentage < FixedPoint.ONE);
-        require(newLongTermSwapFeeProtocolCutPercentage < FixedPoint.ONE);
+        _require(newLongTermSwapFeePercentage < FixedPoint.ONE, Errors.INVALID_FEE);
+        _require(newLongTermSwapFeeProtocolCutPercentage < FixedPoint.ONE, Errors.INVALID_FEE);
 
-        _longTermOrders.setLongTermSwapFeePercentage(newLongTermSwapFeePercentage, newLongTermSwapFeeProtocolCutPercentage);
+        _longTermOrders.setLongTermSwapFeePercentage(
+            newLongTermSwapFeePercentage,
+            newLongTermSwapFeeProtocolCutPercentage
+        );
 
         emit LongTermSwapFeePercentageChanged(newLongTermSwapFeePercentage, newLongTermSwapFeeProtocolCutPercentage);
     }
