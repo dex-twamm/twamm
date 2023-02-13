@@ -439,10 +439,7 @@ export default class WeightedPool {
     params: SetLongTermSwapFeePercentageRequest
   ): Promise<VoidResult> {
     const pool = this.instance.connect(owner);
-    return pool.setLongTermSwapFeePercentage(
-      params.newLongTermSwapFeePercentage,
-      params.newLongTermSwapFeeUserCutPercentage
-    );
+    return pool.setLongTermSwapFeePercentage(params.newLongTermSwapFeePercentage);
   }
 
   async withdrawLongTermOrderCollectedManagementFees(

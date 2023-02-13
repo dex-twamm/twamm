@@ -126,7 +126,6 @@ export type JoinPlaceLongTermOrderTwammPool = {
 
 export type SetLongTermSwapFeePercentageRequest = {
   newLongTermSwapFeePercentage: BigNumberish;
-  newLongTermSwapFeeUserCutPercentage: BigNumberish;
 };
 
 export type ExitGivenOutWeightedPool = {
