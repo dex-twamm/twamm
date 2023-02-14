@@ -202,29 +202,37 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
+        (bptAmountOut, amountsIn, dueProtocolFeeAmounts) = super._onJoinPool(
+            poolId,
+            sender,
+            recipient,
+            updatedBalances,
+            lastChangeBlock,
+            protocolSwapFeePercentage,
+            scalingFactors,
+            userData
+        );
+
+        _checkSplitProtocolFees(dueProtocolFeeAmounts);
+    }
+
+    function _doJoin(
+        address recipient,
+        uint256[] memory balances,
+        uint256[] memory normalizedWeights,
+        uint256[] memory scalingFactors,
+        bytes memory userData
+    ) internal virtual override returns (uint256, uint256[] memory) {
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
         if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
-            return _registerLongTermOrder(recipient, updatedBalances, scalingFactors, userData);
+            return _registerLongTermOrder(recipient, balances, scalingFactors, userData);
         } else {
             if (!_virtualOrderExecutionPaused) {
-                (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
-                    updatedBalances
-                );
+                (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(balances);
             }
 
-            (bptAmountOut, amountsIn, dueProtocolFeeAmounts) = super._onJoinPool(
-                poolId,
-                sender,
-                recipient,
-                updatedBalances,
-                lastChangeBlock,
-                protocolSwapFeePercentage,
-                scalingFactors,
-                userData
-            );
-            console.log("Protocol fees", protocolSwapFeePercentage);
-            _checkSplitProtocolFees(dueProtocolFeeAmounts);
+            return super._doJoin(recipient, balances, normalizedWeights, scalingFactors, userData);
         }
     }
 
@@ -249,32 +257,40 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
+        (bptAmountIn, amountsOut, dueProtocolFeeAmounts) = super._onExitPool(
+            poolId,
+            sender,
+            recipient,
+            updatedBalances,
+            lastChangeBlock,
+            protocolSwapFeePercentage,
+            scalingFactors,
+            userData
+        );
+
+        _checkSplitProtocolFees(dueProtocolFeeAmounts);
+    }
+
+    function _doExit(
+        address sender,
+        uint256[] memory balances,
+        uint256[] memory normalizedWeights,
+        uint256[] memory scalingFactors,
+        bytes memory userData
+    ) internal virtual override returns (uint256, uint256[] memory) {
         WeightedPoolUserData.ExitKind kind = userData.exitKind();
         if (kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER) {
-            return _cancelLongTermOrder(sender, userData, updatedBalances, scalingFactors);
+            return _cancelLongTermOrder(sender, userData, balances, scalingFactors);
         } else if (kind == WeightedPoolUserData.ExitKind.WITHDRAW_LONG_TERM_ORDER) {
-            return _withdrawLongTermOrder(sender, userData, updatedBalances, scalingFactors);
+            return _withdrawLongTermOrder(sender, userData, balances, scalingFactors);
         } else if (kind == WeightedPoolUserData.ExitKind.MANAGEMENT_FEE_TOKENS_OUT) {
             return _exitManagerFeeTokensOut(sender);
         } else {
             if (!_virtualOrderExecutionPaused) {
-                (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
-                    updatedBalances
-                );
+                (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(balances);
             }
 
-            (bptAmountIn, amountsOut, dueProtocolFeeAmounts) = super._onExitPool(
-                poolId,
-                sender,
-                recipient,
-                updatedBalances,
-                lastChangeBlock,
-                protocolSwapFeePercentage,
-                scalingFactors,
-                userData
-            );
-
-            _checkSplitProtocolFees(dueProtocolFeeAmounts);
+            return super._doExit(sender, balances, normalizedWeights, scalingFactors, userData);
         }
     }
 
@@ -346,14 +362,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256[] memory balances,
         uint256[] memory scalingFactors,
         bytes memory userData
-    )
-        internal
-        returns (
-            uint256,
-            uint256[] memory,
-            uint256[] memory
-        )
-    {
+    ) internal returns (uint256, uint256[] memory) {
         (
             uint256 sellTokenIndex,
             uint256 buyTokenIndex,
@@ -369,7 +378,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _emitEventOrderPlaced(order, scalingFactors);
 
         // Return 0 bpt when long term order is placed
-        return (uint256(0), _getSizeTwoArray(amountAIn, amountBIn), _getSizeTwoArray(0, 0));
+        return (uint256(0), _getSizeTwoArray(amountAIn, amountBIn));
     }
 
     function _emitEventOrderPlaced(ILongTermOrders.Order memory order, uint256[] memory scalingFactors) internal {
@@ -424,14 +433,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         bytes memory userData,
         uint256[] memory balances,
         uint256[] memory scalingFactors
-    )
-        internal
-        returns (
-            uint256,
-            uint256[] memory,
-            uint256[] memory
-        )
-    {
+    ) internal returns (uint256, uint256[] memory) {
         uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
         (uint256 purchasedAmount, uint256 unsoldAmount, ILongTermOrders.Order memory order) = _longTermOrders
             .cancelLongTermSwap(sender, orderId, balances);
@@ -439,9 +441,9 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _emitEventOrderCancelled(order, purchasedAmount, unsoldAmount, scalingFactors);
 
         if (order.buyTokenIndex == 0) {
-            return (uint256(0), _getSizeTwoArray(purchasedAmount, unsoldAmount), _getSizeTwoArray(0, 0));
+            return (uint256(0), _getSizeTwoArray(purchasedAmount, unsoldAmount));
         } else {
-            return (uint256(0), _getSizeTwoArray(unsoldAmount, purchasedAmount), _getSizeTwoArray(0, 0));
+            return (uint256(0), _getSizeTwoArray(unsoldAmount, purchasedAmount));
         }
     }
 
@@ -450,14 +452,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         bytes memory userData,
         uint256[] memory balances,
         uint256[] memory scalingFactors
-    )
-        internal
-        returns (
-            uint256,
-            uint256[] memory,
-            uint256[] memory
-        )
-    {
+    ) internal returns (uint256, uint256[] memory) {
         uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
         (uint256 proceeds, ILongTermOrders.Order memory order, bool isPartialWithdrawal) = _longTermOrders
             .withdrawProceedsFromLongTermSwap(sender, orderId, balances);
@@ -465,9 +460,9 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         _emitEventOrderWithdrawn(order, proceeds, scalingFactors, isPartialWithdrawal);
 
         if (order.sellTokenIndex == 0) {
-            return (uint256(0), _getSizeTwoArray(uint256(0), proceeds), _getSizeTwoArray(0, 0));
+            return (uint256(0), _getSizeTwoArray(uint256(0), proceeds));
         } else {
-            return (uint256(0), _getSizeTwoArray(proceeds, uint256(0)), _getSizeTwoArray(0, 0));
+            return (uint256(0), _getSizeTwoArray(proceeds, uint256(0)));
         }
     }
 
@@ -586,11 +581,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     function _exitManagerFeeTokensOut(address sender)
         private
         whenNotPaused
-        returns (
-            uint256 bptAmountIn,
-            uint256[] memory amountsOut,
-            uint256[] memory protocolFees
-        )
+        returns (uint256 bptAmountIn, uint256[] memory amountsOut)
     {
         // This exit function is disabled if the contract is paused.
 
@@ -601,7 +592,6 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         bptAmountIn = 0;
 
         amountsOut = new uint256[](2);
-        protocolFees = new uint256[](2);
 
         for (uint256 i = 0; i < 2; ++i) {
             amountsOut[i] = _ltoCollectedFees[i];

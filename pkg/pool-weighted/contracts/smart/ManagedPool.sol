@@ -497,7 +497,7 @@ contract ManagedPool is BaseWeightedPool, ReentrancyGuard {
         // Does this simply remove the fees to be collected from the balances, which remains in the pool.
         _subtractCollectedFees(balances);
 
-        (bptAmountOut, amountsIn) = _doJoin(balances, _getNormalizedWeights(), scalingFactors, userData);
+        (bptAmountOut, amountsIn) = _doJoin(sender, balances, _getNormalizedWeights(), scalingFactors, userData);
 
         dueProtocolFeeAmounts = new uint256[](_getTotalTokens());
     }
@@ -560,7 +560,7 @@ contract ManagedPool is BaseWeightedPool, ReentrancyGuard {
         if (kind == WeightedPoolUserData.ExitKind.MANAGEMENT_FEE_TOKENS_OUT) {
             return _exitManagerFeeTokensOut(sender);
         } else {
-            return _doExit(balances, normalizedWeights, scalingFactors, userData);
+            return _doExit(sender, balances, normalizedWeights, scalingFactors, userData);
         }
     }
 
