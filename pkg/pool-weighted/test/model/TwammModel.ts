@@ -198,7 +198,6 @@ export class TwammModel {
 
   async _sendDueProtocolFees(pool: WeightedPool) {
     let fee = fromFp(await pool.estimateSwapFeeAmount(0, fp(0.5), this.tokenBalances.map(fp), fp(this.lastInvariant)));
-    console.log("Estimated fee", fee);
     this.tokenBalances[0] = this.tokenBalances[0].sub(fee);
     this.collectedManagementFees[0] = this.collectedManagementFees[0].add(fee.div(2));
   }
