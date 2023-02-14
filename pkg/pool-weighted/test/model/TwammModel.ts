@@ -27,7 +27,7 @@ export class Order {
     public sellTokenIndex: number,
     public buyTokenIndex: number,
     public withdrawn: boolean = false
-  ) { }
+  ) {}
 }
 
 export class OrderPool {
@@ -38,7 +38,7 @@ export class OrderPool {
     public rewardFactorAtSubmission: { [Key: number]: Decimal } = {},
     public rewardFactorAtBlock: { [Key: number]: Decimal } = {},
     public ordersExpiringAtBlock: { [Key: number]: number } = {}
-  ) { }
+  ) {}
 
   cancelOrder(orderId: number, lastVirtualOrderBlock: number, orderSaleRate: Decimal, orderExpiryBlock: number) {
     expect(orderExpiryBlock).gte(lastVirtualOrderBlock);
@@ -120,7 +120,7 @@ export class TwammModel {
 
   constructor(wallets: SignerWithAddress[], orderBlockInterval: number, ownerBalance: Decimal) {
     this.wallets = wallets;
-    wallets.map((wallet) => this.lps[wallet.address] = ZERO);
+    wallets.map((wallet) => (this.lps[wallet.address] = ZERO));
     this.lps[wallets[0].address] = ownerBalance;
     this.orderBlockInterval = orderBlockInterval;
     this.orderPoolMap = { 0: new OrderPool(), 1: new OrderPool() };
@@ -189,7 +189,7 @@ export class TwammModel {
 
   _deductProtocolFees(purchasedAmounts: Decimal[]) {
     for (let i = 0; i < 2; i++) {
-      let fee = purchasedAmounts[i].mul(0.0025);
+      const fee = purchasedAmounts[i].mul(0.0025);
       this.tokenBalances[i] = this.tokenBalances[i].add(fee);
       purchasedAmounts[i] = purchasedAmounts[i].sub(fee);
     }
@@ -197,7 +197,9 @@ export class TwammModel {
   }
 
   async _sendDueProtocolFees(pool: WeightedPool) {
-    let fee = fromFp(await pool.estimateSwapFeeAmount(0, fp(0.5), this.tokenBalances.map(fp), fp(this.lastInvariant)));
+    const fee = fromFp(
+      await pool.estimateSwapFeeAmount(0, fp(0.5), this.tokenBalances.map(fp), fp(this.lastInvariant))
+    );
     this.tokenBalances[0] = this.tokenBalances[0].sub(fee);
     this.collectedManagementFees[0] = this.collectedManagementFees[0].add(fee.div(2));
   }
@@ -209,12 +211,12 @@ export class TwammModel {
   async collectLtoManagementFees(pool: WeightedPool) {
     await this.executeVirtualOrders();
 
-    let collectedFees = this.collectedManagementFees[0];
+    const collectedFees = this.collectedManagementFees[0];
     this.collectedManagementFees[0] = decimal(0);
 
     // New Lto collected fee gets updated at the end of collectLtoManagementFee operation.
     await this._sendDueProtocolFees(pool);
-    await this._updateLastInvariant(pool)
+    await this._updateLastInvariant(pool);
     return collectedFees;
   }
 
@@ -262,7 +264,13 @@ export class TwammModel {
     if (this.orderExpiryBlocks.size == 0) this.lastVirtualOrderBlock = currentBlock;
   }
 
-  async placeLto(pool: WeightedPool, amountIn: Decimal, tokenIndexIn: number, numberOfBlockIntervals: number, walletNo: number) {
+  async placeLto(
+    pool: WeightedPool,
+    amountIn: Decimal,
+    tokenIndexIn: number,
+    numberOfBlockIntervals: number,
+    walletNo: number
+  ) {
     await this.executeVirtualOrders();
     await this._sendDueProtocolFees(pool);
 

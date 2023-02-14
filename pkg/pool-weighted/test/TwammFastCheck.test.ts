@@ -106,7 +106,7 @@ describe('TwammWeightedPool Fast-check tests', function () {
               // replayPath: "BBDA/W:1"
             }),
             async (cmds) => {
-              let ownerBalance = await pool.balanceOf(owner.address);
+              const ownerBalance = await pool.balanceOf(owner.address);
               const model = new TwammModel(WALLETS, 100, fromFp(ownerBalance));
               const real = {
                 pool: pool,

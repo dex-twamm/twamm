@@ -12,14 +12,13 @@ const EXPECTED_RELATIVE_ERROR = 0.00001;
 const BN_ZERO = fp(0);
 
 export class JoinGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts> {
-  constructor(readonly amountIn: number, readonly walletNo: number) { }
+  constructor(readonly amountIn: number, readonly walletNo: number) {}
   check = (m: Readonly<TwammModel>) => true;
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
       const amountsIn = [this.amountIn, this.amountIn * 4];
       const wallet = r.wallets[this.walletNo];
       const mockBptOut = await m.joinGivenIn(r.pool, wallet, amountsIn);
-
 
       const initialBptBalance = await r.pool.balanceOf(wallet);
       await r.pool.joinGivenIn({ from: wallet, amountsIn: convertAmountsArrayToBn(amountsIn) });
@@ -35,7 +34,7 @@ export class JoinGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts
 }
 
 export class MultiExitGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts> {
-  constructor(readonly bptIn: number, readonly walletNo: number) { }
+  constructor(readonly bptIn: number, readonly walletNo: number) {}
   check = (m: Readonly<TwammModel>) => {
     return m.lps[m.wallets[this.walletNo].address].gte(decimal(this.bptIn));
   };
@@ -57,7 +56,12 @@ export class MultiExitGivenInCommand implements fc.AsyncCommand<TwammModel, Cont
 }
 
 export class PlaceLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
-  constructor(readonly amountIn: number, readonly tokenIndexIn: number, readonly numberOfBlockIntervals: number, readonly walletNo: number) { }
+  constructor(
+    readonly amountIn: number,
+    readonly tokenIndexIn: number,
+    readonly numberOfBlockIntervals: number,
+    readonly walletNo: number
+  ) {}
   check = (m: Readonly<TwammModel>) => {
     const saleRate = this.amountIn / (this.numberOfBlockIntervals * 100);
     const maxAllowedSaleRate = m.tokenBalances[this.tokenIndexIn].div(100);
@@ -88,11 +92,13 @@ export class PlaceLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
     }
   }
   toString = () =>
-    `wallet${this.walletNo}.placeLto(${this.amountIn}, ${this.tokenIndexIn}, ${1 - this.tokenIndexIn}, ${this.numberOfBlockIntervals})`;
+    `wallet${this.walletNo}.placeLto(${this.amountIn}, ${this.tokenIndexIn}, ${1 - this.tokenIndexIn}, ${
+      this.numberOfBlockIntervals
+    })`;
 }
 
 export class WithdrawLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
-  constructor(readonly orderId: number) { }
+  constructor(readonly orderId: number) {}
   check = (m: Readonly<TwammModel>) => {
     if (this.orderId >= m.lastOrderId) return false; // TODO: allow invalid Ids as well?
     if (m.orderMap[this.orderId].withdrawn) return false;
@@ -122,7 +128,7 @@ export class WithdrawLtoCommand implements fc.AsyncCommand<TwammModel, Contracts
 }
 
 export class CancelLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
-  constructor(readonly orderId: number) { }
+  constructor(readonly orderId: number) {}
   check = (m: Readonly<TwammModel>) => {
     if (this.orderId >= m.lastOrderId) return false; // TODO: allow invalid Ids as well?
     if (m.orderMap[this.orderId].withdrawn) return false;
@@ -151,7 +157,7 @@ export class CancelLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> 
 }
 
 export class MoveFwdNBlocksCommand implements fc.AsyncCommand<TwammModel, Contracts> {
-  constructor(readonly value: number) { }
+  constructor(readonly value: number) {}
   check = (m: Readonly<TwammModel>) => true;
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
@@ -165,13 +171,13 @@ export class MoveFwdNBlocksCommand implements fc.AsyncCommand<TwammModel, Contra
 }
 
 export class WithdrawLtoManagementFeeCommand implements fc.AsyncCommand<TwammModel, Contracts> {
-  constructor(readonly value: number) { }
+  constructor(readonly value: number) {}
   check = (m: Readonly<TwammModel>) => true;
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
-      let mockCollectedFee = await m.collectLtoManagementFees(r.pool);
-      let receipt = await r.pool.withdrawLongTermOrderCollectedManagementFees(m.wallets[0], m.wallets[1]);
-      let logs = getEventLog(receipt, r.pool.instance.interface, "LongTermOrderManagementFeesCollected");
+      const mockCollectedFee = await m.collectLtoManagementFees(r.pool);
+      const receipt = await r.pool.withdrawLongTermOrderCollectedManagementFees(m.wallets[0], m.wallets[1]);
+      const logs = getEventLog(receipt, r.pool.instance.interface, 'LongTermOrderManagementFeesCollected');
       expectEqualWithError(logs[0].args.amounts[0], fp(mockCollectedFee));
       expect(logs[0].args.amounts[1]).to.equal(fp(0));
     } catch (error) {
@@ -184,23 +190,29 @@ export class WithdrawLtoManagementFeeCommand implements fc.AsyncCommand<TwammMod
 
 export function allTwammCommands(numberOfWallets: number) {
   return [
-    fc.tuple(
-      fc.float({ min: 1, max: 1000 }), // amountIn
-      fc.nat({ max: numberOfWallets - 1 }), // walletNo
-    ).map((v) => new JoinGivenInCommand(v[0], v[1])),
-    fc.tuple(
-      fc.float({ min: 1, max: 100 }), // bptIn
-      fc.nat({ max: numberOfWallets - 1 }), // walletNo
-    ).map((v) => new MultiExitGivenInCommand(v[0], v[1])),
-    fc.tuple(
-      fc.float({ min: 1, max: 10000 }), // amountIn
-      fc.nat({ max: 1 }), // tokenIndexIn
-      fc.integer({ min: 1, max: 10 }), // numberOfBlockIntervals
-      fc.nat({ max: numberOfWallets - 1 }), // walletNo
-    ).map((v) => new PlaceLtoCommand(v[0], v[1], v[2], v[3])),
+    fc
+      .tuple(
+        fc.float({ min: 1, max: 1000 }), // amountIn
+        fc.nat({ max: numberOfWallets - 1 }) // walletNo
+      )
+      .map((v) => new JoinGivenInCommand(v[0], v[1])),
+    fc
+      .tuple(
+        fc.float({ min: 1, max: 100 }), // bptIn
+        fc.nat({ max: numberOfWallets - 1 }) // walletNo
+      )
+      .map((v) => new MultiExitGivenInCommand(v[0], v[1])),
+    fc
+      .tuple(
+        fc.float({ min: 1, max: 10000 }), // amountIn
+        fc.nat({ max: 1 }), // tokenIndexIn
+        fc.integer({ min: 1, max: 10 }), // numberOfBlockIntervals
+        fc.nat({ max: numberOfWallets - 1 }) // walletNo
+      )
+      .map((v) => new PlaceLtoCommand(v[0], v[1], v[2], v[3])),
     fc.nat({ max: 5 }).map((v) => new WithdrawLtoCommand(v)),
     fc.nat({ max: 5 }).map((v) => new CancelLtoCommand(v)),
     fc.integer({ min: 1, max: 200 }).map((v) => new MoveFwdNBlocksCommand(v)),
     fc.nat({ max: 0 }).map((v) => new WithdrawLtoManagementFeeCommand(v)),
-  ]
-};
+  ];
+}
