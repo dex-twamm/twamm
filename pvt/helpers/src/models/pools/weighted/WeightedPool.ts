@@ -259,10 +259,11 @@ export default class WeightedPool {
   async estimateSwapFeeAmount(
     paidToken: number | Token,
     protocolFeePercentage: BigNumberish,
-    currentBalances?: BigNumberish[]
+    currentBalances?: BigNumberish[],
+    lastInvariant?: BigNumber,
   ): Promise<BigNumber> {
     if (!currentBalances) currentBalances = await this.getBalances();
-    const lastInvariant = await this.estimateInvariant();
+    if (!lastInvariant) lastInvariant = await this.estimateInvariant();
     const paidTokenIndex = this.tokens.indexOf(paidToken);
     const feeAmount = calculateOneTokenSwapFeeAmount(currentBalances, this.weights, lastInvariant, paidTokenIndex);
     return bn(feeAmount).mul(protocolFeePercentage).div(fp(1));
@@ -445,14 +446,14 @@ export default class WeightedPool {
   async withdrawLongTermOrderCollectedManagementFees(
     owner: SignerWithAddress,
     other: SignerWithAddress
-  ): Promise<VoidResult> {
+  ): Promise<any> {
     const pool = this.instance.connect(owner);
     const tx = await pool.withdrawLongTermOrderCollectedManagementFees(other.address);
     const receipt = await tx.wait();
 
     // Uncomment for gas measurement.
     console.log('collectManagementFee: ', receipt.gasUsed.toString());
-    return tx;
+    return receipt;
   }
 
   // TODO(nuhbye): Probably don't need query for place long term order, since we'll give back 0 BPT always.
