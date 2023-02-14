@@ -247,6 +247,7 @@ describe('LongTermOrders', function () {
 
       const ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
 
+      const currentBlock = await lastBlockNumber();
       const [orderPlacementBlock, salesRateA] = await placeLongTermOrder(
         anAddress.address,
         0,
@@ -270,16 +271,17 @@ describe('LongTermOrders', function () {
       );
       // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, fp(0));
       // verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
-      verifyLongTermOrdersDetails(longTermOrdersDetails, amount, fp(0), 1, orderPlacementBlock, orderBlockInterval);
+      verifyLongTermOrdersDetails(longTermOrdersDetails, amount, fp(0), 1, currentBlock, orderBlockInterval);
     });
 
     it('can place long term order in both directions', async () => {
-      let balanceA, balanceB;
       const amount1 = fp(100),
         amount2 = fp(100),
         orderIntervalA = 100,
         orderIntervalB = 500,
         ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
+
+      const startBlock = await lastBlockNumber();
 
       const [orderPlacementBlockA, salesRateA] = await placeLongTermOrder(
         anAddress.address,
@@ -301,7 +303,7 @@ describe('LongTermOrders', function () {
         1
       );
       // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, fp(0));
-      verifyLongTermOrdersDetails(longTermOrdersDetails1, amount1, fp(0), 1, orderPlacementBlockA, orderBlockInterval);
+      verifyLongTermOrdersDetails(longTermOrdersDetails1, amount1, fp(0), 1, startBlock, orderBlockInterval);
 
       const [orderPlacementBlockB, salesRateB] = await placeLongTermOrder(
         anAddress1.address,
@@ -312,16 +314,16 @@ describe('LongTermOrders', function () {
         ammBalances
       );
 
-      [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders(
-        ammBalances[0],
-        ammBalances[1],
-        salesRateA,
-        fp(0),
-        amount1,
-        amount2,
-        orderPlacementBlockA,
-        orderPlacementBlockA + 1
-      );
+      // [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders(
+      //   ammBalances[0],
+      //   ammBalances[1],
+      //   salesRateA,
+      //   fp(0),
+      //   amount1,
+      //   amount2,
+      //   orderPlacementBlockA,
+      //   orderPlacementBlockA + 1
+      // );
 
       // const orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
       // orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
@@ -337,14 +339,7 @@ describe('LongTermOrders', function () {
       );
       // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('999999009411580506'));
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, fp(0));
-      verifyLongTermOrdersDetails(
-        longTermOrdersDetails2,
-        balanceA,
-        balanceB,
-        2,
-        orderPlacementBlockB,
-        orderBlockInterval
-      );
+      verifyLongTermOrdersDetails(longTermOrdersDetails2, amount1, amount2, 2, startBlock, orderBlockInterval);
     });
 
     it('can place long term order and execute', async () => {
@@ -352,6 +347,8 @@ describe('LongTermOrders', function () {
       const amount = fp(100),
         nInterval = 1000,
         ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
+
+      const startBlock = await lastBlockNumber();
 
       const [orderPlacementBlockA, salesRateA] = await placeLongTermOrder(
         anAddress.address,
@@ -372,11 +369,11 @@ describe('LongTermOrders', function () {
         fp(0),
         amount,
         fp(0),
-        orderPlacementBlockA,
-        orderPlacementBlockA + 1 + 2 * orderBlockInterval
+        startBlock,
+        startBlock + 2 * orderBlockInterval + 2
       );
 
-      let state = await getLongTermOrdersDetails();
+      const state = await getLongTermOrdersDetails();
 
       verifyTokenBalances([state.balanceA, state.balanceB], balanceA, balanceB);
     });
@@ -677,9 +674,9 @@ describe('LongTermOrders', function () {
 
       balanceB = balanceB.add(orderAmountB);
 
-      const currentExecBlockNumber = await moveForwardNBlocks(2 * orderBlockInterval);
+      await moveForwardNBlocks(2 * orderBlockInterval);
       await longTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
-      let state = await getLongTermOrdersDetails();
+      const state = await getLongTermOrdersDetails();
 
       [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders(
         ammBalances[0],

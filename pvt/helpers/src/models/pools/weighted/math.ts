@@ -61,7 +61,7 @@ export function calcBptOutGivenExactTokensIn(
   for (let i = 0; i < balances.length; i++) {
     let amountInWithoutFee;
 
-    if (balanceRatiosWithFee[i] > invariantRatioWithFees) {
+    if (balanceRatiosWithFee[i].gt(invariantRatioWithFees)) {
       const nonTaxableAmount = balances[i].mul(invariantRatioWithFees.sub(1));
       const taxableAmount = amountsIn[i].sub(nonTaxableAmount);
       amountInWithoutFee = nonTaxableAmount.add(taxableAmount.mul(decimal(1).sub(fromFp(fpSwapFeePercentage))));

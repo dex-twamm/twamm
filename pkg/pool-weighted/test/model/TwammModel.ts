@@ -11,7 +11,7 @@ const { block } = testUtils;
 
 export interface Contracts {
   pool: WeightedPool;
-  wallet: SignerWithAddress;
+  wallets: SignerWithAddress[];
 }
 
 type BigNumberish = string | number | BigNumber;
@@ -105,7 +105,9 @@ export class OrderPool {
 export class TwammModel {
   lps: { [Key: string]: Decimal } = {};
   tokenBalances = [decimal(100.0), decimal(400.0)];
-  wallet: SignerWithAddress;
+  lastInvariant = decimal(200.0);
+  collectedManagementFees = [decimal(0), decimal(0)];
+  wallets: SignerWithAddress[];
 
   longTermBalances = [ZERO, ZERO];
   currentSalesRate = [ZERO, ZERO]; // TODO: create and move to separate orderPool class
@@ -116,9 +118,10 @@ export class TwammModel {
   orderPoolMap: { [Key: number]: OrderPool }; // TODO: add Order class and create id->order mapping.
   orderMap: { [Key: number]: Order };
 
-  constructor(wallet: SignerWithAddress, orderBlockInterval: number) {
-    this.wallet = wallet;
-    this.lps[wallet.address] = ZERO;
+  constructor(wallets: SignerWithAddress[], orderBlockInterval: number, ownerBalance: Decimal) {
+    this.wallets = wallets;
+    wallets.map((wallet) => (this.lps[wallet.address] = ZERO));
+    this.lps[wallets[0].address] = ownerBalance;
     this.orderBlockInterval = orderBlockInterval;
     this.orderPoolMap = { 0: new OrderPool(), 1: new OrderPool() };
     this.orderMap = {};
@@ -181,10 +184,40 @@ export class TwammModel {
       tokenAOut = tokenAStart.add(tokenAIn).sub(this.tokenBalances[0]);
       tokenBOut = tokenBStart.add(tokenBIn).sub(this.tokenBalances[1]);
     }
-    return {
-      tokenAOut: tokenAOut,
-      tokenBOut: tokenBOut,
-    };
+    return [tokenAOut, tokenBOut];
+  }
+
+  _deductProtocolFees(purchasedAmounts: Decimal[]) {
+    for (let i = 0; i < 2; i++) {
+      const fee = purchasedAmounts[i].mul(0.0025);
+      this.tokenBalances[i] = this.tokenBalances[i].add(fee);
+      purchasedAmounts[i] = purchasedAmounts[i].sub(fee);
+    }
+    return purchasedAmounts;
+  }
+
+  async _sendDueProtocolFees(pool: WeightedPool) {
+    const fee = fromFp(
+      await pool.estimateSwapFeeAmount(0, fp(0.5), this.tokenBalances.map(fp), fp(this.lastInvariant))
+    );
+    this.tokenBalances[0] = this.tokenBalances[0].sub(fee);
+    this.collectedManagementFees[0] = this.collectedManagementFees[0].add(fee.div(2));
+  }
+
+  async _updateLastInvariant(pool: WeightedPool) {
+    this.lastInvariant = fromFp(await pool.estimateInvariant(this.tokenBalances.map(fp)));
+  }
+
+  async collectLtoManagementFees(pool: WeightedPool) {
+    await this.executeVirtualOrders();
+
+    const collectedFees = this.collectedManagementFees[0];
+    this.collectedManagementFees[0] = decimal(0);
+
+    // New Lto collected fee gets updated at the end of collectLtoManagementFee operation.
+    await this._sendDueProtocolFees(pool);
+    await this._updateLastInvariant(pool);
+    return collectedFees;
   }
 
   _executeVirtualTradesUntilBlock(blockNumber: number, isExpiryBlock = false) {
@@ -192,11 +225,13 @@ export class TwammModel {
     const tokenASellAmount = this.orderPoolMap[0].currentSalesRate.mul(blockNumberIncrement);
     const tokenBSellAmount = this.orderPoolMap[1].currentSalesRate.mul(blockNumberIncrement);
 
-    const { tokenAOut, tokenBOut } = this._computeVirtualBalances(tokenASellAmount, tokenBSellAmount);
-    this.longTermBalances[0] = this.longTermBalances[0].add(tokenAOut).sub(tokenASellAmount);
-    this.longTermBalances[1] = this.longTermBalances[1].add(tokenBOut).sub(tokenBSellAmount);
-    this.orderPoolMap[0].distributePayment(tokenBOut);
-    this.orderPoolMap[1].distributePayment(tokenAOut);
+    let tokensOut = this._computeVirtualBalances(tokenASellAmount, tokenBSellAmount);
+    tokensOut = this._deductProtocolFees(tokensOut);
+
+    this.longTermBalances[0] = this.longTermBalances[0].add(tokensOut[0]).sub(tokenASellAmount);
+    this.longTermBalances[1] = this.longTermBalances[1].add(tokensOut[1]).sub(tokenBSellAmount);
+    this.orderPoolMap[0].distributePayment(tokensOut[1]);
+    this.orderPoolMap[1].distributePayment(tokensOut[0]);
 
     if (isExpiryBlock) {
       this.orderPoolMap[0].updateStateFromBlockExpiry(blockNumber);
@@ -229,8 +264,16 @@ export class TwammModel {
     if (this.orderExpiryBlocks.size == 0) this.lastVirtualOrderBlock = currentBlock;
   }
 
-  async placeLto(amountIn: Decimal, tokenIndexIn: number, numberOfBlockIntervals: number) {
+  async placeLto(
+    pool: WeightedPool,
+    amountIn: Decimal,
+    tokenIndexIn: number,
+    numberOfBlockIntervals: number,
+    walletNo: number
+  ) {
     await this.executeVirtualOrders();
+    await this._sendDueProtocolFees(pool);
+
     const orderId = this.lastOrderId;
     const orderExpiryBlock = await this.calcOrderExpiry(numberOfBlockIntervals);
     const numberOfBlocks = orderExpiryBlock - (await block.latestBlockNumber()) - 1;
@@ -243,18 +286,21 @@ export class TwammModel {
       orderId,
       orderExpiryBlock,
       sellingRate,
-      this.wallet.address,
+      this.wallets[walletNo].address,
       tokenIndexIn,
       1 - tokenIndexIn
     );
 
     this.longTermBalances[tokenIndexIn] = this.longTermBalances[tokenIndexIn].add(amountIn);
+    await this._updateLastInvariant(pool);
 
     this.lastOrderId += 1;
   }
 
-  async withdrawLto(orderId: number) {
+  async withdrawLto(pool: WeightedPool, orderId: number) {
     await this.executeVirtualOrders();
+    await this._sendDueProtocolFees(pool);
+
     const order = this.orderMap[orderId];
     // TODO: fail if order owner is not caller.
     const orderPool = this.orderPoolMap[order.sellTokenIndex];
@@ -269,14 +315,17 @@ export class TwammModel {
     );
 
     if (!withdrawResult.isPartialWithdrawal) this.orderMap[orderId].withdrawn = true;
+    await this._updateLastInvariant(pool);
     return {
       order: order,
       ...withdrawResult,
     };
   }
 
-  async cancelLto(orderId: number) {
+  async cancelLto(pool: WeightedPool, orderId: number) {
     await this.executeVirtualOrders();
+    await this._sendDueProtocolFees(pool);
+
     const order = this.orderMap[orderId];
     // TODO: fail if order owner is not caller.
     const orderPool = this.orderPoolMap[order.sellTokenIndex];
@@ -294,6 +343,7 @@ export class TwammModel {
     );
 
     this.orderMap[orderId].withdrawn = true;
+    await this._updateLastInvariant(pool);
     return {
       order: order,
       ...cancelResult,
@@ -302,6 +352,8 @@ export class TwammModel {
 
   async joinGivenIn(pool: WeightedPool, wallet: SignerWithAddress, amountsIn: Array<number>): Promise<BigNumberish> {
     await this.executeVirtualOrders();
+    await this._sendDueProtocolFees(pool);
+
     const mockBptOut = await pool.estimateBptOut(convertAmountsArrayToBn(amountsIn), this.tokenBalances.map(fp));
 
     // Update LP bpt balance
@@ -312,18 +364,22 @@ export class TwammModel {
     this.tokenBalances = this.tokenBalances.map(function (num, idx) {
       return num.add(amountsIn[idx]);
     });
+    await this._updateLastInvariant(pool);
 
     return mockBptOut;
   }
 
   async multiExitGivenIn(pool: WeightedPool, wallet: SignerWithAddress, bptIn: Decimal): Promise<Array<BigNumberish>> {
     await this.executeVirtualOrders();
+    await this._sendDueProtocolFees(pool);
 
     const mockTokensOut = await pool.estimateTokensOutBptIn(fp(bptIn), this.tokenBalances.map(fp));
     // Update token balances.
     this.tokenBalances = this.tokenBalances.map(function (num, idx) {
       return num.sub(fromFp(mockTokensOut[idx]));
     });
+
+    await this._updateLastInvariant(pool);
 
     // Update LP bpt balance
     this.lps[wallet.address] = this.lps[wallet.address].sub(bptIn);

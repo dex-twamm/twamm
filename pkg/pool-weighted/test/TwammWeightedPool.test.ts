@@ -212,7 +212,7 @@ describe('TwammWeightedPool', function () {
             // tokens = allTokens.subset(2);
             await tokens.approve({ to: pool.vault.address, amount: MAX_UINT256, from: [owner, other] });
 
-            await pool.init({ from: owner, initialBalances });
+            await pool.init({ from: owner, initialBalances, protocolFeePercentage: 0.1 });
           });
 
           it('can get long term order contract address', async () => {
@@ -548,6 +548,7 @@ describe('TwammWeightedPool', function () {
 
             return poolBalances;
           }
+
           it('can execute long term order and do join pool', async () => {
             const buyTokenIndex = 1,
               sellTokenIndex = 0,
@@ -733,7 +734,6 @@ describe('TwammWeightedPool', function () {
           it('can complete one-way Long Term Order and withdraw pool owner can withdraw fees', async () => {
             await pool.setLongTermSwapFeePercentage(owner, {
               newLongTermSwapFeePercentage: fp(0.01),
-              newLongTermSwapFeeUserCutPercentage: fp(0.5),
             });
 
             await pool.placeLongTermOrder({
@@ -755,9 +755,16 @@ describe('TwammWeightedPool', function () {
             // 3.96 - 1% fee = 3.92
             expect(withdrawResult.amountsOut[1]).to.be.gte(fpDec6(3.92));
 
+            // A sample join to initiate fees collection
+            await pool.joinGivenIn({
+              from: sender,
+              amountsIn: [fp(0.1), fp(0)],
+            });
+
             await pool.withdrawLongTermOrderCollectedManagementFees(owner, owner);
 
             pool.instance.once('LongTermOrderManagementFeesCollected', (tokens, collectedFees, event) => {
+              console.log(collectedFees[0].toString(), collectedFees[1].toString());
               expect(collectedFees[0]).to.be.eq(fp(0));
               expectBalanceToBeApprox(collectedFees[1], fpDec6(0.0198));
             });

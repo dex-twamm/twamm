@@ -3,7 +3,7 @@ import { ethers } from 'hardhat';
 
 import TokenList from '@balancer-labs/v2-helpers/src/models/tokens/TokenList';
 import WeightedPool from '@balancer-labs/v2-helpers/src/models/pools/weighted/WeightedPool';
-import { fp } from '@balancer-labs/v2-helpers/src/numbers';
+import { fp, fromFp } from '@balancer-labs/v2-helpers/src/numbers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 import VaultDeployer from '@balancer-labs/v2-helpers/src/models/vault/VaultDeployer';
@@ -14,7 +14,13 @@ import { TwammModel } from './model/TwammModel';
 import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/weighted/types';
 import { deployedAt } from '@balancer-labs/v2-helpers/src/contract';
 import { MAX_UINT256 } from '@balancer-labs/v2-helpers/src/constants';
-import { allTwammCommands } from './model/TwammCommands';
+import {
+  allTwammCommands,
+  JoinGivenInCommand,
+  MoveFwdNBlocksCommand,
+  PlaceLtoCommand,
+  WithdrawLtoManagementFeeCommand,
+} from './model/TwammCommands';
 
 fc.configureGlobal({
   numRuns: 100,
@@ -53,8 +59,6 @@ describe('TwammWeightedPool Fast-check tests', function () {
   });
 
   context('twamm tests', () => {
-    let vault: Vault;
-
     async function initialize() {
       try {
         tokens = allTokens.subset(2);
@@ -69,7 +73,6 @@ describe('TwammWeightedPool Fast-check tests', function () {
           orderBlockInterval: 100,
           fromFactory: true,
           from: owner,
-          vault: vault,
         };
         pool = await WeightedPool.create(params);
         longTermOrdersContract = await deployedAt('LongTermOrders', await pool.getLongTermOrderContractAddress());
@@ -78,6 +81,10 @@ describe('TwammWeightedPool Fast-check tests', function () {
         tokens = allTokens.subset(2);
         await tokens.approve({ to: pool.vault.address, amount: MAX_UINT256, from: [owner, alice, betty, carl] });
         await pool.init({ from: owner, initialBalances });
+
+        // Set Long Term Order fee.
+        await pool.instance.setLongTermSwapFeePercentage(fp(0.0025));
+        await pool.vault.setSwapFeePercentage(fp(0.5));
       } catch (error) {
         console.log(error);
         throw error;
@@ -90,18 +97,20 @@ describe('TwammWeightedPool Fast-check tests', function () {
     }
 
     it('should test TwammPool', async () => {
+      const WALLETS = [owner, alice, betty, carl];
       // run everything
       await fc.assert(
         fc
           .asyncProperty(
-            fc.commands(allTwammCommands, {
+            fc.commands(allTwammCommands(WALLETS.length), {
               // replayPath: "BBDA/W:1"
             }),
             async (cmds) => {
-              const model = new TwammModel(alice, 100);
+              const ownerBalance = await pool.balanceOf(owner.address);
+              const model = new TwammModel(WALLETS, 100, fromFp(ownerBalance));
               const real = {
                 pool: pool,
-                wallet: alice,
+                wallets: WALLETS,
               };
               await fc.asyncModelRun(() => ({ model, real }), cmds);
             }
@@ -118,7 +127,7 @@ describe('TwammWeightedPool Fast-check tests', function () {
         {
           verbose: true,
           // seed: -1926845829, path: "1:2:1:2:3:2:2:1:1:2:2:3:3:1:1:1", endOnFailure: true
-          // examples: [[[new PlaceLtoCommand(500, 0, 10), new JoinGivenInCommand(1)]]], // BAL#001
+          // examples: [[[new PlaceLtoCommand(10, 0, 1, 1), new MoveFwdNBlocksCommand(200), new JoinGivenInCommand(1, 0), new WithdrawLtoManagementFeeCommand(0)]]], // BAL#001
         }
       );
     });

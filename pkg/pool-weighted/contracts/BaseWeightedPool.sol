@@ -22,6 +22,7 @@ import "@balancer-labs/v2-pool-utils/contracts/LegacyBaseMinimalSwapInfoPool.sol
 
 import "./WeightedPoolUserData.sol";
 import "./WeightedMath.sol";
+import "hardhat/console.sol";
 
 /**
  * @dev Base class for WeightedPools containing swap, join and exit logic, but leaving storage and management of
@@ -178,7 +179,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
     function _onJoinPool(
         bytes32,
         address,
-        address,
+        address recepient,
         uint256[] memory balances,
         uint256,
         uint256 protocolSwapFeePercentage,
@@ -216,6 +217,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
         // Update current balances by subtracting the protocol fee amounts
         _mutateAmounts(balances, dueProtocolFeeAmounts, FixedPoint.sub);
         (uint256 bptAmountOut, uint256[] memory amountsIn) = _doJoin(
+            recepient,
             balances,
             normalizedWeights,
             scalingFactors,
@@ -224,17 +226,23 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
 
         // Update the invariant with the balances the Pool will have after the join, in order to compute the
         // protocol swap fee amounts due in future joins and exits.
-        _lastInvariant = _invariantAfterJoin(balances, amountsIn, normalizedWeights);
+        WeightedPoolUserData.JoinKind kind = userData.joinKind();
+        if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
+            _lastInvariant = _invariantAfterJoin(balances, new uint256[](2), normalizedWeights);
+        } else {
+            _lastInvariant = _invariantAfterJoin(balances, amountsIn, normalizedWeights);
+        }
 
         return (bptAmountOut, amountsIn, dueProtocolFeeAmounts);
     }
 
     function _doJoin(
+        address,
         uint256[] memory balances,
         uint256[] memory normalizedWeights,
         uint256[] memory scalingFactors,
         bytes memory userData
-    ) internal returns (uint256, uint256[] memory) {
+    ) internal virtual returns (uint256, uint256[] memory) {
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
 
         if (kind == WeightedPoolUserData.JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT) {
@@ -325,7 +333,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
 
     function _onExitPool(
         bytes32,
-        address,
+        address sender,
         address,
         uint256[] memory balances,
         uint256,
@@ -369,11 +377,11 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
             dueProtocolFeeAmounts = new uint256[](_getTotalTokens());
         }
 
-        (bptAmountIn, amountsOut) = _doExit(balances, normalizedWeights, scalingFactors, userData);
+        (bptAmountIn, amountsOut) = _doExit(sender, balances, normalizedWeights, scalingFactors, userData);
 
         // Update the invariant with the balances the Pool will have after the exit, in order to compute the
         // protocol swap fees due in future joins and exits.
-        _setLastInvariantAfterExit(balances, amountsOut, normalizedWeights);
+        _setLastInvariantAfterExit(balances, amountsOut, normalizedWeights, userData);
 
         return (bptAmountIn, amountsOut, dueProtocolFeeAmounts);
     }
@@ -382,17 +390,28 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
     function _setLastInvariantAfterExit(
         uint256[] memory balances,
         uint256[] memory amountsOut,
-        uint256[] memory normalizedWeights
+        uint256[] memory normalizedWeights,
+        bytes memory userData
     ) internal {
-        _lastInvariant = _invariantAfterExit(balances, amountsOut, normalizedWeights);
+        WeightedPoolUserData.ExitKind kind = userData.exitKind();
+        if (
+            kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER ||
+            kind == WeightedPoolUserData.ExitKind.WITHDRAW_LONG_TERM_ORDER ||
+            kind == WeightedPoolUserData.ExitKind.MANAGEMENT_FEE_TOKENS_OUT
+        ) {
+            _lastInvariant = _invariantAfterExit(balances, new uint256[](2), normalizedWeights);
+        } else {
+            _lastInvariant = _invariantAfterExit(balances, amountsOut, normalizedWeights);
+        }
     }
 
     function _doExit(
+        address,
         uint256[] memory balances,
         uint256[] memory normalizedWeights,
         uint256[] memory scalingFactors,
         bytes memory userData
-    ) internal returns (uint256, uint256[] memory) {
+    ) internal virtual returns (uint256, uint256[] memory) {
         WeightedPoolUserData.ExitKind kind = userData.exitKind();
 
         if (kind == WeightedPoolUserData.ExitKind.EXACT_BPT_IN_FOR_ONE_TOKEN_OUT) {
