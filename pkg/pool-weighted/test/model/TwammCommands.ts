@@ -169,7 +169,7 @@ export class WithdrawLtoManagementFeeCommand implements fc.AsyncCommand<TwammMod
   check = (m: Readonly<TwammModel>) => true;
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
-      let mockCollectedFee = m.collectLtoManagementFees();
+      let mockCollectedFee = await m.collectLtoManagementFees(r.pool);
       let receipt = await r.pool.withdrawLongTermOrderCollectedManagementFees(m.wallets[0], m.wallets[1]);
       let logs = getEventLog(receipt, r.pool.instance.interface, "LongTermOrderManagementFeesCollected");
       expectEqualWithError(logs[0].args.amounts[0], fp(mockCollectedFee));
@@ -179,7 +179,7 @@ export class WithdrawLtoManagementFeeCommand implements fc.AsyncCommand<TwammMod
       throw error;
     }
   }
-  toString = () => `WithdrawLtoManagementFeeCommand())`;
+  toString = () => `WithdrawLtoManagementFeeCommand()`;
 }
 
 export function allTwammCommands(numberOfWallets: number) {

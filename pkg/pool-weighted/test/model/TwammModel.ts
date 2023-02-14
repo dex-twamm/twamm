@@ -207,9 +207,15 @@ export class TwammModel {
     this.lastInvariant = fromFp(await pool.estimateInvariant(this.tokenBalances.map(fp)));
   }
 
-  collectLtoManagementFees() {
+  async collectLtoManagementFees(pool: WeightedPool) {
+    await this.executeVirtualOrders();
+
     let collectedFees = this.collectedManagementFees[0];
     this.collectedManagementFees[0] = decimal(0);
+
+    // New Lto collected fee gets updated at the end of collectLtoManagementFee operation.
+    await this._sendDueProtocolFees(pool);
+    await this._updateLastInvariant(pool)
     return collectedFees;
   }
 

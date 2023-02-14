@@ -22,6 +22,7 @@ import "@balancer-labs/v2-pool-utils/contracts/LegacyBaseMinimalSwapInfoPool.sol
 
 import "./WeightedPoolUserData.sol";
 import "./WeightedMath.sol";
+import "hardhat/console.sol";
 
 /**
  * @dev Base class for WeightedPools containing swap, join and exit logic, but leaving storage and management of
@@ -225,7 +226,12 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
 
         // Update the invariant with the balances the Pool will have after the join, in order to compute the
         // protocol swap fee amounts due in future joins and exits.
-        _lastInvariant = _invariantAfterJoin(balances, amountsIn, normalizedWeights);
+        WeightedPoolUserData.JoinKind kind = userData.joinKind();
+        if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
+            _lastInvariant = _invariantAfterJoin(balances, new uint256[](2), normalizedWeights);
+        } else {
+            _lastInvariant = _invariantAfterJoin(balances, amountsIn, normalizedWeights);
+        }
 
         return (bptAmountOut, amountsIn, dueProtocolFeeAmounts);
     }
@@ -375,7 +381,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
 
         // Update the invariant with the balances the Pool will have after the exit, in order to compute the
         // protocol swap fees due in future joins and exits.
-        _setLastInvariantAfterExit(balances, amountsOut, normalizedWeights);
+        _setLastInvariantAfterExit(balances, amountsOut, normalizedWeights, userData);
 
         return (bptAmountIn, amountsOut, dueProtocolFeeAmounts);
     }
@@ -384,9 +390,19 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
     function _setLastInvariantAfterExit(
         uint256[] memory balances,
         uint256[] memory amountsOut,
-        uint256[] memory normalizedWeights
+        uint256[] memory normalizedWeights,
+        bytes memory userData
     ) internal {
-        _lastInvariant = _invariantAfterExit(balances, amountsOut, normalizedWeights);
+        WeightedPoolUserData.ExitKind kind = userData.exitKind();
+        if (
+            kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER ||
+            kind == WeightedPoolUserData.ExitKind.WITHDRAW_LONG_TERM_ORDER ||
+            kind == WeightedPoolUserData.ExitKind.MANAGEMENT_FEE_TOKENS_OUT
+        ) {
+            _lastInvariant = _invariantAfterExit(balances, new uint256[](2), normalizedWeights);
+        } else {
+            _lastInvariant = _invariantAfterExit(balances, amountsOut, normalizedWeights);
+        }
     }
 
     function _doExit(

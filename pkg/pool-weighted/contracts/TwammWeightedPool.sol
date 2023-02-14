@@ -203,7 +203,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
         if (!_virtualOrderExecutionPaused) {
-            (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(balances);
+            (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
         }
 
         (bptAmountOut, amountsIn, dueProtocolFeeAmounts) = super._onJoinPool(
@@ -258,7 +258,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
         if (!_virtualOrderExecutionPaused) {
-            (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
+            (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
         }
 
         (bptAmountIn, amountsOut, dueProtocolFeeAmounts) = super._onExitPool(
