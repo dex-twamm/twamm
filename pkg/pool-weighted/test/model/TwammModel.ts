@@ -257,8 +257,10 @@ export class TwammModel {
     if (this.orderExpiryBlocks.size == 0) this.lastVirtualOrderBlock = currentBlock;
   }
 
-  async placeLto(amountIn: Decimal, tokenIndexIn: number, numberOfBlockIntervals: number, walletNo: number) {
+  async placeLto(pool: WeightedPool, amountIn: Decimal, tokenIndexIn: number, numberOfBlockIntervals: number, walletNo: number) {
     await this.executeVirtualOrders();
+    await this._sendDueProtocolFees(pool);
+
     const orderId = this.lastOrderId;
     const orderExpiryBlock = await this.calcOrderExpiry(numberOfBlockIntervals);
     const numberOfBlocks = orderExpiryBlock - (await block.latestBlockNumber()) - 1;
@@ -277,12 +279,15 @@ export class TwammModel {
     );
 
     this.longTermBalances[tokenIndexIn] = this.longTermBalances[tokenIndexIn].add(amountIn);
+    await this._updateLastInvariant(pool);
 
     this.lastOrderId += 1;
   }
 
-  async withdrawLto(orderId: number) {
+  async withdrawLto(pool: WeightedPool, orderId: number) {
     await this.executeVirtualOrders();
+    await this._sendDueProtocolFees(pool);
+
     const order = this.orderMap[orderId];
     // TODO: fail if order owner is not caller.
     const orderPool = this.orderPoolMap[order.sellTokenIndex];
@@ -297,14 +302,17 @@ export class TwammModel {
     );
 
     if (!withdrawResult.isPartialWithdrawal) this.orderMap[orderId].withdrawn = true;
+    await this._updateLastInvariant(pool);
     return {
       order: order,
       ...withdrawResult,
     };
   }
 
-  async cancelLto(orderId: number) {
+  async cancelLto(pool: WeightedPool, orderId: number) {
     await this.executeVirtualOrders();
+    await this._sendDueProtocolFees(pool);
+
     const order = this.orderMap[orderId];
     // TODO: fail if order owner is not caller.
     const orderPool = this.orderPoolMap[order.sellTokenIndex];
@@ -322,6 +330,7 @@ export class TwammModel {
     );
 
     this.orderMap[orderId].withdrawn = true;
+    await this._updateLastInvariant(pool);
     return {
       order: order,
       ...cancelResult,

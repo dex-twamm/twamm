@@ -72,7 +72,7 @@ export class PlaceLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
 
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
-      await m.placeLto(decimal(this.amountIn), this.tokenIndexIn, this.numberOfBlockIntervals, this.walletNo);
+      await m.placeLto(r.pool, decimal(this.amountIn), this.tokenIndexIn, this.numberOfBlockIntervals, this.walletNo);
 
       const wallet = r.wallets[this.walletNo];
       const placeResult = await r.pool.placeLongTermOrder({
@@ -102,7 +102,7 @@ export class WithdrawLtoCommand implements fc.AsyncCommand<TwammModel, Contracts
 
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
-      const mockResult = await m.withdrawLto(this.orderId);
+      const mockResult = await m.withdrawLto(r.pool, this.orderId);
 
       // Call withdraw LTO using order owner, based on model.
       const wallet = getWalletFromList(r.wallets, m.orderMap[this.orderId].owner);
@@ -132,7 +132,7 @@ export class CancelLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> 
 
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
-      const mockResult = await m.cancelLto(this.orderId);
+      const mockResult = await m.cancelLto(r.pool, this.orderId);
 
       // Call cancel LTO using order owner, based on model.
       const wallet = getWalletFromList(r.wallets, m.orderMap[this.orderId].owner);
