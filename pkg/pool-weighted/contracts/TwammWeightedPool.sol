@@ -223,15 +223,15 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256[] memory scalingFactors,
         bytes memory userData
     ) internal virtual override returns (uint256, uint256[] memory) {
+        if (!_virtualOrderExecutionPaused) {
+            (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(balances);
+        }
+
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
         if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
             return _registerLongTermOrder(recipient, balances, scalingFactors, userData);
         } else {
-            if (!_virtualOrderExecutionPaused) {
-                (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(balances);
-            }
-
             return super._doJoin(recipient, balances, normalizedWeights, scalingFactors, userData);
         }
     }
@@ -278,18 +278,18 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256[] memory scalingFactors,
         bytes memory userData
     ) internal virtual override returns (uint256, uint256[] memory) {
+        if (!_virtualOrderExecutionPaused) {
+            (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(balances);
+        }
+
         WeightedPoolUserData.ExitKind kind = userData.exitKind();
         if (kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER) {
-            return _cancelLongTermOrder(sender, userData, balances, scalingFactors);
+            return _cancelLongTermOrder(sender, userData, scalingFactors);
         } else if (kind == WeightedPoolUserData.ExitKind.WITHDRAW_LONG_TERM_ORDER) {
-            return _withdrawLongTermOrder(sender, userData, balances, scalingFactors);
+            return _withdrawLongTermOrder(sender, userData, scalingFactors);
         } else if (kind == WeightedPoolUserData.ExitKind.MANAGEMENT_FEE_TOKENS_OUT) {
             return _exitManagerFeeTokensOut(sender);
         } else {
-            if (!_virtualOrderExecutionPaused) {
-                (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(balances);
-            }
-
             return super._doExit(sender, balances, normalizedWeights, scalingFactors, userData);
         }
     }
@@ -431,12 +431,11 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     function _cancelLongTermOrder(
         address sender,
         bytes memory userData,
-        uint256[] memory balances,
         uint256[] memory scalingFactors
     ) internal returns (uint256, uint256[] memory) {
         uint256 orderId = WeightedPoolUserData.cancelLongTermOrder(userData);
         (uint256 purchasedAmount, uint256 unsoldAmount, ILongTermOrders.Order memory order) = _longTermOrders
-            .cancelLongTermSwap(sender, orderId, balances);
+            .cancelLongTermSwap(sender, orderId);
 
         _emitEventOrderCancelled(order, purchasedAmount, unsoldAmount, scalingFactors);
 
@@ -450,12 +449,11 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     function _withdrawLongTermOrder(
         address sender,
         bytes memory userData,
-        uint256[] memory balances,
         uint256[] memory scalingFactors
     ) internal returns (uint256, uint256[] memory) {
         uint256 orderId = WeightedPoolUserData.withdrawLongTermOrder(userData);
         (uint256 proceeds, ILongTermOrders.Order memory order, bool isPartialWithdrawal) = _longTermOrders
-            .withdrawProceedsFromLongTermSwap(sender, orderId, balances);
+            .withdrawProceedsFromLongTermSwap(sender, orderId);
 
         _emitEventOrderWithdrawn(order, proceeds, scalingFactors, isPartialWithdrawal);
 

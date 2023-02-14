@@ -31,11 +31,7 @@ abstract contract ILongTermOrders {
         );
 
     //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
-    function cancelLongTermSwap(
-        address sender,
-        uint256 orderId,
-        uint256[] calldata balances
-    )
+    function cancelLongTermSwap(address sender, uint256 orderId)
         external
         virtual
         returns (
@@ -45,11 +41,7 @@ abstract contract ILongTermOrders {
         );
 
     //@notice withdraw proceeds from a long term swap (can be expired or ongoing)
-    function withdrawProceedsFromLongTermSwap(
-        address sender,
-        uint256 orderId,
-        uint256[] calldata balances
-    )
+    function withdrawProceedsFromLongTermSwap(address sender, uint256 orderId)
         external
         virtual
         returns (

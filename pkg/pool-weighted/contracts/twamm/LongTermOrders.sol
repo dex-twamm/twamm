@@ -81,7 +81,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
         _require(numberOfBlockIntervals > 0, Errors.LONG_TERM_ORDER_NUM_INTERVALS_TOO_LOW);
 
-        executeVirtualOrdersUntilCurrentBlock(balances);
         return _addLongTermSwap(owner, balances, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
     }
 
@@ -146,11 +145,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     }
 
     //@notice cancel long term swap, pay out unsold tokens and well as purchased tokens
-    function cancelLongTermSwap(
-        address sender,
-        uint256 orderId,
-        uint256[] calldata balances
-    )
+    function cancelLongTermSwap(address sender, uint256 orderId)
         external
         override
         onlyOwner
@@ -160,8 +155,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             Order memory order
         )
     {
-        executeVirtualOrdersUntilCurrentBlock(balances);
-
         order = longTermOrders.orderMap[orderId];
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
@@ -185,11 +178,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     }
 
     // @notice withdraw proceeds from a long term swap (can be expired or ongoing)
-    function withdrawProceedsFromLongTermSwap(
-        address sender,
-        uint256 orderId,
-        uint256[] calldata balances
-    )
+    function withdrawProceedsFromLongTermSwap(address sender, uint256 orderId)
         external
         override
         onlyOwner
@@ -199,8 +188,6 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             bool isPartialWithdrawal
         )
     {
-        executeVirtualOrdersUntilCurrentBlock(balances);
-
         order = longTermOrders.orderMap[orderId];
         _require(order.owner == sender, Errors.CALLER_IS_NOT_OWNER);
 
