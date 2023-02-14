@@ -30,7 +30,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         uint64 minltoOrderAmountToAmmBalanceRatio;
         //@notice last virtual orders were executed immediately before this block
         uint64 lastVirtualOrderBlock;
-        uint128 feePercentage;
+        uint256 feePercentage;
         uint256 balanceA;
         uint256 balanceB;
         //@notice mapping from token address to pool that is selling that token
@@ -444,8 +444,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         view
         returns (uint256, uint256)
     {
-        uint256 totalFee = purchasedAmount.mulUp(uint256(longTermOrders.feePercentage));
-
+        uint256 totalFee = purchasedAmount.mulUp(longTermOrders.feePercentage);
         return (purchasedAmount.sub(totalFee), ammEndToken.add(totalFee));
     }
 
@@ -472,7 +471,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     }
 
     function setLongTermSwapFeePercentage(uint128 newLongTermSwapFeePercentage) external override onlyOwner {
-        longTermOrders.feePercentage = newLongTermSwapFeePercentage;
+        longTermOrders.feePercentage = uint256(newLongTermSwapFeePercentage);
     }
 
     function setMaxPerBlockSaleRatePercent(uint256 newMaxPerBlockSaleRatePercent) external override onlyOwner {

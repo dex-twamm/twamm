@@ -35,6 +35,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     using WordCodec for bytes32;
 
     uint256 private constant _MAX_TOKENS = 2;
+    uint256 private constant _MIN_SWAP_FEE_PERCENTAGE = 1e12; // 0.0001%
+    uint256 private constant _MAX_SWAP_FEE_PERCENTAGE = 1e17; // 10% - this fits in 64 bits
 
     IERC20 internal immutable _token0;
     IERC20 internal immutable _token1;
@@ -48,7 +50,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     uint256 internal _normalizedWeight0 = 0.5e18;
     uint256 internal _normalizedWeight1 = 0.5e18;
 
-    mapping(uint256 => uint256) private _longTermOrderCollectedManagementFees;
+    mapping(uint256 => uint256) private _ltoCollectedFees;
 
     bool private _virtualOrderExecutionPaused = false;
 
@@ -277,13 +279,12 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function _checkSplitProtocolFees(uint256[] memory dueProtocolFeeAmounts) private {
-        console.log(dueProtocolFeeAmounts[0], dueProtocolFeeAmounts[1]);
-        for (uint256 i = 0; i < _getTotalTokens(); ++i) {
+        for (uint256 i = 0; i < _MAX_TOKENS; ++i) {
             if (dueProtocolFeeAmounts[i] != 0) {
                 uint256 ltoProtocolFee = dueProtocolFeeAmounts[i].divDown(FixedPoint.fromUint(2));
 
                 dueProtocolFeeAmounts[i] = dueProtocolFeeAmounts[i].sub(ltoProtocolFee);
-                _longTermOrderCollectedManagementFees[i] = _longTermOrderCollectedManagementFees[i].add(ltoProtocolFee);
+                _ltoCollectedFees[i] = _ltoCollectedFees[i].add(ltoProtocolFee);
             }
         }
     }
@@ -481,8 +482,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
             updatedBalances = _getSizeTwoArray(balances[0], balances[1]);
 
             // Deduct the long term orders and long term order management fee from the pool balances.
-            updatedBalances[0] = updatedBalances[0].sub(balanceA).sub(_longTermOrderCollectedManagementFees[0]);
-            updatedBalances[1] = updatedBalances[1].sub(balanceB).sub(_longTermOrderCollectedManagementFees[1]);
+            updatedBalances[0] = updatedBalances[0].sub(balanceA).sub(_ltoCollectedFees[0]);
+            updatedBalances[1] = updatedBalances[1].sub(balanceB).sub(_ltoCollectedFees[1]);
         } else {
             return balances;
         }
@@ -509,10 +510,10 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
     function setLongTermSwapFeePercentage(uint128 newLongTermSwapFeePercentage) external authenticate {
         // Fees should be fraction of 1.
-        _require(newLongTermSwapFeePercentage < FixedPoint.ONE, Errors.INVALID_FEE);
+        _require(newLongTermSwapFeePercentage >= _MIN_SWAP_FEE_PERCENTAGE, Errors.MIN_SWAP_FEE_PERCENTAGE);
+        _require(newLongTermSwapFeePercentage <= _MAX_SWAP_FEE_PERCENTAGE, Errors.MAX_SWAP_FEE_PERCENTAGE);
 
         _longTermOrders.setLongTermSwapFeePercentage(newLongTermSwapFeePercentage);
-
         emit LongTermSwapFeePercentageChanged(newLongTermSwapFeePercentage);
     }
 
@@ -532,7 +533,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         collectedFees = new uint256[](2);
 
         for (uint256 i = 0; i < 2; ++i) {
-            collectedFees[i] = _longTermOrderCollectedManagementFees[i];
+            collectedFees[i] = _ltoCollectedFees[i];
         }
 
         _downscaleDownArray(collectedFees, _scalingFactors());
@@ -603,8 +604,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         protocolFees = new uint256[](2);
 
         for (uint256 i = 0; i < 2; ++i) {
-            amountsOut[i] = _longTermOrderCollectedManagementFees[i];
-            _longTermOrderCollectedManagementFees[i] = 0;
+            amountsOut[i] = _ltoCollectedFees[i];
+            _ltoCollectedFees[i] = 0;
         }
     }
 
