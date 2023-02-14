@@ -214,7 +214,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
 
     //@notice executes all virtual orders until current block is reached.
     function executeVirtualOrdersUntilCurrentBlock(uint256[] calldata balances)
-        public
+        external
         override
         onlyOwner
         returns (uint256 ammTokenA, uint256 ammTokenB)

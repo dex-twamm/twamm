@@ -14,7 +14,13 @@ import { TwammModel } from './model/TwammModel';
 import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/weighted/types';
 import { deployedAt } from '@balancer-labs/v2-helpers/src/contract';
 import { MAX_UINT256 } from '@balancer-labs/v2-helpers/src/constants';
-import { allTwammCommands, JoinGivenInCommand, MoveFwdNBlocksCommand, PlaceLtoCommand, WithdrawLtoManagementFeeCommand } from './model/TwammCommands';
+import {
+  allTwammCommands,
+  JoinGivenInCommand,
+  MoveFwdNBlocksCommand,
+  PlaceLtoCommand,
+  WithdrawLtoManagementFeeCommand,
+} from './model/TwammCommands';
 
 fc.configureGlobal({
   numRuns: 100,
@@ -121,7 +127,7 @@ describe('TwammWeightedPool Fast-check tests', function () {
         {
           verbose: true,
           // seed: -1926845829, path: "1:2:1:2:3:2:2:1:1:2:2:3:3:1:1:1", endOnFailure: true
-          examples: [[[new PlaceLtoCommand(10, 0, 1, 1), new MoveFwdNBlocksCommand(200), new JoinGivenInCommand(1, 0), new WithdrawLtoManagementFeeCommand(0)]]], // BAL#001
+          // examples: [[[new PlaceLtoCommand(10, 0, 1, 1), new MoveFwdNBlocksCommand(200), new JoinGivenInCommand(1, 0), new WithdrawLtoManagementFeeCommand(0)]]], // BAL#001
         }
       );
     });

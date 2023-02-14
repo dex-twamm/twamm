@@ -202,6 +202,10 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
+        if (!_virtualOrderExecutionPaused) {
+            (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(balances);
+        }
+
         (bptAmountOut, amountsIn, dueProtocolFeeAmounts) = super._onJoinPool(
             poolId,
             sender,
@@ -223,10 +227,6 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256[] memory scalingFactors,
         bytes memory userData
     ) internal virtual override returns (uint256, uint256[] memory) {
-        if (!_virtualOrderExecutionPaused) {
-            (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(balances);
-        }
-
         WeightedPoolUserData.JoinKind kind = userData.joinKind();
         // Check if it is a long term order, if it is then register it
         if (kind == WeightedPoolUserData.JoinKind.PLACE_LONG_TERM_ORDER) {
@@ -257,6 +257,10 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
+        if (!_virtualOrderExecutionPaused) {
+            (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(updatedBalances);
+        }
+
         (bptAmountIn, amountsOut, dueProtocolFeeAmounts) = super._onExitPool(
             poolId,
             sender,
@@ -278,10 +282,6 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256[] memory scalingFactors,
         bytes memory userData
     ) internal virtual override returns (uint256, uint256[] memory) {
-        if (!_virtualOrderExecutionPaused) {
-            (balances[0], balances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(balances);
-        }
-
         WeightedPoolUserData.ExitKind kind = userData.exitKind();
         if (kind == WeightedPoolUserData.ExitKind.CANCEL_LONG_TERM_ORDER) {
             return _cancelLongTermOrder(sender, userData, scalingFactors);
