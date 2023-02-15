@@ -27,7 +27,7 @@ export class Order {
     public sellTokenIndex: number,
     public buyTokenIndex: number,
     public withdrawn: boolean = false
-  ) {}
+  ) { }
 }
 
 export class OrderPool {
@@ -38,7 +38,7 @@ export class OrderPool {
     public rewardFactorAtSubmission: { [Key: number]: Decimal } = {},
     public rewardFactorAtBlock: { [Key: number]: Decimal } = {},
     public ordersExpiringAtBlock: { [Key: number]: number } = {}
-  ) {}
+  ) { }
 
   cancelOrder(orderId: number, lastVirtualOrderBlock: number, orderSaleRate: Decimal, orderExpiryBlock: number) {
     expect(orderExpiryBlock).gte(lastVirtualOrderBlock);
@@ -386,5 +386,20 @@ export class TwammModel {
 
     // return mockBptOut;
     return mockTokensOut;
+  }
+
+  async swapGivenIn(pool: WeightedPool, wallet: SignerWithAddress, amountIn: number, tokenIndexIn: number) {
+    await this.executeVirtualOrders();
+    let amountInWithoutFees = amountIn * (0.99);
+    const expectedAmountOut = await pool.estimateGivenIn({
+      in: tokenIndexIn,
+      out: 1 - tokenIndexIn,
+      amount: fp(amountInWithoutFees)
+    }, this.tokenBalances.map(fp));
+
+    this.tokenBalances[tokenIndexIn] = this.tokenBalances[tokenIndexIn].add(amountIn);
+    this.tokenBalances[1 - tokenIndexIn] = this.tokenBalances[1 - tokenIndexIn].sub(fromFp(expectedAmountOut));
+
+    return expectedAmountOut;
   }
 }

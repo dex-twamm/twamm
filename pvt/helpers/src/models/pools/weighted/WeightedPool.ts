@@ -10,7 +10,7 @@ import Token from '../../tokens/Token';
 import TokenList from '../../tokens/TokenList';
 import TypesConverter from '../../types/TypesConverter';
 import WeightedPoolDeployer from './WeightedPoolDeployer';
-import { MinimalSwap } from '../../vault/types';
+import { GeneralSwap, MinimalSwap } from '../../vault/types';
 import { Account, TxParams } from '../../types/types';
 import {
   JoinExitWeightedPool,
@@ -389,6 +389,13 @@ export default class WeightedPool {
     return { amount, receipt };
   }
 
+  async generalSwap(params: SwapWeightedPool): Promise<SwapResult> {
+    const tx = await this.vault.generalSwap(await this._buildGeneralSwapParams(SwapKind.GivenIn, params));
+    const receipt = await tx.wait();
+    const amount = expectEvent.inReceipt(receipt, 'Swap').args[4];
+    return { amount, receipt };
+  }
+
   async dirtyUninitializedOracleSamples(startSlot: number, endSlot: number): Promise<VoidResult> {
     const tx = await this.instance.dirtyUninitializedOracleSamples(startSlot, endSlot);
     const receipt = await tx.wait();
@@ -602,6 +609,27 @@ export default class WeightedPool {
       lastChangeBlock: params.lastChangeBlock ?? 0,
       data: params.data ?? '0x',
       amount: params.amount,
+    };
+  }
+
+  private async _buildGeneralSwapParams(kind: number, params: SwapWeightedPool): Promise<GeneralSwap> {
+    const currentBalances = await this.getBalances();
+    const [tokenIn, tokenOut] = this.tokens.indicesOf(params.in, params.out);
+    return {
+      kind,
+      poolAddress: this.address,
+      poolId: this.poolId,
+      from: params.from,
+      to: params.recipient ?? ZERO_ADDRESS,
+      tokenIn: this.tokens.get(params.in)?.address ?? ZERO_ADDRESS,
+      tokenOut: this.tokens.get(params.out)?.address ?? ZERO_ADDRESS,
+      lastChangeBlock: params.lastChangeBlock ?? 0,
+      data: params.data ?? '0x',
+      amount: params.amount,
+      // Unused params in real vault.
+      balances: currentBalances,
+      indexIn: tokenIn,
+      indexOut: tokenOut
     };
   }
 

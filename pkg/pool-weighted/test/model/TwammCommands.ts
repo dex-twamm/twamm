@@ -55,6 +55,38 @@ export class MultiExitGivenInCommand implements fc.AsyncCommand<TwammModel, Cont
   toString = () => `wallet${this.walletNo}.multiExitGivenIn(${this.bptIn})`;
 }
 
+export class SwapGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts> {
+  constructor(readonly amountIn: number, readonly tokenIndexIn: number, readonly walletNo: number) {}
+  check = (m: Readonly<TwammModel>) => {
+    return (
+      m.tokenBalances[this.tokenIndexIn].mul(0.3).gt(this.amountIn) &&
+      m.tokenBalances[this.tokenIndexIn].mul(0.001).lt(this.amountIn) 
+    )
+  };
+  async run(m: TwammModel, r: Contracts): Promise<void> {
+    try {
+      const wallet = r.wallets[this.walletNo];
+      const mockAmountOut = await m.swapGivenIn(r.pool, wallet, this.amountIn, this.tokenIndexIn);
+
+      console.log(await r.pool.getSwapFeePercentage());
+      const result = await r.pool.generalSwap({
+        in: this.tokenIndexIn,
+        out: 1 - this.tokenIndexIn,
+        amount: fp(this.amountIn),
+        from: wallet,
+        recipient: wallet,
+      });
+
+    expectEqualWithError(result.amount, mockAmountOut, EXPECTED_RELATIVE_ERROR);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+  toString = () =>
+    `wallet${this.walletNo}.swapGivenIn(${this.amountIn}, ${this.tokenIndexIn}, ${1 - this.tokenIndexIn})`;
+}
+
 export class PlaceLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(
     readonly amountIn: number,
@@ -196,6 +228,13 @@ export function allTwammCommands(numberOfWallets: number) {
         fc.nat({ max: numberOfWallets - 1 }) // walletNo
       )
       .map((v) => new JoinGivenInCommand(v[0], v[1])),
+    fc
+      .tuple(
+        fc.float({ min: 1, max: 100 }), // amountIn
+        fc.nat({ max: 1 }), // tokenIndexIn
+        fc.nat({ max: numberOfWallets - 1 }) // walletNo
+      )
+      .map((v) => new SwapGivenInCommand(v[0], v[1], v[2])),
     fc
       .tuple(
         fc.float({ min: 1, max: 100 }), // bptIn
