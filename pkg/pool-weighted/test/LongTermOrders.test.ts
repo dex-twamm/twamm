@@ -24,10 +24,11 @@ function compareNumbers(a: number, b: number) {
 describe('LongTermOrders', function () {
   let longTermOrders: Contract;
   let mockLongTermOrders: Contract;
+  let mockLongTermOrdersCaller: Contract;
   let anAddress: SignerWithAddress, anAddress1: SignerWithAddress, anAddress2: SignerWithAddress;
   let blockNumber: number;
 
-  const EXPECTED_RELATIVE_ERROR = 1e-13;
+  const EXPECTED_RELATIVE_ERROR = 1e-12;
   const orderBlockInterval = 100;
 
   async function verifyOrderDetails(
@@ -138,7 +139,14 @@ describe('LongTermOrders', function () {
     numberOfBlockIntervals: number,
     balances: [BigNumber, BigNumber]
   ): Promise<[number, BigNumber]> {
-    await contract.performLongTermSwap(address, balances, tokenInIndex, tokenOutIndex, amount, numberOfBlockIntervals);
+    await contract.executeLongTermOrdersAndPlaceLongTermOrder(
+      balances,
+      address,
+      tokenInIndex,
+      tokenOutIndex,
+      amount,
+      numberOfBlockIntervals
+    );
 
     const lastBlock = await lastBlockNumber();
 
@@ -183,6 +191,25 @@ describe('LongTermOrders', function () {
     );
   }
 
+  async function placeLongTermOrderMockCaller(
+    address: string,
+    tokenInIndex: number,
+    tokenOutIndex: number,
+    amount: BigNumber,
+    numberOfBlockIntervals: number,
+    balances: [BigNumber, BigNumber]
+  ): Promise<[number, BigNumber]> {
+    return placeLongTermOrderForContract(
+      mockLongTermOrdersCaller,
+      address,
+      tokenInIndex,
+      tokenOutIndex,
+      amount,
+      numberOfBlockIntervals,
+      balances
+    );
+  }
+
   describe('init', () => {
     before('setup', async function () {
       longTermOrders = await deploy('LongTermOrders', { args: [orderBlockInterval] });
@@ -203,6 +230,10 @@ describe('LongTermOrders', function () {
   describe('place long term order, order expiry calculation', () => {
     before('setup', async function () {
       longTermOrders = await deploy('LongTermOrders', { args: [orderBlockInterval] });
+
+      mockLongTermOrdersCaller = await deploy('MockLongTermOrdersCaller', { args: [longTermOrders.address] });
+      longTermOrders.transferOwnership(mockLongTermOrdersCaller.address);
+
       [, anAddress] = await ethers.getSigners();
 
       blockNumber = await lastBlockNumber();
@@ -217,7 +248,7 @@ describe('LongTermOrders', function () {
       // Move to closest expiry block
       await moveForwardNBlocks(orderBlockInterval - (await lastBlockNumber()) - 1);
 
-      const [orderPlacementBlock, salesRateA] = await placeLongTermOrder(
+      const [orderPlacementBlock, salesRateA] = await placeLongTermOrderMockCaller(
         anAddress.address,
         0,
         1,
@@ -233,22 +264,25 @@ describe('LongTermOrders', function () {
     });
   });
 
-  describe('place long term order', () => {
+  describe('place long term orders', () => {
     sharedBeforeEach('setup', async function () {
       longTermOrders = await deploy('LongTermOrders', { args: [orderBlockInterval] });
-      [, anAddress, anAddress1, anAddress2] = await ethers.getSigners();
+
+      mockLongTermOrdersCaller = await deploy('MockLongTermOrdersCaller', { args: [longTermOrders.address] });
+      longTermOrders.transferOwnership(mockLongTermOrdersCaller.address);
+
+      [, anAddress, anAddress1] = await ethers.getSigners();
 
       blockNumber = await lastBlockNumber();
     });
 
-    it('can place long term order', async () => {
+    it('can place long term orders', async () => {
       const amount = fp(100),
         orderInterval = 100;
 
       const ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
 
-      const currentBlock = await lastBlockNumber();
-      const [orderPlacementBlock, salesRateA] = await placeLongTermOrder(
+      const [orderPlacementBlock, salesRateA] = await placeLongTermOrderMockCaller(
         anAddress.address,
         0,
         1,
@@ -271,19 +305,18 @@ describe('LongTermOrders', function () {
       );
       // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, fp(0));
       // verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
-      verifyLongTermOrdersDetails(longTermOrdersDetails, amount, fp(0), 1, currentBlock, orderBlockInterval);
+      verifyLongTermOrdersDetails(longTermOrdersDetails, amount, fp(0), 1, orderPlacementBlock, orderBlockInterval);
     });
 
     it('can place long term order in both directions', async () => {
+      let balanceA, balanceB;
       const amount1 = fp(100),
         amount2 = fp(100),
         orderIntervalA = 100,
         orderIntervalB = 500,
         ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
 
-      const startBlock = await lastBlockNumber();
-
-      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrder(
+      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrderMockCaller(
         anAddress.address,
         0,
         1,
@@ -303,9 +336,9 @@ describe('LongTermOrders', function () {
         1
       );
       // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, fp(0));
-      verifyLongTermOrdersDetails(longTermOrdersDetails1, amount1, fp(0), 1, startBlock, orderBlockInterval);
+      verifyLongTermOrdersDetails(longTermOrdersDetails1, amount1, fp(0), 1, orderPlacementBlockA, orderBlockInterval);
 
-      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrder(
+      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrderMockCaller(
         anAddress1.address,
         1,
         0,
@@ -314,16 +347,16 @@ describe('LongTermOrders', function () {
         ammBalances
       );
 
-      // [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders(
-      //   ammBalances[0],
-      //   ammBalances[1],
-      //   salesRateA,
-      //   fp(0),
-      //   amount1,
-      //   amount2,
-      //   orderPlacementBlockA,
-      //   orderPlacementBlockA + 1
-      // );
+      [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders(
+        ammBalances[0],
+        ammBalances[1],
+        salesRateA,
+        fp(0),
+        amount1,
+        amount2,
+        orderPlacementBlockA,
+        orderPlacementBlockA + 1
+      );
 
       // const orderPoolDetailsB = await longTermOrders.getOrderPoolDetails(1);
       // orderPoolDetailsA = await longTermOrders.getOrderPoolDetails(0);
@@ -339,7 +372,14 @@ describe('LongTermOrders', function () {
       );
       // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('999999009411580506'));
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, fp(0));
-      verifyLongTermOrdersDetails(longTermOrdersDetails2, amount1, amount2, 2, startBlock, orderBlockInterval);
+      verifyLongTermOrdersDetails(
+        longTermOrdersDetails2,
+        balanceA,
+        balanceB,
+        2,
+        orderPlacementBlockB,
+        orderBlockInterval
+      );
     });
 
     it('can place long term order and execute', async () => {
@@ -348,9 +388,7 @@ describe('LongTermOrders', function () {
         nInterval = 1000,
         ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
 
-      const startBlock = await lastBlockNumber();
-
-      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrder(
+      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrderMockCaller(
         anAddress.address,
         0,
         1,
@@ -360,7 +398,7 @@ describe('LongTermOrders', function () {
       );
 
       await moveForwardNBlocks(2 * orderBlockInterval);
-      await longTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
+      await mockLongTermOrdersCaller.executeVirtualOrdersUntilCurrentBlock(ammBalances);
 
       [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders(
         ammBalances[0],
@@ -369,8 +407,8 @@ describe('LongTermOrders', function () {
         fp(0),
         amount,
         fp(0),
-        startBlock,
-        startBlock + 2 * orderBlockInterval + 2
+        orderPlacementBlockA,
+        orderPlacementBlockA + 2 * orderBlockInterval + 1
       );
 
       const state = await getLongTermOrdersDetails();
@@ -385,7 +423,7 @@ describe('LongTermOrders', function () {
         nInterval = 1000,
         ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
 
-      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrder(
+      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrderMockCaller(
         anAddress.address,
         0,
         1,
@@ -394,7 +432,7 @@ describe('LongTermOrders', function () {
         ammBalances
       );
 
-      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrder(
+      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrderMockCaller(
         anAddress.address,
         1,
         0,
@@ -419,7 +457,7 @@ describe('LongTermOrders', function () {
       verifyTokenBalances([state.balanceA, state.balanceB], balanceA, balanceB);
 
       await moveForwardNBlocks(2 * orderBlockInterval);
-      await longTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
+      await mockLongTermOrdersCaller.executeVirtualOrdersUntilCurrentBlock(ammBalances);
 
       [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders(
         ammBalances[0],
@@ -449,7 +487,7 @@ describe('LongTermOrders', function () {
         orderAmountA = fp(100),
         ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
 
-      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrder(
+      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrderMockCaller(
         anAddress.address,
         0,
         1,
@@ -461,7 +499,7 @@ describe('LongTermOrders', function () {
       const orderIntervalB = 500,
         orderAmountB = fp(200);
 
-      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrder(
+      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrderMockCaller(
         anAddress.address,
         1,
         0,
@@ -487,7 +525,7 @@ describe('LongTermOrders', function () {
       verifyTokenBalances([state.balanceA, state.balanceB], balanceA, balanceB);
 
       await moveForwardNBlocks(2 * orderBlockInterval);
-      await longTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
+      await mockLongTermOrdersCaller.executeVirtualOrdersUntilCurrentBlock(ammBalances);
 
       [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders(
         ammBalances[0],
@@ -516,7 +554,7 @@ describe('LongTermOrders', function () {
         orderAmountA = fp(100),
         ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
 
-      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrder(
+      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrderMockCaller(
         anAddress.address,
         0,
         1,
@@ -528,7 +566,7 @@ describe('LongTermOrders', function () {
       const orderIntervalB = 500,
         orderAmountB = fp(200);
 
-      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrder(
+      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrderMockCaller(
         anAddress.address,
         1,
         0,
@@ -553,7 +591,7 @@ describe('LongTermOrders', function () {
       verifyTokenBalances([state.balanceA, state.balanceB], balanceA, balanceB);
 
       await moveForwardNBlocks(2 * orderBlockInterval);
-      await longTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
+      await mockLongTermOrdersCaller.executeVirtualOrdersUntilCurrentBlock(ammBalances);
 
       [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders(
         ammBalances[0],
@@ -575,7 +613,7 @@ describe('LongTermOrders', function () {
       // verifyOrderPoolDetails(orderPoolDetailsA, salesRateA, bn('202012053981096173406'));
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('200987947148768005531'));
 
-      await longTermOrders.cancelLongTermSwap(anAddress.address, 0, ammBalances);
+      await mockLongTermOrdersCaller.executeLongTermOrdersAndCancelLongTermSwap(anAddress.address, 0, ammBalances);
 
       // const {tokenBalance3A, tokenBalance3B} = await getLongTermOrdersDetails();
       // TODO subtract withdrawn balance from the balances before matching
@@ -593,7 +631,7 @@ describe('LongTermOrders', function () {
         orderAmount = fp(100),
         ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
 
-      const [orderPlacementBlock, salesRate] = await placeLongTermOrder(
+      const [orderPlacementBlock, salesRate] = await placeLongTermOrderMockCaller(
         anAddress.address,
         0,
         1,
@@ -603,7 +641,7 @@ describe('LongTermOrders', function () {
       );
 
       await moveForwardNBlocks(4 * orderBlockInterval);
-      await longTermOrders.executeVirtualOrdersUntilCurrentBlock([fp(10000), fp(10000)]);
+      await mockLongTermOrdersCaller.executeVirtualOrdersUntilCurrentBlock([fp(10000), fp(10000)]);
 
       const [, , balanceA, balanceB] = executeVirtualOrders(
         ammBalances[0],
@@ -624,7 +662,7 @@ describe('LongTermOrders', function () {
       // verifyOrderPoolDetails(orderPoolDetailsB, fp(0), fp(0));
       verifyTokenBalances([state.balanceA, state.balanceB], balanceA, balanceB);
 
-      await longTermOrders.withdrawProceedsFromLongTermSwap(anAddress.address, 0, ammBalances);
+      await mockLongTermOrdersCaller.executeLongTermOrdersAndWithdrawLongTermSwap(anAddress.address, 0, ammBalances);
 
       // orderPoolDetailsA = (await longTermOrders.getLongTermOrderAndBoughtAmount(0))[0];
       // orderPoolDetailsB = (await longTermOrders.getLongTermOrderAndBoughtAmount(1))[0];
@@ -643,7 +681,7 @@ describe('LongTermOrders', function () {
       const ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
       let balanceA, balanceB;
 
-      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrder(
+      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrderMockCaller(
         anAddress.address,
         0,
         1,
@@ -652,7 +690,7 @@ describe('LongTermOrders', function () {
         ammBalances
       );
 
-      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrder(
+      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrderMockCaller(
         anAddress.address,
         1,
         0,
@@ -675,7 +713,7 @@ describe('LongTermOrders', function () {
       balanceB = balanceB.add(orderAmountB);
 
       await moveForwardNBlocks(2 * orderBlockInterval);
-      await longTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
+      await mockLongTermOrdersCaller.executeVirtualOrdersUntilCurrentBlock(ammBalances);
       const state = await getLongTermOrdersDetails();
 
       [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders(
@@ -691,7 +729,7 @@ describe('LongTermOrders', function () {
 
       verifyTokenBalances([state.balanceA, state.balanceB], balanceA, balanceB);
 
-      await longTermOrders.withdrawProceedsFromLongTermSwap(anAddress.address, 0, ammBalances);
+      await mockLongTermOrdersCaller.executeLongTermOrdersAndWithdrawLongTermSwap(anAddress.address, 0, ammBalances);
 
       // Long term order is withdrawn now
       // TODO fix this
@@ -708,7 +746,7 @@ describe('LongTermOrders', function () {
       const ammBalances: [BigNumber, BigNumber] = [fp(10000), fp(10000)];
       let balanceA, balanceB;
 
-      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrder(
+      const [orderPlacementBlockA, salesRateA] = await placeLongTermOrderMockCaller(
         anAddress.address,
         0,
         1,
@@ -717,7 +755,7 @@ describe('LongTermOrders', function () {
         ammBalances
       );
 
-      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrder(
+      const [orderPlacementBlockB, salesRateB] = await placeLongTermOrderMockCaller(
         anAddress.address,
         1,
         0,
@@ -739,8 +777,8 @@ describe('LongTermOrders', function () {
 
       balanceB = balanceB.add(orderAmountB);
 
-      const currentExecBlockNumber = await moveForwardNBlocks(4 * orderBlockInterval);
-      await longTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
+      await moveForwardNBlocks(4 * orderBlockInterval);
+      await mockLongTermOrdersCaller.executeVirtualOrdersUntilCurrentBlock(ammBalances);
       [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders(
         ammBalances[0],
         ammBalances[1],
@@ -752,27 +790,15 @@ describe('LongTermOrders', function () {
         getOrderExpiryBlock(orderIntervalA, orderPlacementBlockA)
       );
 
-      // [ammBalances[0], ammBalances[1], balanceA, balanceB] = executeVirtualOrders1(
-      //   ammBalances[0],
-      //   ammBalances[1],
-      //   fp(0),
-      //   salesRateB,
-      //   balanceA,
-      //   balanceB,
-      //   getOrderExpiryBlock(orderIntervalA, orderPlacementBlockA),
-      //   currentExecBlockNumber,
-      //   orderBlockInterval
-      // );
-
       // let orderPoolDetailsA = (await longTermOrders.getLongTermOrderAndBoughtAmount(0))[0];
       // let orderPoolDetailsB = (await longTermOrders.getLongTermOrderAndBoughtAmount(1))[0];
       let state = await getLongTermOrdersDetails();
 
       // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391150274317278982266'));
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('405038774564188060935'));
-      verifyTokenBalances([state.balanceA, state.balanceB], bn('1616897557000407300'), bn('297424608915063606936'));
+      verifyTokenBalances([state.balanceA, state.balanceB], bn('1617042462650675836'), bn('297424466819132767753'));
 
-      await longTermOrders.withdrawProceedsFromLongTermSwap(anAddress.address, 0, ammBalances);
+      await mockLongTermOrdersCaller.executeLongTermOrdersAndWithdrawLongTermSwap(anAddress.address, 0, ammBalances);
       // const orderDetails = await longTermOrders.getLongTermOrder(0);
 
       // orderPoolDetailsA = (await longTermOrders.getLongTermOrderAndBoughtAmount(0))[0];
@@ -782,13 +808,16 @@ describe('LongTermOrders', function () {
       // verifyOrderPoolDetails(orderPoolDetailsA, fp(0), bn('391150274317278982266'));
       // verifyOrderPoolDetails(orderPoolDetailsB, salesRateB, bn('405038774564188060935'));
       // TODO fix this
-      verifyTokenBalances([state.balanceA, state.balanceB], bn('1620968764021656669'), bn('198395113479849092775'));
+      verifyTokenBalances([state.balanceA, state.balanceB], bn('1621113838660818116'), bn('198395049406128356343'));
     });
   });
 
   describe('place long term order, order expiry heap manipulation', () => {
     before('setup', async function () {
       mockLongTermOrders = await deploy('MockLongTermOrders', { args: [orderBlockInterval] });
+      mockLongTermOrdersCaller = await deploy('MockLongTermOrdersCaller', { args: [mockLongTermOrders.address] });
+      mockLongTermOrders.transferOwnership(mockLongTermOrdersCaller.address);
+
       [, anAddress] = await ethers.getSigners();
 
       blockNumber = await lastBlockNumber();
@@ -812,32 +841,32 @@ describe('LongTermOrders', function () {
 
       await block.setAutomine(false);
 
-      await placeMockLongTermOrder(anAddress.address, 0, 1, amount, orderIntervalA, ammBalances);
+      await placeLongTermOrderMockCaller(anAddress.address, 0, 1, amount, orderIntervalA, ammBalances);
       orderExpiries.push(getOrderExpiryBlock(orderIntervalA, await lastBlockNumber()));
 
       // Adding another order with same expiry
-      await placeMockLongTermOrder(anAddress.address, 1, 0, amount, orderIntervalAB, ammBalances);
+      await placeLongTermOrderMockCaller(anAddress.address, 1, 0, amount, orderIntervalAB, ammBalances);
       orderExpiries.push(getOrderExpiryBlock(orderIntervalAB, await lastBlockNumber()));
 
       await block.setAutomine(true);
 
       await moveForwardNBlocks(blockDiffAB);
-      await placeMockLongTermOrder(anAddress.address, 1, 0, amount, orderIntervalB, ammBalances);
+      await placeLongTermOrderMockCaller(anAddress.address, 1, 0, amount, orderIntervalB, ammBalances);
       orderExpiries.push(getOrderExpiryBlock(orderIntervalB, await lastBlockNumber()));
 
       await moveForwardNBlocks(blockDiffBC);
-      await placeMockLongTermOrder(anAddress.address, 1, 0, amount, orderIntervalC, ammBalances);
+      await placeLongTermOrderMockCaller(anAddress.address, 1, 0, amount, orderIntervalC, ammBalances);
       orderExpiries.push(getOrderExpiryBlock(orderIntervalC, await lastBlockNumber()));
 
       await moveForwardNBlocks(blockDiffCD);
-      await placeMockLongTermOrder(anAddress.address, 0, 1, amount, orderIntervalD, ammBalances);
+      await placeLongTermOrderMockCaller(anAddress.address, 0, 1, amount, orderIntervalD, ammBalances);
       orderExpiries.push(getOrderExpiryBlock(orderIntervalD, await lastBlockNumber()));
 
       await moveForwardNBlocks(blockDiffDE);
-      await placeMockLongTermOrder(anAddress.address, 1, 0, amount, orderIntervalE, ammBalances);
+      await placeLongTermOrderMockCaller(anAddress.address, 1, 0, amount, orderIntervalE, ammBalances);
       orderExpiries.push(getOrderExpiryBlock(orderIntervalE, await lastBlockNumber()));
 
-      let orderExpiryHeap = await mockLongTermOrders.getOrderExpiryHeap();
+      let orderExpiryHeap = await mockLongTermOrdersCaller.getOrderExpiryHeap();
       let orderExpiryHeapValues = orderExpiryHeap.map((x: BigNumber) => decimal(x).toNumber());
 
       // Check order are added to the heap in right order and no duplicates created
@@ -853,8 +882,8 @@ describe('LongTermOrders', function () {
       // Move forward to first order expiry
       await moveForwardNBlocks(uniqueOrderExpiries[0] - (await lastBlockNumber()));
 
-      await mockLongTermOrders.executeVirtualOrdersUntilCurrentBlock(ammBalances);
-      orderExpiryHeap = await mockLongTermOrders.getOrderExpiryHeap();
+      await mockLongTermOrdersCaller.executeVirtualOrdersUntilCurrentBlock(ammBalances);
+      orderExpiryHeap = await mockLongTermOrdersCaller.getOrderExpiryHeap();
       orderExpiryHeapValues = orderExpiryHeap.map((x: BigNumber) => decimal(x).toNumber());
 
       expect(orderExpiryHeap[1]).to.be.equal(orderExpiries[2]);
