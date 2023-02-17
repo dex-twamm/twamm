@@ -32,11 +32,8 @@ import "hardhat/console.sol";
 contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     using WeightedPoolUserData for bytes;
     using FixedPoint for uint256;
-    using WordCodec for bytes32;
 
     uint256 private constant _MAX_TOKENS = 2;
-    uint256 private constant _MIN_SWAP_FEE_PERCENTAGE = 1e12; // 0.0001%
-    uint256 private constant _MAX_SWAP_FEE_PERCENTAGE = 1e17; // 10% - this fits in 64 bits
 
     IERC20 internal immutable _token0;
     IERC20 internal immutable _token1;
@@ -550,8 +547,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
     function setVirtualOrderExecutionPaused(bool virtualOrderExecutionPaused) external authenticate {
         require(
-            virtualOrderExecutionPaused || _normalizedWeight0 == _normalizedWeight1,
-            "Virtual order execution cannot be unpaused if weights not equal."
+            virtualOrderExecutionPaused || _normalizedWeight0 == _normalizedWeight1
         );
         _virtualOrderExecutionPaused = virtualOrderExecutionPaused;
     }
