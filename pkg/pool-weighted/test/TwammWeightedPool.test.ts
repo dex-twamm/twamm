@@ -16,7 +16,7 @@ import { lastBlockNumber } from '@balancer-labs/v2-helpers/src/time';
 import * as expectEvent from '@balancer-labs/v2-helpers/src/test/expectEvent';
 import { expectEqualWithError } from '@balancer-labs/v2-helpers/src/test/relativeError';
 
-import { itBehavesAsWeightedPool } from './BaseWeightedPool.behavior';
+import { itBehavesAsWeightedPool } from './TwammBaseWeightedPool.behavior';
 
 import executeVirtualOrders from './TwammHelper';
 

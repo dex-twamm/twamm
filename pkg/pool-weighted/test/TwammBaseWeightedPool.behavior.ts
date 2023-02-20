@@ -714,7 +714,7 @@ export function itBehavesAsWeightedPool(
           protocolFeePercentage,
           currentBalances
         );
-        expectedDueProtocolFeeAmounts = ZEROS.map((n, i) => (i === paidTokenIndex ? protocolFeeAmount : n));
+        expectedDueProtocolFeeAmounts = ZEROS.map((n, i) => (i === paidTokenIndex ? protocolFeeAmount.div(2) : n));
       });
 
       it('pays swap protocol fees on join exact tokens in for BPT out', async () => {
@@ -775,7 +775,7 @@ export function itBehavesAsWeightedPool(
       sharedBeforeEach('compute expected due protocol fees', async () => {
         const paidTokenIndex = pool.weights.indexOf(pool.maxWeight);
         const feeAmount = await pool.estimateMaxSwapFeeAmount(paidTokenIndex, protocolFeePercentage, currentBalances);
-        expectedDueProtocolFeeAmounts = ZEROS.map((n, i) => (i === paidTokenIndex ? feeAmount : n));
+        expectedDueProtocolFeeAmounts = ZEROS.map((n, i) => (i === paidTokenIndex ? feeAmount.div(2) : n));
       });
 
       it('pays swap protocol fees on join exact tokens in for BPT out', async () => {

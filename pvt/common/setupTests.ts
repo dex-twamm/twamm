@@ -120,8 +120,11 @@ chai.use(function (chai, utils) {
           if (!error.message.includes('but other exception was thrown')) throw error;
 
           if (
-            error.message.includes('revert without reason string') &&
-            error.message.includes("Transaction reverted and Hardhat couldn't infer the reason")
+            error.message.includes('revert without reason string') && (
+              error.message.includes("Transaction reverted and Hardhat couldn't infer the reason") ||
+              error.message.includes("Transaction reverted without a reason string")
+            )
+            
           ) {
             return;
           }
