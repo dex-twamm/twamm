@@ -260,12 +260,6 @@
         "internalType": "uint256",
         "name": "longTermSwapFeePercentage",
         "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "longTermSwapFeeProtocolCutPercentage",
-        "type": "uint256"
       }
     ],
     "name": "LongTermSwapFeePercentageChanged",
@@ -731,32 +725,6 @@
   },
   {
     "inputs": [],
-    "name": "longTermSwapFeePercentage",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "longTermSwapFeeProtocolCutPercentage",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "name",
     "outputs": [
       {
@@ -1163,14 +1131,9 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint128",
         "name": "newLongTermSwapFeePercentage",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "newLongTermSwapFeeProtocolCutPercentage",
-        "type": "uint256"
+        "type": "uint128"
       }
     ],
     "name": "setLongTermSwapFeePercentage",
