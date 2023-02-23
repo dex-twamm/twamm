@@ -6,6 +6,7 @@ import { ethers } from 'hardhat';
 import { lt } from 'lodash';
 import { fp, decimal } from '@balancer-labs/v2-helpers/src/numbers';
 import { join } from 'path';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 
 const POOL_ID = '0xdab1b8c505867ec1e7292b17d7a4b42b6e1626680002000000000000000002c1';
 const LTO_CONTRACT = '0x04143AA32FB58bcB943dfF29C3aad9C51FcF9630';
