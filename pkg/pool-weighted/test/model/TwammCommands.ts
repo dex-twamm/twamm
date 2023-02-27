@@ -175,14 +175,14 @@ export class SetVirtualOrderExecution implements fc.AsyncCommand<TwammModel, Con
   check = (m: Readonly<TwammModel>) => true;
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
-      await m.pauseVirtualOrderExecution(true);
+      await m.pauseVirtualOrderExecution(this.value);
       await r.pool.setVirtualOrderExecutionPaused(m.wallets[0], this.value);
     } catch (error) {
       console.log(error);
       throw error;
     }
   }
-  toString = () => `SetVirtualOrderExecution()`;
+  toString = () => `SetVirtualOrderExecution(${this.value})`;
 }
 
 export class WithdrawLtoManagementFeeCommand implements fc.AsyncCommand<TwammModel, Contracts> {
