@@ -172,6 +172,7 @@ library Errors {
     uint256 internal constant WEIGHTS_NOT_ALLOWED = 350;
     uint256 internal constant LONG_TERM_ORDER_NUM_INTERVALS_TOO_LOW = 351;
     uint256 internal constant LONG_TERM_ORDER_NUM_INTERVALS_TOO_HIGH = 352;
+    uint256 internal constant CANNOT_UNPAUSE_VIRTUAL_ORDER_EXECUTION = 353;
 
     // Lib
     uint256 internal constant REENTRANCY = 400;

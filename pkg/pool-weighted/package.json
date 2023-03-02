@@ -22,7 +22,7 @@
     "compile:watch": "nodemon --ext sol --exec yarn compile",
     "lint": "yarn lint:solidity && yarn lint:typescript",
     "lint:solidity": "solhint 'contracts/**/*.sol'",
-    "lint:typescript": "eslint . --ext .ts --ignore-path ../../.eslintignore  --max-warnings 0 --fix",
+    "lint:typescript": "eslint . --ext .ts --ignore-path ../../.eslintignore --fix",
     "test": "yarn compile && mocha --extension ts --require hardhat/register --require @balancer-labs/v2-common/setupTests --recursive -g='FastCheck' --invert --exit",
     "test:FastCheck": "yarn compile && mocha --extension ts --require hardhat/register --require @balancer-labs/v2-common/setupTests --recursive -g='FastCheck'",
     "test:fast": "yarn compile && mocha --extension ts --require hardhat/register --require @balancer-labs/v2-common/setupTests --recursive --parallel --exit",

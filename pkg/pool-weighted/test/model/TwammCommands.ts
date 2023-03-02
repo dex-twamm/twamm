@@ -137,7 +137,7 @@ export class CancelLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> 
     if (this.orderId >= m.lastOrderId) return false; // TODO: allow invalid Ids as well?
     if (m.orderMap[this.orderId].withdrawn) return false;
 
-    if(m.orderMap[this.orderId].expirationBlock <= m.lastVirtualOrderBlock) return false;
+    if (m.orderMap[this.orderId].expirationBlock <= m.lastVirtualOrderBlock) return false;
 
     return true;
   };

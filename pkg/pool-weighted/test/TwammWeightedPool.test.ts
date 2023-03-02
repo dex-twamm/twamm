@@ -475,7 +475,7 @@ describe('TwammWeightedPool', function () {
             const longTermBalances = await longTermOrdersContract.getLongTermOrdersBalances();
             const currentBalances = await getLtoRemovedPoolBalances();
 
-            [ammBalances[0], ammBalances[1], ,] = executeVirtualOrders(
+            [ammBalances[0], ammBalances[1]] = executeVirtualOrders(
               currentBalances[0],
               currentBalances[1],
               currentSaleRateA,
@@ -484,7 +484,7 @@ describe('TwammWeightedPool', function () {
               longTermBalances[1],
               orderPlacementBlock,
               orderPlacementBlock + 1
-            );
+            ).slice(0, 2);
 
             joinPoolGivenInAndExpect(sender, amountsIn, ammBalances);
           }
@@ -524,7 +524,7 @@ describe('TwammWeightedPool', function () {
 
             const blockNumber = await lastBlockNumber();
 
-            [ammBalances[0], ammBalances[1], ,] = executeVirtualOrders(
+            [ammBalances[0], ammBalances[1]] = executeVirtualOrders(
               currentBalances[0],
               currentBalances[1],
               currentSaleRateA,
@@ -533,7 +533,7 @@ describe('TwammWeightedPool', function () {
               longTermBalances[1],
               blockNumber,
               blockNumber + 1
-            );
+            ).slice(0, 2);
 
             exitPoolSingleTokenGivenInAndExpect(sender, tokenToExit, ammBalances);
           }

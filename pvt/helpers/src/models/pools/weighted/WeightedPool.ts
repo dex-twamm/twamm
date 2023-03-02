@@ -443,7 +443,7 @@ export default class WeightedPool {
     return pool.setLongTermSwapFeePercentage(params.newLongTermSwapFeePercentage);
   }
 
-  async withdrawLongTermOrderCollectedManagementFees(owner: SignerWithAddress, other: SignerWithAddress): Promise<any> {
+  async withdrawLongTermOrderCollectedManagementFees(owner: SignerWithAddress, other: SignerWithAddress) {
     const pool = this.instance.connect(owner);
     const tx = await pool.withdrawLongTermOrderCollectedManagementFees(other.address);
     const receipt = await tx.wait();
@@ -453,7 +453,7 @@ export default class WeightedPool {
     return receipt;
   }
 
-  async setVirtualOrderExecutionPaused(owner: SignerWithAddress, newState: boolean): Promise<any> {
+  async setVirtualOrderExecutionPaused(owner: SignerWithAddress, newState: boolean) {
     const pool = this.instance.connect(owner);
     const tx = await pool.setVirtualOrderExecutionPaused(newState);
     return await tx.wait();
