@@ -108,6 +108,7 @@ export class TwammModel {
   lastInvariant = decimal(200.0);
   collectedManagementFees = [decimal(0), decimal(0)];
   wallets: SignerWithAddress[];
+  isVirtualOrderExecutionPaused: boolean;
 
   longTermBalances = [ZERO, ZERO];
   currentSalesRate = [ZERO, ZERO]; // TODO: create and move to separate orderPool class
@@ -125,9 +126,10 @@ export class TwammModel {
     this.orderBlockInterval = orderBlockInterval;
     this.orderPoolMap = { 0: new OrderPool(), 1: new OrderPool() };
     this.orderMap = {};
+    this.isVirtualOrderExecutionPaused = false;
   }
 
-  async calcOrderExpiry(numberOfBlockIntervals: number) {
+  async calcOrderExpiry(numberOfBlockIntervals: number): Promise<number> {
     const mod = ((await block.latestBlockNumber()) + 1) % this.orderBlockInterval;
     if (mod > 0) {
       numberOfBlockIntervals += 1;
@@ -140,7 +142,7 @@ export class TwammModel {
     return Array.from(this.orderExpiryBlocks).sort((a, b) => a - b)[0];
   }
 
-  _computeAmmEndTokenA(tokenAIn: Decimal, tokenBIn: Decimal) {
+  _computeAmmEndTokenA(tokenAIn: Decimal, tokenBIn: Decimal): Decimal {
     const k = this.tokenBalances[0].mul(this.tokenBalances[1]);
     const ePow = tokenAIn.mul(tokenBIn).mul(4).div(k).pow(0.5);
     // let ePow = fp(4).mul(tokenAIn).mul(tokenBIn).div(k).pow(0.5);
@@ -152,7 +154,7 @@ export class TwammModel {
     return fraction.mul(scaling);
   }
 
-  _computeC(tokenAIn: Decimal, tokenBIn: Decimal) {
+  _computeC(tokenAIn: Decimal, tokenBIn: Decimal): Decimal {
     const c1 = this.tokenBalances[0].mul(tokenBIn).pow(0.5);
     const c2 = this.tokenBalances[1].mul(tokenAIn).pow(0.5);
     const cNumerator = c1.sub(c2);
@@ -209,7 +211,9 @@ export class TwammModel {
   }
 
   async collectLtoManagementFees(pool: WeightedPool) {
-    await this.executeVirtualOrders();
+    if (!this.isVirtualOrderExecutionPaused) {
+      await this.executeVirtualOrders();
+    }
 
     const collectedFees = this.collectedManagementFees[0];
     this.collectedManagementFees[0] = decimal(0);
@@ -218,6 +222,10 @@ export class TwammModel {
     await this._sendDueProtocolFees(pool);
     await this._updateLastInvariant(pool);
     return collectedFees;
+  }
+
+  async pauseVirtualOrderExecution(newVirtualOrderExecutionState: boolean) {
+    this.isVirtualOrderExecutionPaused = newVirtualOrderExecutionState;
   }
 
   _executeVirtualTradesUntilBlock(blockNumber: number, isExpiryBlock = false) {
@@ -270,8 +278,11 @@ export class TwammModel {
     tokenIndexIn: number,
     numberOfBlockIntervals: number,
     walletNo: number
-  ) {
-    await this.executeVirtualOrders();
+  ): Promise<void> {
+    if (!this.isVirtualOrderExecutionPaused) {
+      await this.executeVirtualOrders();
+    }
+
     await this._sendDueProtocolFees(pool);
 
     const orderId = this.lastOrderId;
@@ -298,7 +309,9 @@ export class TwammModel {
   }
 
   async withdrawLto(pool: WeightedPool, orderId: number) {
-    await this.executeVirtualOrders();
+    if (!this.isVirtualOrderExecutionPaused) {
+      await this.executeVirtualOrders();
+    }
     await this._sendDueProtocolFees(pool);
 
     const order = this.orderMap[orderId];
@@ -323,7 +336,10 @@ export class TwammModel {
   }
 
   async cancelLto(pool: WeightedPool, orderId: number) {
-    await this.executeVirtualOrders();
+    if (!this.isVirtualOrderExecutionPaused) {
+      await this.executeVirtualOrders();
+    }
+
     await this._sendDueProtocolFees(pool);
 
     const order = this.orderMap[orderId];
@@ -351,7 +367,9 @@ export class TwammModel {
   }
 
   async joinGivenIn(pool: WeightedPool, wallet: SignerWithAddress, amountsIn: Array<number>): Promise<BigNumberish> {
-    await this.executeVirtualOrders();
+    if (!this.isVirtualOrderExecutionPaused) {
+      await this.executeVirtualOrders();
+    }
     await this._sendDueProtocolFees(pool);
 
     const mockBptOut = await pool.estimateBptOut(convertAmountsArrayToBn(amountsIn), this.tokenBalances.map(fp));
@@ -370,7 +388,9 @@ export class TwammModel {
   }
 
   async multiExitGivenIn(pool: WeightedPool, wallet: SignerWithAddress, bptIn: Decimal): Promise<Array<BigNumberish>> {
-    await this.executeVirtualOrders();
+    if (!this.isVirtualOrderExecutionPaused) {
+      await this.executeVirtualOrders();
+    }
     await this._sendDueProtocolFees(pool);
 
     const mockTokensOut = await pool.estimateTokensOutBptIn(fp(bptIn), this.tokenBalances.map(fp));
