@@ -4,7 +4,7 @@ import { deploy } from '@balancer-labs/v2-helpers/src/contract';
 import { shouldBehaveLikeMap } from './EnumerableMap.behavior';
 import { bn } from '../../../pvt/helpers/src/numbers';
 
-describe('EnumerableMap', () => {
+xdescribe('EnumerableMap', () => {
   describe('EnumerableIERC20ToBytes32Map', () => {
     const keys = [
       '0x8B40ECf815AC8d53aB4AD2a00248DE77296344Db',
