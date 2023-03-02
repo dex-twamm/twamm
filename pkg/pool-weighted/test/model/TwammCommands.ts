@@ -170,6 +170,21 @@ export class MoveFwdNBlocksCommand implements fc.AsyncCommand<TwammModel, Contra
   toString = () => `moveNBlocks(${this.value})`;
 }
 
+export class SetVirtualOrderExecution implements fc.AsyncCommand<TwammModel, Contracts> {
+  constructor(readonly value: boolean) {}
+  check = (m: Readonly<TwammModel>) => true;
+  async run(m: TwammModel, r: Contracts): Promise<void> {
+    try {
+      await m.pauseVirtualOrderExecution(this.value);
+      await r.pool.setVirtualOrderExecutionPaused(m.wallets[0], this.value);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+  toString = () => `SetVirtualOrderExecution(${this.value})`;
+}
+
 export class WithdrawLtoManagementFeeCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(readonly value: number) {}
   check = (m: Readonly<TwammModel>) => true;
@@ -214,5 +229,6 @@ export function allTwammCommands(numberOfWallets: number) {
     fc.nat({ max: 5 }).map((v) => new CancelLtoCommand(v)),
     fc.integer({ min: 1, max: 200 }).map((v) => new MoveFwdNBlocksCommand(v)),
     fc.nat({ max: 0 }).map((v) => new WithdrawLtoManagementFeeCommand(v)),
+    fc.boolean().map((v) => new SetVirtualOrderExecution(v)),
   ];
 }

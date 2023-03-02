@@ -260,7 +260,7 @@ export default class WeightedPool {
     paidToken: number | Token,
     protocolFeePercentage: BigNumberish,
     currentBalances?: BigNumberish[],
-    lastInvariant?: BigNumber,
+    lastInvariant?: BigNumber
   ): Promise<BigNumber> {
     if (!currentBalances) currentBalances = await this.getBalances();
     if (!lastInvariant) lastInvariant = await this.estimateInvariant();
@@ -443,10 +443,7 @@ export default class WeightedPool {
     return pool.setLongTermSwapFeePercentage(params.newLongTermSwapFeePercentage);
   }
 
-  async withdrawLongTermOrderCollectedManagementFees(
-    owner: SignerWithAddress,
-    other: SignerWithAddress
-  ): Promise<any> {
+  async withdrawLongTermOrderCollectedManagementFees(owner: SignerWithAddress, other: SignerWithAddress): Promise<any> {
     const pool = this.instance.connect(owner);
     const tx = await pool.withdrawLongTermOrderCollectedManagementFees(other.address);
     const receipt = await tx.wait();
@@ -454,6 +451,12 @@ export default class WeightedPool {
     // Uncomment for gas measurement.
     console.log('collectManagementFee: ', receipt.gasUsed.toString());
     return receipt;
+  }
+
+  async setVirtualOrderExecutionPaused(owner: SignerWithAddress, newState: boolean): Promise<any> {
+    const pool = this.instance.connect(owner);
+    const tx = await pool.setVirtualOrderExecutionPaused(newState);
+    return await tx.wait();
   }
 
   // TODO(nuhbye): Probably don't need query for place long term order, since we'll give back 0 BPT always.
