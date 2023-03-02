@@ -135,6 +135,8 @@ jobs:
         run: yarn build
       - name: Test
         run: yarn workspaces foreach --verbose --include @balancer-labs/v2-pool-* run test
+      - name: Test Fastcheck
+        run: yarn workspace @balancer-labs/v2-pool-weighted run test:FastCheck
 
   test-asset-managers:
     runs-on: ubuntu-latest

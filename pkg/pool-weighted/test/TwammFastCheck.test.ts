@@ -28,7 +28,7 @@ fc.configureGlobal({
   markInterruptAsFailure: true,
 });
 
-describe('TwammWeightedPool Fast-check tests', function () {
+describe('TwammWeightedPool FastCheck tests', function () {
   let owner: SignerWithAddress, alice: SignerWithAddress, betty: SignerWithAddress, carl: SignerWithAddress;
 
   beforeEach('setup signers', async () => {
@@ -103,7 +103,7 @@ describe('TwammWeightedPool Fast-check tests', function () {
         fc
           .asyncProperty(
             fc.commands(allTwammCommands(WALLETS.length), {
-              // replayPath: "BBDA/W:1"
+              // replayPath: "AAAACBP:VB"
             }),
             async (cmds) => {
               const ownerBalance = await pool.balanceOf(owner.address);
@@ -127,6 +127,7 @@ describe('TwammWeightedPool Fast-check tests', function () {
         {
           verbose: true,
           // seed: -1926845829, path: "1:2:1:2:3:2:2:1:1:2:2:3:3:1:1:1", endOnFailure: true
+          // seed: 1390387396, path: "76:3:3:4:4:4", endOnFailure: true 
           // examples: [[[new PlaceLtoCommand(10, 0, 1, 1), new MoveFwdNBlocksCommand(200), new JoinGivenInCommand(1, 0), new WithdrawLtoManagementFeeCommand(0)]]], // BAL#001
         }
       );

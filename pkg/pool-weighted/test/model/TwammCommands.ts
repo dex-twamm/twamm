@@ -103,6 +103,10 @@ export class WithdrawLtoCommand implements fc.AsyncCommand<TwammModel, Contracts
     if (this.orderId >= m.lastOrderId) return false; // TODO: allow invalid Ids as well?
     if (m.orderMap[this.orderId].withdrawn) return false;
 
+    // Withdraw LTO not possible if VO execution paused.
+    // Cancel LTO should be done instead.
+    if (m.isVirtualOrderExecutionPaused) return false;
+
     return true;
   };
 
@@ -172,7 +176,7 @@ export class MoveFwdNBlocksCommand implements fc.AsyncCommand<TwammModel, Contra
   toString = () => `moveNBlocks(${this.value})`;
 }
 
-export class SetVirtualOrderExecution implements fc.AsyncCommand<TwammModel, Contracts> {
+export class SetVirtualOrderExecutionPaused implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(readonly value: boolean) {}
   check = (m: Readonly<TwammModel>) => true;
   async run(m: TwammModel, r: Contracts): Promise<void> {
@@ -184,7 +188,7 @@ export class SetVirtualOrderExecution implements fc.AsyncCommand<TwammModel, Con
       throw error;
     }
   }
-  toString = () => `SetVirtualOrderExecution(${this.value})`;
+  toString = () => `SetVirtualOrderExecutionPaused(${this.value})`;
 }
 
 export class WithdrawLtoManagementFeeCommand implements fc.AsyncCommand<TwammModel, Contracts> {
@@ -231,6 +235,6 @@ export function allTwammCommands(numberOfWallets: number) {
     fc.nat({ max: 5 }).map((v) => new CancelLtoCommand(v)),
     fc.integer({ min: 1, max: 200 }).map((v) => new MoveFwdNBlocksCommand(v)),
     fc.nat({ max: 0 }).map((v) => new WithdrawLtoManagementFeeCommand(v)),
-    fc.boolean().map((v) => new SetVirtualOrderExecution(v)),
+    fc.boolean().map((v) => new SetVirtualOrderExecutionPaused(v)),
   ];
 }

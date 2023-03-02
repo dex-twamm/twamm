@@ -356,7 +356,7 @@ describe('TwammWeightedPool', function () {
             const expiryBlock = getOrderExpiryBlock(10, 10, orderPlacedBlock);
             const expectedSalesRate = getOrderSalesRate(amount, expiryBlock, orderPlacedBlock);
 
-            await moveForwardNBlocks(expiryBlock - 50);
+            await block.advanceTo(expiryBlock - 50);
 
             const withdrawTx = await pool.withdrawLongTermOrder({ orderId: 0, from: other });
 
