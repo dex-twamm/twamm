@@ -27,13 +27,13 @@ library OrderPoolLib {
         mapping(uint256 => uint256) rewardFactorAtSubmission;
         //@notice reward factor at a specific block
         mapping(uint256 => uint256) rewardFactorAtBlock;
+        // To keep track of number of orders expiring at specific block for cleanup later
         mapping(uint256 => uint256) ordersExpiringAtBlock;
     }
 
     //@notice distribute payment amount to pool (in the case of TWAMM, proceeds from trades against amm)
     function distributePayment(OrderPool storage self, uint256 amount) internal {
         if (self.currentSalesRate != 0) {
-            //floating point arithmetic
             self.rewardFactor = self.rewardFactor.add(amount.divDown(self.currentSalesRate));
         }
     }
@@ -53,13 +53,17 @@ library OrderPoolLib {
         self.ordersExpiringAtBlock[orderExpiryBlock] = Math.add(self.ordersExpiringAtBlock[orderExpiryBlock], 1);
     }
 
+    // This function gets called when the orders are either cancelled or withdrawn
     function cleanUpOrder(
         OrderPool storage self,
         uint256 orderId,
         uint256 orderExpiryBlock
     ) internal {
+        // Reward factor of the order can be cleaned up when the order is completed
         delete self.rewardFactorAtSubmission[orderId];
 
+        // rewardFactorAtBlock and ordersExpiringAtBlock can be cleaned up since rewardFactorAtBlock is useful for
+        // withdraw and cancel only
         if (self.ordersExpiringAtBlock[orderExpiryBlock] == 0) {
             delete self.rewardFactorAtBlock[orderExpiryBlock];
             delete self.ordersExpiringAtBlock[orderExpiryBlock];
@@ -68,8 +72,7 @@ library OrderPoolLib {
 
     //@notice when orders expire after a given block, we need to update the state of the pool
     function updateStateFromBlockExpiry(OrderPool storage self, uint256 blockNumber) internal {
-        uint256 expiringSalesRate = self.salesRateEndingPerBlock[blockNumber];
-        self.currentSalesRate = self.currentSalesRate.sub(expiringSalesRate);
+        self.currentSalesRate = self.currentSalesRate.sub(self.salesRateEndingPerBlock[blockNumber]);
         self.rewardFactorAtBlock[blockNumber] = self.rewardFactor;
 
         // Free up salesRateEndingPerBlock as it won't be needed once currentSalesRate is updated on reaching

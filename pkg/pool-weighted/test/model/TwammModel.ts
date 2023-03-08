@@ -43,12 +43,12 @@ export class OrderPool {
   cancelOrder(orderId: number, lastVirtualOrderBlock: number, orderSaleRate: Decimal, orderExpiryBlock: number) {
     expect(orderExpiryBlock).gte(lastVirtualOrderBlock);
     const result = {
-      unsoldAmout: ZERO,
+      unsoldAmount: ZERO,
       purchasedAmount: ZERO,
     };
 
     const blocksRemaining = orderExpiryBlock - lastVirtualOrderBlock;
-    result.unsoldAmout = orderSaleRate.mul(blocksRemaining);
+    result.unsoldAmount = orderSaleRate.mul(blocksRemaining);
     const rewardFactorAtSubmission = this.rewardFactorAtSubmission[orderId];
     result.purchasedAmount = this.rewardFactor.sub(rewardFactorAtSubmission).mul(orderSaleRate);
 
@@ -59,7 +59,7 @@ export class OrderPool {
     return result;
   }
 
-  depositOrder(orderId: number, amountPerBlock: Decimal, orderExpiryBlock: number) {
+  depositOrder(orderId: number, amountPerBlock: Decimal, orderExpiryBlock: number): void {
     this.currentSalesRate = this.currentSalesRate.add(amountPerBlock);
     this.rewardFactorAtSubmission[orderId] = this.rewardFactor;
     const salesRateEndingOnBlock = this.salesRateEndingPerBlock[orderExpiryBlock] || ZERO;
@@ -67,13 +67,13 @@ export class OrderPool {
     this.ordersExpiringAtBlock[orderExpiryBlock] += 1;
   }
 
-  distributePayment(amount: Decimal) {
+  distributePayment(amount: Decimal): void {
     if (this.currentSalesRate.gt(0)) {
       this.rewardFactor = this.rewardFactor.add(amount.div(this.currentSalesRate));
     }
   }
 
-  updateStateFromBlockExpiry(blockNumber: number) {
+  updateStateFromBlockExpiry(blockNumber: number): void {
     const expiringSalesRate = this.salesRateEndingPerBlock[blockNumber] || ZERO;
     this.currentSalesRate = this.currentSalesRate.sub(expiringSalesRate);
     this.rewardFactorAtBlock[blockNumber] = this.rewardFactor;
@@ -97,7 +97,11 @@ export class OrderPool {
       this.rewardFactorAtSubmission[orderId] = this.rewardFactor;
       result.isPartialWithdrawal = true;
     }
+    if (result['proceeds'] === new Decimal(0)) {
+      throw new Error('NO_PROCEEDS_TO_WITHDRAW');
+    }
 
+    console.log(result);
     return result;
   }
 }
@@ -189,7 +193,7 @@ export class TwammModel {
     return [tokenAOut, tokenBOut];
   }
 
-  _deductProtocolFees(purchasedAmounts: Decimal[]) {
+  _deductProtocolFees(purchasedAmounts: Decimal[]): Decimal[] {
     for (let i = 0; i < 2; i++) {
       const fee = purchasedAmounts[i].mul(0.0025);
       this.tokenBalances[i] = this.tokenBalances[i].add(fee);
@@ -198,7 +202,7 @@ export class TwammModel {
     return purchasedAmounts;
   }
 
-  async _sendDueProtocolFees(pool: WeightedPool) {
+  async _sendDueProtocolFees(pool: WeightedPool): Promise<void> {
     const fee = fromFp(
       await pool.estimateSwapFeeAmount(0, fp(0.5), this.tokenBalances.map(fp), fp(this.lastInvariant))
     );
@@ -206,11 +210,11 @@ export class TwammModel {
     this.collectedManagementFees[0] = this.collectedManagementFees[0].add(fee.div(2));
   }
 
-  async _updateLastInvariant(pool: WeightedPool) {
+  async _updateLastInvariant(pool: WeightedPool): Promise<void> {
     this.lastInvariant = fromFp(await pool.estimateInvariant(this.tokenBalances.map(fp)));
   }
 
-  async collectLtoManagementFees(pool: WeightedPool) {
+  async collectLtoManagementFees(pool: WeightedPool): Promise<Decimal> {
     if (!this.isVirtualOrderExecutionPaused) {
       await this.executeVirtualOrders();
     }
@@ -224,11 +228,11 @@ export class TwammModel {
     return collectedFees;
   }
 
-  async pauseVirtualOrderExecution(newVirtualOrderExecutionState: boolean) {
+  async pauseVirtualOrderExecution(newVirtualOrderExecutionState: boolean): Promise<void> {
     this.isVirtualOrderExecutionPaused = newVirtualOrderExecutionState;
   }
 
-  _executeVirtualTradesUntilBlock(blockNumber: number, isExpiryBlock = false) {
+  _executeVirtualTradesUntilBlock(blockNumber: number, isExpiryBlock = false): void {
     const blockNumberIncrement = blockNumber - this.lastVirtualOrderBlock;
     const tokenASellAmount = this.orderPoolMap[0].currentSalesRate.mul(blockNumberIncrement);
     const tokenBSellAmount = this.orderPoolMap[1].currentSalesRate.mul(blockNumberIncrement);
@@ -248,7 +252,7 @@ export class TwammModel {
     this.lastVirtualOrderBlock = blockNumber;
   }
 
-  async executeVirtualOrders() {
+  async executeVirtualOrders(): Promise<void> {
     const currentBlock = (await block.latestBlockNumber()) + 1;
     if (this.lastVirtualOrderBlock >= currentBlock) return;
 
@@ -355,7 +359,7 @@ export class TwammModel {
       cancelResult.purchasedAmount
     );
     this.longTermBalances[order.sellTokenIndex] = this.longTermBalances[order.sellTokenIndex].sub(
-      cancelResult.unsoldAmout
+      cancelResult.unsoldAmount
     );
 
     this.orderMap[orderId].withdrawn = true;

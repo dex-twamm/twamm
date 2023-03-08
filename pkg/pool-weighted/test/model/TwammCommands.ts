@@ -6,6 +6,7 @@ import { expect } from 'chai';
 import { testUtils } from 'hardhat';
 import { convertAmountsArrayToBn, getWalletFromList } from './ModelUtils';
 import { getEventLog } from '@balancer-labs/v2-helpers/src/test/expectEvent';
+import exp from 'constants';
 const { block } = testUtils;
 
 const EXPECTED_RELATIVE_ERROR = 0.00001;
@@ -112,23 +113,43 @@ export class WithdrawLtoCommand implements fc.AsyncCommand<TwammModel, Contracts
 
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
-      const mockResult = await m.withdrawLto(r.pool, this.orderId);
+      let mockResult, mockException;
+      try {
+        mockResult = await m.withdrawLto(r.pool, this.orderId);
+      } catch (e: any) {
+        mockException = e;
+      }
 
       // Call withdraw LTO using order owner, based on model.
       const wallet = getWalletFromList(r.wallets, m.orderMap[this.orderId].owner);
-      const withdrawResult = await r.pool.withdrawLongTermOrder({
-        from: wallet,
-        orderId: this.orderId,
-      });
-      expect(withdrawResult.isPartialWithdrawal).to.be.equal(mockResult.isPartialWithdrawal);
-      expectEqualWithError(withdrawResult.amountsOut[mockResult.order.buyTokenIndex], fp(mockResult.proceeds));
-      expect(withdrawResult.amountsOut[mockResult.order.sellTokenIndex]).to.be.equal(BN_ZERO);
+
+      let withdrawResult, contractException;
+      try {
+        withdrawResult = await r.pool.withdrawLongTermOrder({
+          from: wallet,
+          orderId: this.orderId,
+        });
+      } catch (e) {
+        contractException = e;
+      }
+
+      if (contractException && mockException) {
+        console.log(contractException);
+        console.log(mockException);
+        throw Error('test');
+      } else if (mockResult && withdrawResult) {
+        expect(withdrawResult.isPartialWithdrawal).to.be.equal(mockResult.isPartialWithdrawal);
+        expectEqualWithError(withdrawResult.amountsOut[mockResult.order.buyTokenIndex], fp(mockResult.proceeds));
+        expect(withdrawResult.amountsOut[mockResult.order.sellTokenIndex]).to.be.equal(BN_ZERO);
+      } else if (contractException) {
+        throw contractException;
+      }
     } catch (error) {
       console.log(error);
       throw error;
     }
   }
-  toString = () => `withdrawLto(${this.orderId})`;
+  toString = () => `new WithdrawLtoCommand(${this.orderId})`;
 }
 
 export class CancelLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
@@ -153,13 +174,13 @@ export class CancelLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> 
         orderId: this.orderId,
       });
       expectEqualWithError(cancelResult.amountsOut[mockResult.order.buyTokenIndex], fp(mockResult.purchasedAmount));
-      expectEqualWithError(cancelResult.amountsOut[mockResult.order.sellTokenIndex], fp(mockResult.unsoldAmout));
+      expectEqualWithError(cancelResult.amountsOut[mockResult.order.sellTokenIndex], fp(mockResult.unsoldAmount));
     } catch (error) {
       console.log(error);
       throw error;
     }
   }
-  toString = () => `cancelLto(${this.orderId})`;
+  toString = () => `new CancelLtoCommand(${this.orderId})`;
 }
 
 export class MoveFwdNBlocksCommand implements fc.AsyncCommand<TwammModel, Contracts> {
@@ -173,7 +194,7 @@ export class MoveFwdNBlocksCommand implements fc.AsyncCommand<TwammModel, Contra
       throw error;
     }
   }
-  toString = () => `moveNBlocks(${this.value})`;
+  toString = () => `new MoveFwdNBlocksCommand(${this.value})`;
 }
 
 export class SetVirtualOrderExecutionPaused implements fc.AsyncCommand<TwammModel, Contracts> {
@@ -188,7 +209,7 @@ export class SetVirtualOrderExecutionPaused implements fc.AsyncCommand<TwammMode
       throw error;
     }
   }
-  toString = () => `SetVirtualOrderExecutionPaused(${this.value})`;
+  toString = () => `new SetVirtualOrderExecution(${this.value})`;
 }
 
 export class WithdrawLtoManagementFeeCommand implements fc.AsyncCommand<TwammModel, Contracts> {
