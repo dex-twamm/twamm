@@ -553,7 +553,8 @@ __metadata:
     ethers: ^5.7.2
     fast-check: ^3.6.2
     hardhat: ^2.8.3
-    hardhat-contract-sizer: ^2.5.1
+    hardhat-abi-exporter: ^2.10.1
+    hardhat-contract-sizer: ^2.8.0
     hardhat-ethernal: ^3.0.1
     hardhat-test-utils: ^0.0.1
     hardhat-tracer: ^1.2.1
@@ -833,7 +834,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethersproject/abi@npm:5.7.0, @ethersproject/abi@npm:^5.7.0":
+"@ethersproject/abi@npm:5.7.0, @ethersproject/abi@npm:^5.5.0, @ethersproject/abi@npm:^5.7.0":
   version: 5.7.0
   resolution: "@ethersproject/abi@npm:5.7.0"
   dependencies:
@@ -3903,6 +3904,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ansi-colors@npm:^4.1.0":
+  version: 4.1.3
+  resolution: "ansi-colors@npm:4.1.3"
+  checksum: 78047b55c42ea5bd7af22e6d3b314cbe75d8d970a8d2f832a75c6881770792eea1b06ca00284caeadcd89accc1842cca6deeaac33a9c5c43ff7a84d8e0f37622
+  languageName: node
+  linkType: hard
+
 "ansi-escapes@npm:^3.2.0":
   version: 3.2.0
   resolution: "ansi-escapes@npm:3.2.0"
@@ -6415,6 +6423,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"delete-empty@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "delete-empty@npm:3.0.0"
+  dependencies:
+    ansi-colors: ^4.1.0
+    minimist: ^1.2.0
+    path-starts-with: ^2.0.0
+    rimraf: ^2.6.2
+  bin:
+    delete-empty: bin/cli.js
+  checksum: 65bfcfdb63561f501b6c39e88db3bda55343c90bb3c78dc13ebd2e3aaebe025c76cbfed4e1cd6a4860d5aa0065bb5eb7a67515f79a2ac7457b7cf10493f9aebb
+  languageName: node
+  linkType: hard
+
 "depd@npm:^1.1.2, depd@npm:~1.1.2":
   version: 1.1.2
   resolution: "depd@npm:1.1.2"
@@ -8681,15 +8703,28 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hardhat-contract-sizer@npm:^2.5.1":
-  version: 2.5.1
-  resolution: "hardhat-contract-sizer@npm:2.5.1"
+"hardhat-abi-exporter@npm:^2.10.1":
+  version: 2.10.1
+  resolution: "hardhat-abi-exporter@npm:2.10.1"
+  dependencies:
+    "@ethersproject/abi": ^5.5.0
+    delete-empty: ^3.0.0
+  peerDependencies:
+    hardhat: ^2.0.0
+  checksum: 28fb675324995c598272591b5151f35493a47834fbc94d03319a501ea3d504295504281eb49a10319013d815c1065c2a380007645b2fffb432072e7235346fda
+  languageName: node
+  linkType: hard
+
+"hardhat-contract-sizer@npm:^2.8.0":
+  version: 2.8.0
+  resolution: "hardhat-contract-sizer@npm:2.8.0"
   dependencies:
     chalk: ^4.0.0
     cli-table3: ^0.6.0
+    strip-ansi: ^6.0.0
   peerDependencies:
     hardhat: ^2.0.0
-  checksum: 915e8a687913893d8ec2ec6323062b491695b23bc61548d8aaaf8f8d9ac8908a3f99a6cda18748549d8e9f0a26ed244964c4cad2dcbc5452297dd029e498350e
+  checksum: cb550c3bac83c6a6c78f47399b0e88cb7471506232d66e1fe430956eebd98a1cc6340fc1fa2f5c1e63fc47b49b7bdcb1b5a8a95fd6800cdf5abeb3f045e0bb37
   languageName: node
   linkType: hard
 
@@ -12069,6 +12104,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"path-starts-with@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "path-starts-with@npm:2.0.0"
+  checksum: d903d32334bf0ec01fcc396e92decad464b3098edefdbe9da9039a40a0cd9531b0f64f6a7e02ca44846efc8cb921ab993b9c00e6a36cf4b4574aee77a02f592d
+  languageName: node
+  linkType: hard
+
 "path-to-regexp@npm:0.1.7":
   version: 0.1.7
   resolution: "path-to-regexp@npm:0.1.7"
@@ -13054,7 +13096,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rimraf@npm:^2.2.8, rimraf@npm:^2.6.3":
+"rimraf@npm:^2.2.8, rimraf@npm:^2.6.2, rimraf@npm:^2.6.3":
   version: 2.7.1
   resolution: "rimraf@npm:2.7.1"
   dependencies:
