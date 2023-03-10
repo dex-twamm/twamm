@@ -98,7 +98,7 @@ export class OrderPool {
       result.isPartialWithdrawal = true;
     }
     if (result['proceeds'] === new Decimal(0)) {
-      throw new Error('NO_PROCEEDS_TO_WITHDRAW');
+      throw new Error('BAL#349');
     }
 
     console.log(result);
@@ -283,10 +283,11 @@ export class TwammModel {
     numberOfBlockIntervals: number,
     walletNo: number
   ): Promise<void> {
-    if (!this.isVirtualOrderExecutionPaused) {
-      await this.executeVirtualOrders();
+    if (this.isVirtualOrderExecutionPaused) {
+      throw new Error('BAL#354');
     }
 
+    await this.executeVirtualOrders();
     await this._sendDueProtocolFees(pool);
 
     const orderId = this.lastOrderId;

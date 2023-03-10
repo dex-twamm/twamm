@@ -18,7 +18,6 @@ import {
   MoveFwdNBlocksCommand,
   PlaceLtoCommand,
   WithdrawLtoManagementFeeCommand,
-  SetVirtualOrderExecution,
 } from './model/TwammCommands';
 fc.configureGlobal({
   numRuns: 100,
@@ -95,7 +94,7 @@ describe('TwammWeightedPool FastCheck tests', function () {
         fc
           .asyncProperty(
             fc.commands(allTwammCommands(WALLETS.length), {
-              // replayPath: 'BBAABBP:VB',
+              // replayPath: 'AABACB/E:VD',
             }),
             async (cmds) => {
               const ownerBalance = await pool.balanceOf(owner.address);
@@ -118,17 +117,9 @@ describe('TwammWeightedPool FastCheck tests', function () {
           }),
         {
           verbose: true,
-          // seed: -1882428900,
-          // path: '26:3:4:4:4:4',
+          // seed: -61385816,
+          // path: '0:2:1:2:1:1:2:1:2:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1',
           // endOnFailure: true,
-          // examples: [
-          //   [
-          //     wallet0.placeLto(1, 0, 1, 1),
-          //     SetVirtualOrderExecution(),
-          //     moveNBlocks(30),
-          //     wallet0.joinGivenIn(51.19381332397461, 204.77525329589844) /*replayPath="AADBw:V"*/,
-          //   ],
-          // ],
         }
       );
     });
