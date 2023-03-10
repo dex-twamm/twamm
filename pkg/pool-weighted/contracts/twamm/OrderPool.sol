@@ -88,7 +88,7 @@ library OrderPoolLib {
         uint256 orderSaleRate,
         uint256 orderExpiryBlock
     ) internal returns (uint256 unsoldAmount, uint256 purchasedAmount) {
-        require(orderExpiryBlock > lastVirtualOrderBlock, "order already finished");
+        _require(orderExpiryBlock > lastVirtualOrderBlock, Errors.ORDER_ALREADY_COMPLETED);
 
         // Calculate amount that wasn't sold, and needs to be returned
         uint256 blocksRemaining = Math.sub(orderExpiryBlock, lastVirtualOrderBlock);
@@ -114,7 +114,7 @@ library OrderPoolLib {
         uint256 orderSaleRate,
         uint256 orderExpiryBlock
     ) internal returns (uint256 totalReward, bool isPartialWithdrawal) {
-        require(orderSaleRate > 0, "sales rate amount must be positive");
+        _require(orderSaleRate != 0, Errors.NEGATIVE_SALES_RATE);
 
         uint256 rewardFactorAtSubmission = self.rewardFactorAtSubmission[orderId];
 

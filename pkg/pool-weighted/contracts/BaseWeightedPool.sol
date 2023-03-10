@@ -574,7 +574,7 @@ abstract contract BaseWeightedPool is LegacyBaseMinimalSwapInfoPool {
         uint256[] memory arguments,
         function(uint256, uint256) pure returns (uint256) mutation
     ) internal view {
-        for (uint256 i = 0; i < _getTotalTokens(); ++i) {
+        for (uint256 i; i < _getTotalTokens(); ++i) {
             toMutate[i] = mutation(toMutate[i], arguments[i]);
         }
     }

@@ -79,7 +79,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             Errors.LONG_TERM_ORDER_AMOUNT_TOO_LOW
         );
 
-        _require(numberOfBlockIntervals > 0, Errors.LONG_TERM_ORDER_NUM_INTERVALS_TOO_LOW);
+        _require(numberOfBlockIntervals != 0, Errors.LONG_TERM_ORDER_NUM_INTERVALS_TOO_LOW);
 
         return _addLongTermSwap(owner, balances, sellTokenIndex, buyTokenIndex, amountIn, numberOfBlockIntervals);
     }
@@ -201,7 +201,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             orderExpirationBlock
         );
 
-        _require(proceeds > 0, Errors.NO_PROCEEDS_TO_WITHDRAW);
+        _require(proceeds != 0, Errors.NO_PROCEEDS_TO_WITHDRAW);
         // Update long term order balances
         _removeFromLongTermOrdersBalance(order.buyTokenIndex, proceeds);
 
@@ -226,7 +226,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
         ammTokenA = balances[0];
         ammTokenB = balances[1];
 
-        uint256 numLoops = 0;
+        uint256 numLoops;
 
         while (longTermOrders.orderExpiryHeap.length != 1 && numLoops < _maxVirtualOrderExecutionLoops) {
             // Look for next order expiry block number in heap.
@@ -313,11 +313,11 @@ contract LongTermOrders is ILongTermOrders, Ownable {
             tokenBSellAmount
         );
 
-        if (tokenAOut > 0) {
+        if (tokenAOut != 0) {
             (tokenAOut, ammEndTokenA) = _deductProtocolFees(tokenAOut, ammEndTokenA);
         }
 
-        if (tokenBOut > 0) {
+        if (tokenBOut != 0) {
             (tokenBOut, ammEndTokenB) = _deductProtocolFees(tokenBOut, ammEndTokenB);
         }
 
@@ -450,7 +450,7 @@ contract LongTermOrders is ILongTermOrders, Ownable {
     function _getOrderExpiry(uint256 numberOfBlockIntervals) internal view returns (uint256) {
         uint256 orderBlockInterval = longTermOrders.orderBlockInterval;
         uint256 mod = Math.mod(block.number, orderBlockInterval);
-        if (mod > 0) {
+        if (mod != 0) {
             numberOfBlockIntervals = Math.add(numberOfBlockIntervals, 1);
         }
 

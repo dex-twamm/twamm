@@ -53,16 +53,16 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
     event LongTermOrderPlaced(
         uint256 orderId,
-        uint256 indexed buyTokenIndex,
-        uint256 indexed sellTokenIndex,
+        uint256 buyTokenIndex,
+        uint256 sellTokenIndex,
         uint256 saleRate,
         address indexed owner,
         uint256 expirationBlock
     );
     event LongTermOrderWithdrawn(
         uint256 orderId,
-        uint256 indexed buyTokenIndex,
-        uint256 indexed sellTokenIndex,
+        uint256 buyTokenIndex,
+        uint256 sellTokenIndex,
         uint256 saleRate,
         address indexed owner,
         uint256 expirationBlock,
@@ -71,8 +71,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     );
     event LongTermOrderCancelled(
         uint256 orderId,
-        uint256 indexed buyTokenIndex,
-        uint256 indexed sellTokenIndex,
+        uint256 buyTokenIndex,
+        uint256 sellTokenIndex,
         uint256 saleRate,
         address indexed owner,
         uint256 expirationBlock,
@@ -296,7 +296,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     }
 
     function _checkSplitProtocolFees(uint256[] memory dueProtocolFeeAmounts) private {
-        for (uint256 i = 0; i < _MAX_TOKENS; ++i) {
+        for (uint256 i; i < _MAX_TOKENS; ++i) {
             if (dueProtocolFeeAmounts[i] != 0) {
                 uint256 ltoProtocolFee = dueProtocolFeeAmounts[i].divDown(FixedPoint.fromUint(2));
 
@@ -528,7 +528,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     function getCollectedManagementFees() public view returns (uint256[] memory collectedFees) {
         collectedFees = new uint256[](2);
 
-        for (uint256 i = 0; i < 2; ++i) {
+        for (uint256 i; i < 2; ++i) {
             collectedFees[i] = _ltoCollectedFees[i];
         }
 
@@ -594,7 +594,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
         amountsOut = new uint256[](2);
 
-        for (uint256 i = 0; i < 2; ++i) {
+        for (uint256 i; i < 2; ++i) {
             amountsOut[i] = _ltoCollectedFees[i];
             _ltoCollectedFees[i] = 0;
         }
