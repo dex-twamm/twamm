@@ -60,7 +60,7 @@
     "ethers": "^5.7.2",
     "fast-check": "^3.6.2",
     "hardhat": "^2.8.3",
-    "hardhat-contract-sizer": "^2.5.1",
+    "hardhat-contract-sizer": "^2.8.0",
     "hardhat-ethernal": "^3.0.1",
     "hardhat-test-utils": "^0.0.1",
     "hardhat-tracer": "^1.2.1",

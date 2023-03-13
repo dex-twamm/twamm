@@ -49,7 +49,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
 
     mapping(uint256 => uint256) private _ltoCollectedFees;
 
-    bool private _virtualOrderExecutionPaused = false;
+    bool public virtualOrderExecutionPaused = false;
 
     event LongTermOrderPlaced(
         uint256 orderId,
@@ -124,7 +124,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         // Code for unit tests.
         _require(normalizedWeights[0] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
         _require(normalizedWeights[1] >= WeightedMath._MIN_WEIGHT, Errors.MIN_WEIGHT);
-        _virtualOrderExecutionPaused = true;
+        virtualOrderExecutionPaused = true;
         _normalizedWeight0 = normalizedWeights[0];
         _normalizedWeight1 = normalizedWeights[1];
     }
@@ -153,7 +153,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         returns (uint256[] memory normalizedWeights, uint256 maxWeightTokenIndex)
     {
         normalizedWeights = _getSizeTwoArray(_normalizedWeight0, _normalizedWeight1);
-        if (!_virtualOrderExecutionPaused || normalizedWeights[0] >= normalizedWeights[1]) {
+        if (!virtualOrderExecutionPaused || normalizedWeights[0] >= normalizedWeights[1]) {
             maxWeightTokenIndex = 0;
         } else {
             maxWeightTokenIndex = 1;
@@ -199,7 +199,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
-        if (!_virtualOrderExecutionPaused) {
+        if (!virtualOrderExecutionPaused) {
             (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
                 updatedBalances
             );
@@ -256,7 +256,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
     {
         uint256[] memory updatedBalances = _getUpdatedPoolBalances(balances);
 
-        if (!_virtualOrderExecutionPaused) {
+        if (!virtualOrderExecutionPaused) {
             (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
                 updatedBalances
             );
@@ -348,7 +348,7 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         }
 
         updatedBalances = _getUpdatedPoolBalances(balances);
-        if (!_virtualOrderExecutionPaused) {
+        if (!virtualOrderExecutionPaused) {
             (updatedBalances[0], updatedBalances[1]) = _longTermOrders.executeVirtualOrdersUntilCurrentBlock(
                 updatedBalances
             );
@@ -364,6 +364,8 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         uint256[] memory scalingFactors,
         bytes memory userData
     ) internal returns (uint256, uint256[] memory) {
+        _require(!virtualOrderExecutionPaused, Errors.LONG_TERM_ORDER_EXECUTION_PAUSED);
+
         (
             uint256 sellTokenIndex,
             uint256 buyTokenIndex,
@@ -545,12 +547,12 @@ contract TwammWeightedPool is BaseWeightedPool, Ownable, ReentrancyGuard {
         );
     }
 
-    function setVirtualOrderExecutionPaused(bool virtualOrderExecutionPaused) external authenticate {
+    function setVirtualOrderExecutionPaused(bool newVirtualOrderExecutionPaused) external authenticate {
         _require(
-            virtualOrderExecutionPaused || _normalizedWeight0 == _normalizedWeight1,
+            newVirtualOrderExecutionPaused || _normalizedWeight0 == _normalizedWeight1,
             Errors.CANNOT_UNPAUSE_VIRTUAL_ORDER_EXECUTION
         );
-        _virtualOrderExecutionPaused = virtualOrderExecutionPaused;
+        virtualOrderExecutionPaused = newVirtualOrderExecutionPaused;
     }
 
     function withdrawLongTermOrderCollectedManagementFees(address recipient)

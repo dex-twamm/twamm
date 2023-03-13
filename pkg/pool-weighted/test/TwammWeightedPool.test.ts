@@ -220,6 +220,21 @@ describe('TwammWeightedPool', function () {
             expect(longTermOrdersContractAddress).to.be.equal(longTermOrdersContract.address);
           });
 
+          it('place long term order fails on virtual order execution paused', async () => {
+            await pool.setVirtualOrderExecutionPaused(owner, true);
+            expect(await pool.getVirtualOrderExecutionPaused()).to.be.equal(true);
+
+            await expect(
+              pool.placeLongTermOrder({
+                from: other,
+                amountIn: fp(1.0),
+                tokenInIndex: 0,
+                tokenOutIndex: 1,
+                numberOfBlockIntervals: 10,
+              })
+            ).to.be.revertedWith('BAL#354');
+          });
+
           it('can execute one-way Long Term Order', async () => {
             const placeResult = await pool.placeLongTermOrder({
               from: other,

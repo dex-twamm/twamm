@@ -25,7 +25,7 @@ describe('LongTermOrders', function () {
   let longTermOrders: Contract;
   let mockLongTermOrders: Contract;
   let mockLongTermOrdersCaller: Contract;
-  let anAddress: SignerWithAddress, anAddress1: SignerWithAddress, anAddress2: SignerWithAddress;
+  let anAddress: SignerWithAddress, anAddress1: SignerWithAddress;
   let blockNumber: number;
 
   const EXPECTED_RELATIVE_ERROR = 1e-12;

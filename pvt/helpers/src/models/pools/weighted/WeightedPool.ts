@@ -462,6 +462,10 @@ export default class WeightedPool {
     return await tx.wait();
   }
 
+  async getVirtualOrderExecutionPaused(): Promise<boolean> {
+    return await this.instance.virtualOrderExecutionPaused();
+  }
+
   // TODO(nuhbye): Probably don't need query for place long term order, since we'll give back 0 BPT always.
 
   async exitGivenOut(params: ExitGivenOutWeightedPool): Promise<ExitResult> {

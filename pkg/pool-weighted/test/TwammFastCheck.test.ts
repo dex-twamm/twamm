@@ -1,4 +1,3 @@
-import { Contract } from 'ethers';
 import { ethers } from 'hardhat';
 
 import TokenList from '@balancer-labs/v2-helpers/src/models/tokens/TokenList';
@@ -8,7 +7,6 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 import VaultDeployer from '@balancer-labs/v2-helpers/src/models/vault/VaultDeployer';
 import TypesConverter from '@balancer-labs/v2-helpers/src/models/types/TypesConverter';
-import Vault from '@balancer-labs/v2-helpers/src/models/vault/Vault';
 import fc from 'fast-check';
 import { TwammModel } from './model/TwammModel';
 import { WeightedPoolType } from '@balancer-labs/v2-helpers/src/models/pools/weighted/types';
@@ -21,7 +19,6 @@ import {
   PlaceLtoCommand,
   WithdrawLtoManagementFeeCommand,
 } from './model/TwammCommands';
-
 fc.configureGlobal({
   numRuns: 100,
   interruptAfterTimeLimit: 195 * 1000,
@@ -38,15 +35,10 @@ describe('TwammWeightedPool FastCheck tests', function () {
   const MAX_TOKENS = 2;
   let allTokens: TokenList, tokens: TokenList;
 
-  let sender: SignerWithAddress;
   let pool: WeightedPool;
   const weights = [fp(0.5), fp(0.5)];
   // 200k DAI, 100 ETH
   const initialBalances = [fp(100.0), fp(400.0)];
-
-  let longTermOrdersContract: Contract;
-
-  let vault: Vault;
 
   sharedBeforeEach('common setup for fast-check tests', async () => {
     allTokens = await TokenList.create(MAX_TOKENS + 1, { sorted: true });
@@ -55,7 +47,7 @@ describe('TwammWeightedPool FastCheck tests', function () {
       fromFactory: true,
       from: owner,
     };
-    vault = await VaultDeployer.deploy(TypesConverter.toRawVaultDeployment(params));
+    await VaultDeployer.deploy(TypesConverter.toRawVaultDeployment(params));
   });
 
   context('twamm tests', () => {
@@ -75,8 +67,7 @@ describe('TwammWeightedPool FastCheck tests', function () {
           from: owner,
         };
         pool = await WeightedPool.create(params);
-        longTermOrdersContract = await deployedAt('LongTermOrders', await pool.getLongTermOrderContractAddress());
-        sender = owner;
+        await deployedAt('LongTermOrders', await pool.getLongTermOrderContractAddress());
 
         tokens = allTokens.subset(2);
         await tokens.approve({ to: pool.vault.address, amount: MAX_UINT256, from: [owner, alice, betty, carl] });
@@ -103,7 +94,7 @@ describe('TwammWeightedPool FastCheck tests', function () {
         fc
           .asyncProperty(
             fc.commands(allTwammCommands(WALLETS.length), {
-              // replayPath: "AAAACBP:VB"
+              // replayPath: 'AABACB/E:VD',
             }),
             async (cmds) => {
               const ownerBalance = await pool.balanceOf(owner.address);
@@ -126,8 +117,9 @@ describe('TwammWeightedPool FastCheck tests', function () {
           }),
         {
           verbose: true,
-          // seed: -1926845829, path: "1:2:1:2:3:2:2:1:1:2:2:3:3:1:1:1", endOnFailure: true
-          // seed: 1390387396, path: "76:3:3:4:4:4", endOnFailure: true 
+          // seed: -61385816,
+          // path: '0:2:1:2:1:1:2:1:2:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1',
+          // endOnFailure: true,
           // examples: [[[new PlaceLtoCommand(10, 0, 1, 1), new MoveFwdNBlocksCommand(200), new JoinGivenInCommand(1, 0), new WithdrawLtoManagementFeeCommand(0)]]], // BAL#001
         }
       );

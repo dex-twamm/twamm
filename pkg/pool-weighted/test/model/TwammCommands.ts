@@ -13,7 +13,7 @@ const BN_ZERO = fp(0);
 
 export class JoinGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(readonly amountIn: number, readonly walletNo: number) {}
-  check = (m: Readonly<TwammModel>) => true;
+  check = (m: Readonly<TwammModel>): boolean => true;
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
       const amountsIn = [this.amountIn, this.amountIn * 4];
@@ -30,12 +30,12 @@ export class JoinGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts
       throw error;
     }
   }
-  toString = () => `wallet${this.walletNo}.joinGivenIn(${this.amountIn}, ${this.amountIn * 4})`;
+  toString = (): string => `wallet${this.walletNo}.joinGivenIn(${this.amountIn}, ${this.amountIn * 4})`;
 }
 
 export class MultiExitGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(readonly bptIn: number, readonly walletNo: number) {}
-  check = (m: Readonly<TwammModel>) => {
+  check = (m: Readonly<TwammModel>): boolean => {
     return m.lps[m.wallets[this.walletNo].address].gte(decimal(this.bptIn));
   };
   async run(m: TwammModel, r: Contracts): Promise<void> {
@@ -52,7 +52,7 @@ export class MultiExitGivenInCommand implements fc.AsyncCommand<TwammModel, Cont
       throw error;
     }
   }
-  toString = () => `wallet${this.walletNo}.multiExitGivenIn(${this.bptIn})`;
+  toString = (): string => `wallet${this.walletNo}.multiExitGivenIn(${this.bptIn})`;
 }
 
 export class PlaceLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
@@ -62,7 +62,7 @@ export class PlaceLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
     readonly numberOfBlockIntervals: number,
     readonly walletNo: number
   ) {}
-  check = (m: Readonly<TwammModel>) => {
+  check = (m: Readonly<TwammModel>): boolean => {
     const saleRate = this.amountIn / (this.numberOfBlockIntervals * 100);
     const maxAllowedSaleRate = m.tokenBalances[this.tokenIndexIn].div(100);
     const minSaleAmount = m.tokenBalances[this.tokenIndexIn].div(1e4);
@@ -75,23 +75,33 @@ export class PlaceLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   };
 
   async run(m: TwammModel, r: Contracts): Promise<void> {
+    let mockException;
     try {
       await m.placeLto(r.pool, decimal(this.amountIn), this.tokenIndexIn, this.numberOfBlockIntervals, this.walletNo);
+    } catch (e: any) {
+      mockException = e;
+    }
 
-      const wallet = r.wallets[this.walletNo];
-      const placeResult = await r.pool.placeLongTermOrder({
+    const wallet = r.wallets[this.walletNo];
+    try {
+      await r.pool.placeLongTermOrder({
         from: wallet,
         amountIn: fp(this.amountIn),
         tokenInIndex: this.tokenIndexIn,
         tokenOutIndex: 1 - this.tokenIndexIn,
         numberOfBlockIntervals: this.numberOfBlockIntervals,
       });
-    } catch (error) {
-      console.log(error);
-      throw error;
+
+      if (mockException) {
+        throw mockException;
+      }
+    } catch (exception: any) {
+      if (!mockException || !(exception.message.includes(mockException.message) ?? true)) {
+        throw exception;
+      }
     }
   }
-  toString = () =>
+  toString = (): string =>
     `wallet${this.walletNo}.placeLto(${this.amountIn}, ${this.tokenIndexIn}, ${1 - this.tokenIndexIn}, ${
       this.numberOfBlockIntervals
     })`;
@@ -99,7 +109,7 @@ export class PlaceLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
 
 export class WithdrawLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(readonly orderId: number) {}
-  check = (m: Readonly<TwammModel>) => {
+  check = (m: Readonly<TwammModel>): boolean => {
     if (this.orderId >= m.lastOrderId) return false; // TODO: allow invalid Ids as well?
     if (m.orderMap[this.orderId].withdrawn) return false;
 
@@ -111,29 +121,44 @@ export class WithdrawLtoCommand implements fc.AsyncCommand<TwammModel, Contracts
   };
 
   async run(m: TwammModel, r: Contracts): Promise<void> {
+    let mockResult, mockException;
     try {
-      const mockResult = await m.withdrawLto(r.pool, this.orderId);
+      mockResult = await m.withdrawLto(r.pool, this.orderId);
+    } catch (exception: any) {
+      mockException = exception;
+    }
 
-      // Call withdraw LTO using order owner, based on model.
-      const wallet = getWalletFromList(r.wallets, m.orderMap[this.orderId].owner);
-      const withdrawResult = await r.pool.withdrawLongTermOrder({
+    // Call withdraw LTO using order owner, based on model.
+    const wallet = getWalletFromList(r.wallets, m.orderMap[this.orderId].owner);
+
+    let withdrawResult;
+    try {
+      withdrawResult = await r.pool.withdrawLongTermOrder({
         from: wallet,
         orderId: this.orderId,
       });
-      expect(withdrawResult.isPartialWithdrawal).to.be.equal(mockResult.isPartialWithdrawal);
-      expectEqualWithError(withdrawResult.amountsOut[mockResult.order.buyTokenIndex], fp(mockResult.proceeds));
-      expect(withdrawResult.amountsOut[mockResult.order.sellTokenIndex]).to.be.equal(BN_ZERO);
-    } catch (error) {
-      console.log(error);
-      throw error;
+
+      if (mockResult) {
+        expect(withdrawResult.isPartialWithdrawal).to.be.equal(mockResult.isPartialWithdrawal);
+        expectEqualWithError(withdrawResult.amountsOut[mockResult.order.buyTokenIndex], fp(mockResult.proceeds));
+        expect(withdrawResult.amountsOut[mockResult.order.sellTokenIndex]).to.be.equal(BN_ZERO);
+      }
+
+      if (mockException) {
+        throw mockException;
+      }
+    } catch (exception: any) {
+      if (!mockException || !exception.message.includes(mockException.message)) {
+        throw exception;
+      }
     }
   }
-  toString = () => `withdrawLto(${this.orderId})`;
+  toString = (): string => `new WithdrawLtoCommand(${this.orderId})`;
 }
 
 export class CancelLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(readonly orderId: number) {}
-  check = (m: Readonly<TwammModel>) => {
+  check = (m: Readonly<TwammModel>): boolean => {
     if (this.orderId >= m.lastOrderId) return false; // TODO: allow invalid Ids as well?
     if (m.orderMap[this.orderId].withdrawn) return false;
 
@@ -153,18 +178,18 @@ export class CancelLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> 
         orderId: this.orderId,
       });
       expectEqualWithError(cancelResult.amountsOut[mockResult.order.buyTokenIndex], fp(mockResult.purchasedAmount));
-      expectEqualWithError(cancelResult.amountsOut[mockResult.order.sellTokenIndex], fp(mockResult.unsoldAmout));
+      expectEqualWithError(cancelResult.amountsOut[mockResult.order.sellTokenIndex], fp(mockResult.unsoldAmount));
     } catch (error) {
       console.log(error);
       throw error;
     }
   }
-  toString = () => `cancelLto(${this.orderId})`;
+  toString = (): string => `new CancelLtoCommand(${this.orderId})`;
 }
 
 export class MoveFwdNBlocksCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(readonly value: number) {}
-  check = (m: Readonly<TwammModel>) => true;
+  check = (m: Readonly<TwammModel>): boolean => true;
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
       await block.advance(this.value);
@@ -173,12 +198,12 @@ export class MoveFwdNBlocksCommand implements fc.AsyncCommand<TwammModel, Contra
       throw error;
     }
   }
-  toString = () => `moveNBlocks(${this.value})`;
+  toString = (): string => `new MoveFwdNBlocksCommand(${this.value})`;
 }
 
 export class SetVirtualOrderExecutionPaused implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(readonly value: boolean) {}
-  check = (m: Readonly<TwammModel>) => true;
+  check = (m: Readonly<TwammModel>): boolean => true;
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
       await m.pauseVirtualOrderExecution(this.value);
@@ -188,12 +213,12 @@ export class SetVirtualOrderExecutionPaused implements fc.AsyncCommand<TwammMode
       throw error;
     }
   }
-  toString = () => `SetVirtualOrderExecutionPaused(${this.value})`;
+  toString = (): string => `new SetVirtualOrderExecution(${this.value})`;
 }
 
 export class WithdrawLtoManagementFeeCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(readonly value: number) {}
-  check = (m: Readonly<TwammModel>) => true;
+  check = (m: Readonly<TwammModel>): boolean => true;
   async run(m: TwammModel, r: Contracts): Promise<void> {
     try {
       const mockCollectedFee = await m.collectLtoManagementFees(r.pool);
@@ -206,7 +231,7 @@ export class WithdrawLtoManagementFeeCommand implements fc.AsyncCommand<TwammMod
       throw error;
     }
   }
-  toString = () => `WithdrawLtoManagementFeeCommand()`;
+  toString = (): string => `WithdrawLtoManagementFeeCommand()`;
 }
 
 export function allTwammCommands(numberOfWallets: number) {

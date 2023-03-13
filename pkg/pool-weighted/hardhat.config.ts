@@ -5,6 +5,7 @@ import 'hardhat-test-utils';
 
 import { hardhatBaseConfig } from '@balancer-labs/v2-common';
 import { name } from './package.json';
+require('hardhat-contract-sizer');
 
 // Uncomment to get a local block explorer
 // import 'hardhat-ethernal';
