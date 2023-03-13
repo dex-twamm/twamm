@@ -75,33 +75,30 @@ export class PlaceLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   };
 
   async run(m: TwammModel, r: Contracts): Promise<void> {
+    let mockException;
     try {
-      let mockException, contractException;
-      try {
-        await m.placeLto(r.pool, decimal(this.amountIn), this.tokenIndexIn, this.numberOfBlockIntervals, this.walletNo);
-      } catch (e: any) {
-        mockException = e;
-      }
+      await m.placeLto(r.pool, decimal(this.amountIn), this.tokenIndexIn, this.numberOfBlockIntervals, this.walletNo);
+    } catch (e: any) {
+      mockException = e;
+    }
 
-      const wallet = r.wallets[this.walletNo];
-      try {
-        await r.pool.placeLongTermOrder({
-          from: wallet,
-          amountIn: fp(this.amountIn),
-          tokenInIndex: this.tokenIndexIn,
-          tokenOutIndex: 1 - this.tokenIndexIn,
-          numberOfBlockIntervals: this.numberOfBlockIntervals,
-        });
-      } catch (error: any) {
-        contractException = error;
-      }
+    const wallet = r.wallets[this.walletNo];
+    try {
+      await r.pool.placeLongTermOrder({
+        from: wallet,
+        amountIn: fp(this.amountIn),
+        tokenInIndex: this.tokenIndexIn,
+        tokenOutIndex: 1 - this.tokenIndexIn,
+        numberOfBlockIntervals: this.numberOfBlockIntervals,
+      });
 
-      if (!(contractException?.message.includes(mockException.message) ?? true)) {
-        throw contractException;
+      if (mockException) {
+        throw mockException;
       }
-    } catch (error) {
-      console.log(error);
-      throw error;
+    } catch (exception: any) {
+      if (!mockException || !(exception.message.includes(mockException.message) ?? true)) {
+        throw exception;
+      }
     }
   }
   toString = (): string =>
@@ -124,39 +121,36 @@ export class WithdrawLtoCommand implements fc.AsyncCommand<TwammModel, Contracts
   };
 
   async run(m: TwammModel, r: Contracts): Promise<void> {
+    let mockResult, mockException;
     try {
-      let mockResult, mockException;
-      try {
-        mockResult = await m.withdrawLto(r.pool, this.orderId);
-      } catch (e: any) {
-        mockException = e;
-      }
+      mockResult = await m.withdrawLto(r.pool, this.orderId);
+    } catch (exception: any) {
+      mockException = exception;
+    }
 
-      // Call withdraw LTO using order owner, based on model.
-      const wallet = getWalletFromList(r.wallets, m.orderMap[this.orderId].owner);
+    // Call withdraw LTO using order owner, based on model.
+    const wallet = getWalletFromList(r.wallets, m.orderMap[this.orderId].owner);
 
-      let withdrawResult, contractException;
-      try {
-        withdrawResult = await r.pool.withdrawLongTermOrder({
-          from: wallet,
-          orderId: this.orderId,
-        });
-      } catch (e: any) {
-        contractException = e;
-      }
+    let withdrawResult;
+    try {
+      withdrawResult = await r.pool.withdrawLongTermOrder({
+        from: wallet,
+        orderId: this.orderId,
+      });
 
-      if (contractException && mockException && !(contractException?.message.includes(mockException.message) ?? true)) {
-        throw contractException;
-      }
-
-      if (withdrawResult && mockResult) {
+      if (mockResult) {
         expect(withdrawResult.isPartialWithdrawal).to.be.equal(mockResult.isPartialWithdrawal);
         expectEqualWithError(withdrawResult.amountsOut[mockResult.order.buyTokenIndex], fp(mockResult.proceeds));
         expect(withdrawResult.amountsOut[mockResult.order.sellTokenIndex]).to.be.equal(BN_ZERO);
       }
-    } catch (error) {
-      console.log(error);
-      throw error;
+
+      if (mockException) {
+        throw mockException;
+      }
+    } catch (exception: any) {
+      if (!mockException || !exception.message.includes(mockException.message)) {
+        throw exception;
+      }
     }
   }
   toString = (): string => `new WithdrawLtoCommand(${this.orderId})`;

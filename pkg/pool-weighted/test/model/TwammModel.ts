@@ -101,7 +101,6 @@ export class OrderPool {
       throw new Error('BAL#349');
     }
 
-    console.log(result);
     return result;
   }
 }

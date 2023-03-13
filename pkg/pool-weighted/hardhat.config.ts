@@ -6,7 +6,6 @@ import 'hardhat-test-utils';
 import { hardhatBaseConfig } from '@balancer-labs/v2-common';
 import { name } from './package.json';
 require('hardhat-contract-sizer');
-require('hardhat-abi-exporter');
 
 // Uncomment to get a local block explorer
 // import 'hardhat-ethernal';
@@ -75,14 +74,5 @@ export default {
       },
     ],
     overrides: { ...hardhatBaseConfig.overrides(name) },
-  },
-  abiExporter: {
-    path: './data/abi',
-    runOnCompile: true,
-    clear: true,
-    flat: true,
-    only: [':TwammWeightedPool$'],
-    spacing: 2,
-    pretty: true,
   },
 };

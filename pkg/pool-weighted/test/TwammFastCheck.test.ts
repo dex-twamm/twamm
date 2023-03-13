@@ -120,6 +120,7 @@ describe('TwammWeightedPool FastCheck tests', function () {
           // seed: -61385816,
           // path: '0:2:1:2:1:1:2:1:2:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1',
           // endOnFailure: true,
+          // examples: [[[new PlaceLtoCommand(10, 0, 1, 1), new MoveFwdNBlocksCommand(200), new JoinGivenInCommand(1, 0), new WithdrawLtoManagementFeeCommand(0)]]], // BAL#001
         }
       );
     });
