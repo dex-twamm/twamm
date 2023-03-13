@@ -7,9 +7,73 @@ import { testUtils } from 'hardhat';
 import { convertAmountsArrayToBn, getWalletFromList } from './ModelUtils';
 import { getEventLog } from '@balancer-labs/v2-helpers/src/test/expectEvent';
 const { block } = testUtils;
+import { JoinResult } from '../../../../pvt/helpers/src/models/pools/weighted/types';
 
 const EXPECTED_RELATIVE_ERROR = 0.00001;
 const BN_ZERO = fp(0);
+
+export class SwapGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts> {
+  constructor(readonly tokenIn: number, readonly amountIn: number, readonly walletNo: number) {}
+  check = (m: Readonly<TwammModel>): boolean => {
+    return decimal(this.amountIn) < m.tokenBalances[this.tokenIn];
+  };
+  async run(m: TwammModel, r: Contracts): Promise<void> {
+    const wallet = r.wallets[this.walletNo];
+
+    let swapAmount, modelException;
+    try {
+      const swapAmount = await m.swapGivenIn(r.pool, this.tokenIn, fp(this.amountIn));
+    } catch (exception: any) {
+      modelException = exception;
+    }
+
+    try {
+      const swapResult = await r.pool.swapTokensGivenIn(
+        this.tokenIn,
+        1 - this.tokenIn,
+        fp(this.amountIn),
+        fp(swapAmount ?? 0),
+        wallet,
+        wallet
+      );
+      if (modelException) {
+        throw modelException;
+      }
+    } catch (exception: e) {}
+
+    expectEqualWithError(swapResult.amount, swapAmount, EXPECTED_RELATIVE_ERROR);
+  }
+  toString = (): string => `wallet${this.walletNo}.swapGivenIn(${this.tokenIn}, ${this.amountIn})`;
+}
+
+export class SwapGivenOutCommand implements fc.AsyncCommand<TwammModel, Contracts> {
+  constructor(readonly tokenOut: number, readonly amountOut: number, readonly walletNo: number) {}
+  check = (m: Readonly<TwammModel>): boolean => {
+    return decimal(this.amountOut) < m.tokenBalances[this.tokenOut];
+  };
+  async run(m: TwammModel, r: Contracts): Promise<void> {
+    try {
+      const wallet = r.wallets[this.walletNo];
+
+      const swapAmount = await m.swapGivenOut(r.pool, this.tokenOut, fp(this.amountOut));
+
+      const swapResult = await r.pool.swapTokensGivenOut(
+        1 - this.tokenOut,
+        this.tokenOut,
+        fp(this.amountOut),
+        fp(swapAmount),
+        wallet,
+        wallet
+      );
+
+      expectEqualWithError(swapResult.amount, swapAmount, EXPECTED_RELATIVE_ERROR);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+  toString = (): string => `wallet${this.walletNo}.swapGivenOut(${this.tokenOut}, ${this.amountOut})`;
+}
 
 export class JoinGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(readonly amountIn: number, readonly walletNo: number) {}
@@ -33,6 +97,30 @@ export class JoinGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts
   toString = (): string => `wallet${this.walletNo}.joinGivenIn(${this.amountIn}, ${this.amountIn * 4})`;
 }
 
+export class JoinGivenOutCommand implements fc.AsyncCommand<TwammModel, Contracts> {
+  constructor(readonly tokenIndex: number, readonly btpOut: number, readonly walletNo: number) {}
+  check = (m: Readonly<TwammModel>): boolean => true;
+  async run(m: TwammModel, r: Contracts): Promise<void> {
+    try {
+      const wallet = r.wallets[this.walletNo];
+      const amountIn = await m.joinGivenOut(r.pool, wallet, this.btpOut, this.tokenIndex);
+
+      const joinResult: JoinResult = await r.pool.joinGivenOut({
+        from: wallet,
+        bptOut: this.btpOut,
+        token: this.tokenIndex,
+      });
+
+      console.log(joinResult.amountsIn, amountIn);
+      expectEqualWithError(joinResult.amountsIn[this.tokenIndex], amountIn, EXPECTED_RELATIVE_ERROR);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+  toString = (): string => `wallet${this.walletNo}.joinGivenOut(${this.tokenIndex}, ${this.btpOut})`;
+}
+
 export class MultiExitGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts> {
   constructor(readonly bptIn: number, readonly walletNo: number) {}
   check = (m: Readonly<TwammModel>): boolean => {
@@ -53,6 +141,29 @@ export class MultiExitGivenInCommand implements fc.AsyncCommand<TwammModel, Cont
     }
   }
   toString = (): string => `wallet${this.walletNo}.multiExitGivenIn(${this.bptIn})`;
+}
+
+export class SingleTokenExitGivenInCommand implements fc.AsyncCommand<TwammModel, Contracts> {
+  constructor(readonly bptIn: number, readonly tokenIndex: number, readonly walletNo: number) {}
+  check = (m: Readonly<TwammModel>): boolean => {
+    return m.lps[m.wallets[this.walletNo].address].gte(decimal(this.bptIn));
+  };
+  async run(m: TwammModel, r: Contracts): Promise<void> {
+    try {
+      const wallet = r.wallets[this.walletNo];
+      const mockTokenOut = await m.singleTokenExitGivenIn(r.pool, wallet, decimal(this.bptIn), this.tokenIndex);
+
+      const realAmountsOut = (
+        await r.pool.singleExitGivenIn({ from: wallet, bptIn: fp(this.bptIn), token: this.tokenIndex })
+      ).amountsOut;
+
+      expectEqualWithError(realAmountsOut[this.tokenIndex], mockTokenOut, EXPECTED_RELATIVE_ERROR);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+  toString = (): string => `wallet${this.walletNo}.singleTokenExitGivenIn(${this.bptIn}, ${this.tokenIndex})`;
 }
 
 export class PlaceLtoCommand implements fc.AsyncCommand<TwammModel, Contracts> {
@@ -234,8 +345,22 @@ export class WithdrawLtoManagementFeeCommand implements fc.AsyncCommand<TwammMod
   toString = (): string => `WithdrawLtoManagementFeeCommand()`;
 }
 
-export function allTwammCommands(numberOfWallets: number) {
+export function allTwammCommands(numberOfWallets: number): Array<any> {
   return [
+    fc
+      .tuple(
+        fc.float({ min: 0, max: 1 }), // tokenInIndex
+        fc.float({ min: 1, max: 10000 }), // amountIn
+        fc.nat({ max: numberOfWallets - 1 }) // walletNo
+      )
+      .map((v) => new SwapGivenInCommand(v[0], v[1], v[2])),
+    fc
+      .tuple(
+        fc.float({ min: 0, max: 1 }), // tokenOutIndex
+        fc.float({ min: 1, max: 10000 }), // amountOut
+        fc.nat({ max: numberOfWallets - 1 }) // walletNo
+      )
+      .map((v) => new SwapGivenOutCommand(v[0], v[1], v[2])),
     fc
       .tuple(
         fc.float({ min: 1, max: 1000 }), // amountIn
@@ -244,10 +369,24 @@ export function allTwammCommands(numberOfWallets: number) {
       .map((v) => new JoinGivenInCommand(v[0], v[1])),
     fc
       .tuple(
+        fc.float({ min: 0, max: 1 }), // tokenIndex
+        fc.float({ min: 1000, max: 100000000 }), // bptOut
+        fc.nat({ max: numberOfWallets - 1 }) // walletNo
+      )
+      .map((v) => new JoinGivenOutCommand(v[0], v[1], v[2])),
+    fc
+      .tuple(
         fc.float({ min: 1, max: 100 }), // bptIn
         fc.nat({ max: numberOfWallets - 1 }) // walletNo
       )
       .map((v) => new MultiExitGivenInCommand(v[0], v[1])),
+    fc
+      .tuple(
+        fc.float({ min: 1, max: 100 }), // bptIn
+        fc.float({ min: 0, max: 1 }), // tokenIndex
+        fc.nat({ max: numberOfWallets - 1 }) // walletNo
+      )
+      .map((v) => new SingleTokenExitGivenInCommand(v[0], v[1], v[2])),
     fc
       .tuple(
         fc.float({ min: 1, max: 10000 }), // amountIn

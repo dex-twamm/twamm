@@ -286,8 +286,7 @@ export class TwammModel {
       throw new Error('BAL#354');
     }
 
-    await this.executeVirtualOrders();
-    await this._sendDueProtocolFees(pool);
+    await this.preJoinExitPool(pool);
 
     const orderId = this.lastOrderId;
     const orderExpiryBlock = await this.calcOrderExpiry(numberOfBlockIntervals);
@@ -313,10 +312,7 @@ export class TwammModel {
   }
 
   async withdrawLto(pool: WeightedPool, orderId: number) {
-    if (!this.isVirtualOrderExecutionPaused) {
-      await this.executeVirtualOrders();
-    }
-    await this._sendDueProtocolFees(pool);
+    await this.preJoinExitPool(pool);
 
     const order = this.orderMap[orderId];
     // TODO: fail if order owner is not caller.
@@ -340,11 +336,7 @@ export class TwammModel {
   }
 
   async cancelLto(pool: WeightedPool, orderId: number) {
-    if (!this.isVirtualOrderExecutionPaused) {
-      await this.executeVirtualOrders();
-    }
-
-    await this._sendDueProtocolFees(pool);
+    await this.preJoinExitPool(pool);
 
     const order = this.orderMap[orderId];
     // TODO: fail if order owner is not caller.
@@ -370,45 +362,151 @@ export class TwammModel {
     };
   }
 
-  async joinGivenIn(pool: WeightedPool, wallet: SignerWithAddress, amountsIn: Array<number>): Promise<BigNumberish> {
+  // Swap
+  async swapGivenIn(pool: WeightedPool, tokenIn: number, amountIn: BigNumberish): Promise<BigNumberish> {
+    await this.swapPreHook();
+
+    const amountOut = await pool.estimateGivenIn(
+      { in: tokenIn, out: 1 - tokenIn, amount: amountIn },
+      convertAmountsArrayToBn(this.tokenBalances)
+    );
+
+    if (this.tokenBalances[1 - tokenIn].div(0.3).lessThan(decimal(amountOut))) {
+      throw new Error('BAL#305');
+    }
+
+    await this.swapPostHook(tokenIn, amountIn, amountOut);
+
+    return amountOut;
+  }
+
+  async swapGivenOut(pool: WeightedPool, tokenOut: number, amountOut: BigNumberish): Promise<BigNumberish> {
+    await this.swapPreHook();
+
+    const amountIn = await pool.estimateGivenOut(
+      { in: tokenOut, out: 1 - tokenOut, amount: amountOut },
+      convertAmountsArrayToBn(this.tokenBalances)
+    );
+
+    if (this.tokenBalances[1 - tokenOut].div(0.3).lessThan(decimal(amountIn))) {
+      throw new Error('BAL#305');
+    }
+
+    await this.swapPostHook(1 - tokenOut, amountIn, amountOut);
+
+    return amountOut;
+  }
+
+  // Swap pre/post hooks
+  async swapPreHook(): Promise<void> {
     if (!this.isVirtualOrderExecutionPaused) {
       await this.executeVirtualOrders();
     }
-    await this._sendDueProtocolFees(pool);
+  }
+
+  async swapPostHook(tokenIn: number, amountIn: BigNumberish, amountOut: BigNumberish): Promise<void> {
+    this.tokenBalances[tokenIn].add(fromFp(amountIn));
+    this.tokenBalances[1 - tokenIn].sub(fromFp(amountOut));
+  }
+
+  // Join Pool
+  async joinGivenIn(pool: WeightedPool, wallet: SignerWithAddress, amountsIn: Array<number>): Promise<BigNumberish> {
+    await this.preJoinExitPool(pool);
 
     const mockBptOut = await pool.estimateBptOut(convertAmountsArrayToBn(amountsIn), this.tokenBalances.map(fp));
 
-    // Update LP bpt balance
-    if (!this.lps[wallet.address]) this.lps[wallet.address] = ZERO;
-    this.lps[wallet.address] = this.lps[wallet.address].add(fromFp(mockBptOut));
-
-    // Update token balances.
-    this.tokenBalances = this.tokenBalances.map(function (num, idx) {
-      return num.add(amountsIn[idx]);
-    });
-    await this._updateLastInvariant(pool);
+    await this.postJoinPool(pool, wallet, fromFp(mockBptOut), amountsIn);
 
     return mockBptOut;
   }
 
+  async joinGivenOut(
+    pool: WeightedPool,
+    wallet: SignerWithAddress,
+    bptOut: number,
+    tokenIndex: number
+  ): Promise<BigNumberish> {
+    await this.preJoinExitPool(pool);
+
+    const amountIn = await pool.estimateTokenIn(tokenIndex, bptOut, convertAmountsArrayToBn(this.tokenBalances));
+
+    const tokensIn: Array<BigNumberish> = new Array(2).fill(0);
+    tokensIn[tokenIndex] = amountIn;
+
+    await this.postJoinPool(pool, wallet, fromFp(bptOut), tokensIn);
+
+    return amountIn;
+  }
+
+  // Exit Pool
   async multiExitGivenIn(pool: WeightedPool, wallet: SignerWithAddress, bptIn: Decimal): Promise<Array<BigNumberish>> {
+    await this.preJoinExitPool(pool);
+
+    const mockTokensOut = await pool.estimateTokensOutBptIn(fp(bptIn), this.tokenBalances.map(fp));
+
+    await this.postExitPool(pool, wallet, bptIn, mockTokensOut);
+
+    return mockTokensOut;
+  }
+
+  async singleTokenExitGivenIn(
+    pool: WeightedPool,
+    wallet: SignerWithAddress,
+    bptIn: Decimal,
+    tokenIndex: number
+  ): Promise<BigNumberish> {
+    await this.preJoinExitPool(pool);
+
+    const tokenOut = await pool.estimateTokenOut(tokenIndex, fp(bptIn), convertAmountsArrayToBn(this.tokenBalances));
+
+    const tokensOut: Array<BigNumberish> = new Array(2).fill(0);
+    tokensOut[tokenIndex] = tokenOut;
+
+    await this.postExitPool(pool, wallet, bptIn, tokensOut);
+
+    return tokenOut;
+  }
+
+  // Pre/Post Exit/Join hook functions
+  async preJoinExitPool(pool: WeightedPool): Promise<void> {
     if (!this.isVirtualOrderExecutionPaused) {
       await this.executeVirtualOrders();
     }
     await this._sendDueProtocolFees(pool);
+  }
 
-    const mockTokensOut = await pool.estimateTokensOutBptIn(fp(bptIn), this.tokenBalances.map(fp));
+  async postExitPool(
+    pool: WeightedPool,
+    wallet: SignerWithAddress,
+    bptIn: Decimal,
+    tokensOut: Array<BigNumberish>
+  ): Promise<void> {
     // Update token balances.
     this.tokenBalances = this.tokenBalances.map(function (num, idx) {
-      return num.sub(fromFp(mockTokensOut[idx]));
+      return num.sub(fromFp(tokensOut[idx]));
     });
 
     await this._updateLastInvariant(pool);
 
     // Update LP bpt balance
     this.lps[wallet.address] = this.lps[wallet.address].sub(bptIn);
+  }
 
-    // return mockBptOut;
-    return mockTokensOut;
+  async postJoinPool(
+    pool: WeightedPool,
+    wallet: SignerWithAddress,
+    bptOut: Decimal,
+    tokensIn: Array<BigNumberish>
+  ): Promise<void> {
+    // Update LP bpt balance
+    if (!this.lps[wallet.address]) this.lps[wallet.address] = ZERO;
+    this.lps[wallet.address] = this.lps[wallet.address].add(bptOut);
+
+    // Update token balances.
+    this.tokenBalances = this.tokenBalances.map(function (num, idx) {
+      return num.add(fromFp(tokensIn[idx]));
+    });
+
+    await this._updateLastInvariant(pool);
   }
 }

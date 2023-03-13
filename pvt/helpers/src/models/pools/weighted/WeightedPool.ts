@@ -58,6 +58,7 @@ import {
 import { SwapKind, WeightedPoolEncoder } from '@balancer-labs/balancer-js';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { TwammWeightedPoolEncoder } from '@balancer-labs/balancer-js/src/pool-weighted/encoder';
+import { send } from 'process';
 
 const MAX_IN_RATIO = fp(0.3);
 const MAX_OUT_RATIO = fp(0.3);
@@ -380,6 +381,64 @@ export default class WeightedPool {
 
   async swapGivenOut(params: SwapWeightedPool): Promise<SwapResult> {
     return this.swap(await this._buildSwapParams(SwapKind.GivenOut, params));
+  }
+
+  async swapTokensGivenIn(
+    tokenInIndex: number,
+    tokenOutIndex: number,
+    amountIn: BigNumber,
+    limit: BigNumber,
+    sender: SignerWithAddress,
+    recipient: SignerWithAddress
+  ): Promise<SwapResult> {
+    return this.swapTokens(tokenInIndex, tokenOutIndex, amountIn, limit, sender, recipient, SwapKind.GivenIn);
+  }
+
+  async swapTokensGivenOut(
+    tokenInIndex: number,
+    tokenOutIndex: number,
+    amountIn: BigNumber,
+    limit: BigNumber,
+    sender: SignerWithAddress,
+    recipient: SignerWithAddress
+  ): Promise<SwapResult> {
+    return this.swapTokens(tokenInIndex, tokenOutIndex, amountIn, limit, sender, recipient, SwapKind.GivenOut);
+  }
+
+  async swapTokens(
+    tokenInIndex: number,
+    tokenOutIndex: number,
+    amountIn: BigNumber,
+    limit: BigNumber,
+    sender: SignerWithAddress,
+    recipient: SignerWithAddress,
+    swapKind: SwapKind
+  ): Promise<SwapResult> {
+    const tokens = (await this.getTokens()).tokens;
+
+    const swapTx = await this.vault.instance.connect(sender).swap(
+      {
+        poolId: await this.instance.getPoolId(),
+        kind: swapKind,
+        assetIn: tokens[tokenInIndex],
+        assetOut: tokens[tokenOutIndex],
+        amount: amountIn,
+        userData: '0x',
+      },
+      {
+        sender: sender.address,
+        fromInternalBalance: false,
+        recipient: recipient.address,
+        toInternalBalance: false,
+      },
+      limit,
+      MAX_UINT256
+    );
+
+    const receipt = await swapTx.wait();
+
+    const { amount } = expectEvent.inReceipt(receipt, 'Swap').args;
+    return { amount, receipt };
   }
 
   async swap(params: MinimalSwap): Promise<SwapResult> {
