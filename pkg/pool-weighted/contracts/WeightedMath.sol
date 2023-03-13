@@ -66,7 +66,7 @@ library WeightedMath {
         **********************************************************************************************/
 
         invariant = FixedPoint.ONE;
-        for (uint256 i = 0; i < normalizedWeights.length; ++i) {
+        for (uint256 i; i < normalizedWeights.length; ++i) {
             invariant = invariant.mulDown(balances[i].powDown(normalizedWeights[i]));
         }
 
@@ -157,8 +157,8 @@ library WeightedMath {
 
         uint256[] memory balanceRatiosWithFee = new uint256[](amountsIn.length);
 
-        uint256 invariantRatioWithFees = 0;
-        for (uint256 i = 0; i < balances.length; ++i) {
+        uint256 invariantRatioWithFees;
+        for (uint256 i; i < balances.length; ++i) {
             balanceRatiosWithFee[i] = balances[i].add(amountsIn[i]).divDown(balances[i]);
             invariantRatioWithFees = invariantRatioWithFees.add(balanceRatiosWithFee[i].mulDown(normalizedWeights[i]));
         }
@@ -194,7 +194,7 @@ library WeightedMath {
         swapFees = new uint256[](amountsIn.length);
         invariantRatio = FixedPoint.ONE;
 
-        for (uint256 i = 0; i < balances.length; ++i) {
+        for (uint256 i; i < balances.length; ++i) {
             uint256 amountInWithoutFee;
 
             if (balanceRatiosWithFee[i] > invariantRatioWithFees) {
@@ -271,7 +271,7 @@ library WeightedMath {
         uint256 bptRatio = bptAmountOut.divUp(totalBPT);
 
         uint256[] memory amountsIn = new uint256[](balances.length);
-        for (uint256 i = 0; i < balances.length; ++i) {
+        for (uint256 i; i < balances.length; ++i) {
             amountsIn[i] = balances[i].mulUp(bptRatio);
         }
 
@@ -288,8 +288,8 @@ library WeightedMath {
         // BPT in, so we round up overall.
 
         uint256[] memory balanceRatiosWithoutFee = new uint256[](amountsOut.length);
-        uint256 invariantRatioWithoutFees = 0;
-        for (uint256 i = 0; i < balances.length; ++i) {
+        uint256 invariantRatioWithoutFees;
+        for (uint256 i; i < balances.length; ++i) {
             balanceRatiosWithoutFee[i] = balances[i].sub(amountsOut[i]).divUp(balances[i]);
             invariantRatioWithoutFees = invariantRatioWithoutFees.add(
                 balanceRatiosWithoutFee[i].mulUp(normalizedWeights[i])
@@ -323,7 +323,7 @@ library WeightedMath {
         swapFees = new uint256[](amountsOut.length);
         invariantRatio = FixedPoint.ONE;
 
-        for (uint256 i = 0; i < balances.length; ++i) {
+        for (uint256 i; i < balances.length; ++i) {
             // Swap fees are typically charged on 'token in', but there is no 'token in' here, so we apply it to
             // 'token out'. This results in slightly larger price impact.
 
@@ -407,7 +407,7 @@ library WeightedMath {
         uint256 bptRatio = bptAmountIn.divDown(totalBPT);
 
         uint256[] memory amountsOut = new uint256[](balances.length);
-        for (uint256 i = 0; i < balances.length; ++i) {
+        for (uint256 i; i < balances.length; ++i) {
             amountsOut[i] = balances[i].mulDown(bptRatio);
         }
 

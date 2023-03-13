@@ -34,7 +34,7 @@ library MinHeap {
     function removeMin(uint256[] storage heap) internal returns (uint256) {
         uint256 initialHeapLength = heap.length;
         // Ensure the heap exists
-        require(initialHeapLength > 1, "HEAP_EMPTY");
+        _require(initialHeapLength > 1, Errors.HEAP_EMPTY);
         // take the root value of the heap
         uint256 toReturn = heap[1];
 

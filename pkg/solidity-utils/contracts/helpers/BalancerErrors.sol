@@ -174,6 +174,8 @@ library Errors {
     uint256 internal constant LONG_TERM_ORDER_NUM_INTERVALS_TOO_HIGH = 352;
     uint256 internal constant CANNOT_UNPAUSE_VIRTUAL_ORDER_EXECUTION = 353;
     uint256 internal constant LONG_TERM_ORDER_EXECUTION_PAUSED = 354;
+    uint256 internal constant NEGATIVE_SALES_RATE = 355;
+    uint256 internal constant ORDER_ALREADY_COMPLETED = 356;
 
     // Lib
     uint256 internal constant REENTRANCY = 400;
@@ -211,6 +213,7 @@ library Errors {
     uint256 internal constant ADDRESS_ALREADY_ALLOWLISTED = 432;
     uint256 internal constant ADDRESS_NOT_ALLOWLISTED = 433;
     uint256 internal constant ERC20_BURN_EXCEEDS_BALANCE = 434;
+    uint256 internal constant HEAP_EMPTY = 435;
 
     // Vault
     uint256 internal constant INVALID_POOL_ID = 500;
