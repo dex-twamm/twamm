@@ -11,8 +11,6 @@ import "./MinHeap.sol";
 import "./SignedFixedPoint.sol";
 import "../WeightedPoolUserData.sol";
 
-import "hardhat/console.sol";
-
 //@notice This library handles the state and execution of long term orders.
 contract LongTermOrders is ILongTermOrders, Ownable {
     using FixedPoint for uint256;

@@ -24,8 +24,6 @@ import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ReentrancyGuard.
 import "@balancer-labs/v2-solidity-utils/contracts/helpers/ERC20Helpers.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/Ownable.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @dev Basic Weighted Pool with immutable weights.
  */
