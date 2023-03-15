@@ -4,8 +4,6 @@ pragma solidity ^0.7.0;
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 
-import "hardhat/console.sol";
-
 // @notice An Order Pool is an abstraction for a pool of long term orders that sells a token at a constant rate to the
 // embedded AMM.
 

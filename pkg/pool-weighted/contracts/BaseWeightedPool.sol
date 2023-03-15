@@ -22,7 +22,6 @@ import "@balancer-labs/v2-pool-utils/contracts/LegacyBaseMinimalSwapInfoPool.sol
 
 import "./WeightedPoolUserData.sol";
 import "./WeightedMath.sol";
-import "hardhat/console.sol";
 
 /**
  * @dev Base class for WeightedPools containing swap, join and exit logic, but leaving storage and management of

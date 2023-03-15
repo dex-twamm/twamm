@@ -1,7 +1,6 @@
 //SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.7.0;
 
-import "hardhat/console.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 
 library MinHeap {
@@ -69,7 +68,6 @@ library MinHeap {
             childIndex = currentIndex * 2;
         }
 
-        // console.log(currentIndex, parentValue, childIndex);
         heap[currentIndex] = parentValue;
 
         // Delete the last element from the array
