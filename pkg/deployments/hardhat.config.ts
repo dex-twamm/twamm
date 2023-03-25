@@ -67,5 +67,9 @@ export default {
       url: `https://goerli.infura.io/v3/${process.env.INFURA_KEY}`,
       accounts: [`0x${process.env.PRIVATE_KEY}`],
     },
+    mainnet: {
+      url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+      accounts: [`0x${process.env.MAINNET_PRIVATE_KEY}`],
+    },
   },
 };

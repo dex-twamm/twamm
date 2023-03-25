@@ -4,7 +4,7 @@ import { expect } from 'chai';
 import Task from '../../../src/task';
 
 describe('TwammPoolFactory', function () {
-  const task = Task.fromHRE('twamm-pool', hre);
+  const task = Task.fromHRE('20230201-twamm-pool', hre);
 
   it('references the vault correctly', async () => {
     const input = task.input();
